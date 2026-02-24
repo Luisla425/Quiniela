@@ -493,8 +493,7 @@ body {
     </div>
     <div class="field"><label>👤 Nombre</label><input type="text" id="regName" placeholder="Luis Lárez"></div>
     <div class="field"><label>📧 Email</label><input type="email" id="regEmail" placeholder="tu@email.com" autocomplete="email"></div>
-    <div class="field"><label>🎮 Usuario</label><input type="text" id="regUser" placeholder="alias en la quiniela" autocomplete="username"></div>
-    <div class="field"><label>🆔 Cédula</label><input type="text" id="regCedula" placeholder="12345678"></div>
+    <div class="field"><label>🎮 Usuario</label><input type="text" id="regUser" placeholder="alias en la quiniela" autocomplete="username" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;"></div>
     <div class="field"><label>🔑 Contraseña</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres" autocomplete="new-password"></div>
     <div class="field"><label>🔑 Confirmar</label><input type="password" id="regPass2" placeholder="repite la contraseña" autocomplete="new-password"></div>
     <div class="field"><label>🎟️ Código de acceso</label><input type="text" id="regCode" placeholder="Admin o invitación"></div>
@@ -563,11 +562,12 @@ body {
 
     <div class="card" style="margin-bottom:14px;">
       <p style="font-weight:700;margin-bottom:10px;font-size:0.88em;">🔍 Ver predicciones de otros jugadores</p>
+      <p style="font-size:0.78em;color:var(--muted);margin-bottom:10px;">💡 Tip: Ve a la <strong style="color:var(--accent2);">Pizarra</strong> para ver los apodos exactos de cada jugador.</p>
       <div class="grid2" style="margin-bottom:8px;">
-        <div class="field" style="margin:0;"><input type="text" id="su1" placeholder="Jugador 1"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su2" placeholder="Jugador 2"></div>
+        <div class="field" style="margin:0;"><input type="text" id="su1" placeholder="Jugador 1" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;"></div>
+        <div class="field" style="margin:0;"><input type="text" id="su2" placeholder="Jugador 2" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;"></div>
       </div>
-      <div class="field" style="margin-bottom:8px;"><input type="text" id="su3" placeholder="Jugador 3 (opcional)"></div>
+      <div class="field" style="margin-bottom:8px;"><input type="text" id="su3" placeholder="Jugador 3 (opcional)" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;"></div>
       <button class="btn btn-purple" onclick="searchPreds()">🔍 Buscar</button>
     </div>
 
@@ -817,13 +817,12 @@ async function doRegister() {
   const name   = $('regName').value.trim();
   const email  = $('regEmail').value.trim();
   const user   = $('regUser').value.trim();
-  const cedula = $('regCedula').value.trim();
   const pass   = $('regPass').value;
   const pass2  = $('regPass2').value;
   const code   = $('regCode').value.trim();
 
   // Validaciones básicas
-  if (!name||!email||!user||!cedula||!pass||!pass2||!code) {
+  if (!name||!email||!user||!pass||!pass2||!code) {
     alert_('❌ Completa todos los campos','error','alertAuth'); return;
   }
   if (pass.length < 6) { alert_('❌ Contraseña mínimo 6 caracteres','error','alertAuth'); return; }
@@ -860,6 +859,15 @@ async function doRegister() {
       }
     }
 
+    // FIX 3: Obtener el número total de jugadores registrados para el índice
+    step('⏳ Verificando disponibilidad del usuario...');
+    let finalUsername = user.toUpperCase();
+    try {
+      const allUsersSnap = await db.collection('users').get();
+      const playerIndex = allUsersSnap.size + 1;
+      finalUsername = `${user.toUpperCase()}_${playerIndex}`;
+    } catch(e) { finalUsername = user.toUpperCase(); }
+
     step('⏳ Creando cuenta en Firebase...');
 
     // Crear en Auth
@@ -880,7 +888,7 @@ async function doRegister() {
     // Guardar en Firestore — con retry
     const invCode = randCode(6);
     const data = {
-      name, username: user, email, cedula,
+      name, username: finalUsername, email,
       personalInviteCode: invCode,
       isAdmin,
       points: 0, exactPredictions: 0, correctResults: 0,
@@ -1000,10 +1008,16 @@ function enterApp() {
     $('clearChatBtn').classList.remove('hidden');
   }
   if (me.tournaments) myTournaments = me.tournaments;
+  // FIX 3: Ocultar botón crear grupo si no es admin
+  if (!me.isAdmin) {
+    const createBtn = document.querySelector('button[onclick*="createGrpModal"]');
+    if (createBtn) createBtn.style.display = 'none';
+  }
 
   startVzTime();
   loadPtsCfg();
   syncAPI();
+  loadRanking();
   showScreen('matches');
   toast(`🎉 ¡Bienvenido ${me.username}!`,'success');
 }
@@ -1014,6 +1028,7 @@ function enterApp() {
 async function doLogout() {
   clearInterval(cdInterval);
   clearInterval(vzInterval);
+  clearInterval(autoSyncInterval);
   await auth.signOut();
   me = null; allMatches = []; dayMatches = [];
   $('mainScreen').classList.add('hidden');
@@ -1040,6 +1055,7 @@ async function sendReset() {
 // ────────────────────────────────────────────
 // VENEZUELA TIME + COUNTDOWN
 // ────────────────────────────────────────────
+let autoSyncInterval = null;
 function startVzTime() {
   const update = () => {
     const now = new Date();
@@ -1049,6 +1065,18 @@ function startVzTime() {
   vzInterval = setInterval(update, 1000);
   cdInterval = setInterval(updateCountdown, 1000);
   updateCountdown();
+  // FIX 2 & 4: Auto-sync cada 60 segundos durante partidos activos
+  autoSyncInterval = setInterval(async () => {
+    const hasLive = dayMatches.some(m => m.status === 'In Play' || m.status === 'Not Started');
+    if (hasLive) {
+      await syncAPI();
+      // Si hay partidos en vivo, actualizar pizarra también
+      const hasInPlay = dayMatches.some(m => m.status === 'In Play');
+      if (hasInPlay && $('rankingScreen') && !$('rankingScreen').classList.contains('hidden')) {
+        loadRanking();
+      }
+    }
+  }, 60000);
 }
 
 function updateCountdown() {
@@ -1078,11 +1106,25 @@ function showScreen(name) {
   const map = { matches:0, predictions:1, ranking:2, chat:3, tournaments:4, groups:5, admin:6 };
   if (tabs[map[name]]) tabs[map[name]].classList.add('active');
 
+  if (name==='matches')     refreshMatchesFromFirestore();
   if (name==='predictions') loadMyPreds();
   if (name==='ranking')     loadRanking();
   if (name==='chat')        loadChat();
   if (name==='tournaments') renderTournaments();
   if (name==='groups')      loadGroups();
+}
+
+// ────────────────────────────────────────────
+// REFRESH MATCHES FROM FIRESTORE (sin llamar API)
+// ────────────────────────────────────────────
+async function refreshMatchesFromFirestore() {
+  try {
+    const snap = await db.collection('matches').get();
+    if (!snap.empty) {
+      allMatches = snap.docs.map(d => ({id: d.id, ...d.data()}));
+      loadDayMatches();
+    }
+  } catch(e) { /* ignorar si falla */ }
 }
 
 // ────────────────────────────────────────────
@@ -1474,6 +1516,7 @@ async function viewGroup(gid) {
 }
 
 async function createGroup() {
+  if (!me.isAdmin) { toast('❌ Solo el admin puede crear grupos','error'); closeModal('createGrpModal'); return; }
   const name=$('grpName').value.trim(), max=$('grpMax').value;
   if (!name) { toast('❌ Nombre requerido','error'); return; }
   const code=randCode(6);
