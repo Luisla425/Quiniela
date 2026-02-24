@@ -626,6 +626,7 @@ body {
       <button class="admin-btn" onclick="adminEval()">⚡ Evaluar Partidos</button>
       <button class="admin-btn" onclick="adminPoints()">🎯 Config Puntos</button>
       <button class="admin-btn" onclick="adminReset()">🗑️ Borrar Datos</button>
+      <button class="admin-btn" onclick="adminResetPass()" style="grid-column:span 2;">🔐 Recuperar Contraseña de Usuario</button>
     </div>
     <div id="adminContent"></div>
   </div>
@@ -714,7 +715,7 @@ const FB_CFG = {
 };
 
 const ADMIN_CODE = "70484251307";
-const API_KEY    = "333289";
+const API_KEY    = "b8f5b12cd0b361706d5c3a47c24d3eb9";
 
 firebase.initializeApp(FB_CFG);
 const auth = firebase.auth();
@@ -830,6 +831,7 @@ async function doRegister() {
 
   const isAdmin = (code === ADMIN_CODE);
   const btn = $('regBtn');
+  if (btn.disabled) return; // Gemini fix: evitar doble clic
   btn.disabled = true;
 
   const steps = $('regSteps');
@@ -859,14 +861,16 @@ async function doRegister() {
       }
     }
 
-    // FIX 3: Obtener el número total de jugadores registrados para el índice
-    step('⏳ Verificando disponibilidad del usuario...');
+    // Verificar que el username no exista ya
+    step('⏳ Verificando nombre de usuario...');
     let finalUsername = user.toUpperCase();
     try {
-      const allUsersSnap = await db.collection('users').get();
-      const playerIndex = allUsersSnap.size + 1;
-      finalUsername = `${user.toUpperCase()}_${playerIndex}`;
-    } catch(e) { finalUsername = user.toUpperCase(); }
+      const userSnap = await db.collection('users').where('username','==', finalUsername).limit(1).get();
+      if (!userSnap.empty) {
+        step('❌ Ese nombre de usuario ya existe. Elige otro.','error');
+        btn.disabled = false; return;
+      }
+    } catch(e) { /* continuar */ }
 
     step('⏳ Creando cuenta en Firebase...');
 
@@ -1029,6 +1033,7 @@ async function doLogout() {
   clearInterval(cdInterval);
   clearInterval(vzInterval);
   clearInterval(autoSyncInterval);
+  if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
   await auth.signOut();
   me = null; allMatches = []; dayMatches = [];
   $('mainScreen').classList.add('hidden');
@@ -1128,41 +1133,60 @@ async function refreshMatchesFromFirestore() {
 }
 
 // ────────────────────────────────────────────
-// API SYNC
+// API SYNC — próximos Y pasados (DeepSeek fix)
 // ────────────────────────────────────────────
+function parseEvent(ev, t) {
+  return {
+    id: ev.idEvent,
+    home: ev.strHomeTeam, away: ev.strAwayTeam,
+    homeFlag: FLAGS[ev.strHomeTeam]||'⚽', awayFlag: FLAGS[ev.strAwayTeam]||'⚽',
+    date: ev.dateEvent, time: ev.strTime||'00:00',
+    homeScore: ev.intHomeScore!=null ? +ev.intHomeScore : null,
+    awayScore: ev.intAwayScore!=null ? +ev.intAwayScore : null,
+    status: ev.strStatus || (ev.intHomeScore!=null ? 'Match Finished' : 'Not Started'),
+    venue: ev.strVenue||'—', round: ev.intRound||1,
+    tournamentId: t.id, tournamentName: t.name
+  };
+}
+
 async function syncAPI() {
   alert_('🔄 Sincronizando partidos...','info');
   const found = [];
   try {
     for (const t of TOURNAMENTS) {
       if (!myTournaments.includes(t.id)) continue;
-      const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/eventsnextleague.php?id=${t.lid}`);
-      if (!res.ok) continue;
-      const data = await res.json();
-      (data?.events || []).forEach(ev => found.push({
-        id: ev.idEvent, home: ev.strHomeTeam, away: ev.strAwayTeam,
-        homeFlag: FLAGS[ev.strHomeTeam]||'⚽', awayFlag: FLAGS[ev.strAwayTeam]||'⚽',
-        date: ev.dateEvent, time: ev.strTime||'00:00',
-        homeScore: ev.intHomeScore!=null ? +ev.intHomeScore : null,
-        awayScore: ev.intAwayScore!=null ? +ev.intAwayScore : null,
-        status: ev.strStatus||'Not Started',
-        venue: ev.strVenue||'—', round: ev.intRound||1,
-        tournamentId: t.id, tournamentName: t.name
-      }));
+
+      // Próximos partidos
+      const resNext = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/eventsnextleague.php?id=${t.lid}`);
+      if (resNext.ok) {
+        const dataNext = await resNext.json();
+        (dataNext?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
+      }
+
+      // Partidos pasados — para tener resultados reales
+      const resPast = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/eventspastleague.php?id=${t.lid}`);
+      if (resPast.ok) {
+        const dataPast = await resPast.json();
+        (dataPast?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
+      }
     }
+
     if (found.length) {
-      allMatches = found;
+      // Eliminar duplicados — última versión gana
+      const unique = new Map();
+      found.forEach(m => unique.set(m.id, m));
+      allMatches = Array.from(unique.values());
+
       const b = db.batch();
-      found.forEach(m => b.set(db.collection('matches').doc(m.id), m, {merge:true}));
+      allMatches.forEach(m => b.set(db.collection('matches').doc(m.id), m, {merge:true}));
       await b.commit();
       loadDayMatches();
-      alert_(`✅ ${found.length} partidos sincronizados`,'success');
+      alert_(`✅ ${allMatches.length} partidos sincronizados`,'success');
     } else {
       alert_('⚠️ Sin partidos disponibles. Prueba en otro momento.','warning');
     }
   } catch(e) {
     alert_('⚠️ Error de red. Cargando datos guardados...','warning');
-    // Load from Firestore cache
     try {
       const snap = await db.collection('matches').get();
       allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1172,7 +1196,9 @@ async function syncAPI() {
 }
 
 function loadDayMatches() {
-  const today = new Date().toISOString().split('T')[0];
+  // Gemini fix: fecha basada en hora Venezuela (UTC-4) para evitar error de medianoche
+  const nowVZ = new Date(Date.now() - 4*3600000);
+  const today = nowVZ.toISOString().split('T')[0];
   const upcoming = allMatches.filter(m => m.date >= today);
   const pool = upcoming.length
     ? allMatches.filter(m => m.date === [...new Set(upcoming.map(m=>m.date))].sort()[0])
@@ -1387,24 +1413,28 @@ async function loadRanking() {
 // ────────────────────────────────────────────
 // CHAT
 // ────────────────────────────────────────────
-async function loadChat() {
+let chatUnsubscribe = null;
+function loadChat() {
   const box = $('chatBox');
-  try {
-    const snap = await db.collection('chat').orderBy('timestamp','desc').limit(60).get();
-    box.innerHTML='';
-    const msgs=[]; snap.forEach(d=>msgs.unshift(d.data()));
-    if (!msgs.length) { box.innerHTML=`<div class="empty" style="padding:20px;"><span class="icon" style="font-size:2em;">💬</span>Sin mensajes aún</div>`; return; }
-    msgs.forEach(msg=>{
-      const isOwn=msg.userId===me.uid;
-      const color=msg.userColor||getColor(msg.userId);
-      const div=document.createElement('div');
-      div.className=`msg ${isOwn?'own':'other'}`;
-      div.innerHTML=`${!isOwn?`<div class="msg-user" style="color:${color};">${msg.username}</div>`:''}
-        <div class="msg-bubble">${msg.message}</div>`;
-      box.appendChild(div);
-    });
-    box.scrollTop=box.scrollHeight;
-  } catch(e) { console.error(e); }
+  box.innerHTML = `<div class="empty" style="padding:20px;"><span class="icon" style="font-size:2em;">⏳</span>Cargando...</div>`;
+  // Gemini fix: onSnapshot para chat en tiempo real
+  if (chatUnsubscribe) chatUnsubscribe();
+  chatUnsubscribe = db.collection('chat').orderBy('timestamp','asc').limitToLast(60)
+    .onSnapshot(snap => {
+      box.innerHTML='';
+      if (snap.empty) { box.innerHTML=`<div class="empty" style="padding:20px;"><span class="icon" style="font-size:2em;">💬</span>Sin mensajes aún</div>`; return; }
+      snap.forEach(d=>{
+        const msg=d.data();
+        const isOwn=msg.userId===me.uid;
+        const color=msg.userColor||getColor(msg.userId);
+        const div=document.createElement('div');
+        div.className=`msg ${isOwn?'own':'other'}`;
+        div.innerHTML=`${!isOwn?`<div class="msg-user" style="color:${color};">${msg.username}</div>`:''}
+          <div class="msg-bubble">${msg.message}</div>`;
+        box.appendChild(div);
+      });
+      box.scrollTop=box.scrollHeight;
+    }, e => { console.error(e); });
 }
 
 async function sendMsg() {
@@ -1417,7 +1447,6 @@ async function sendMsg() {
       timestamp:firebase.firestore.FieldValue.serverTimestamp()
     });
     input.value='';
-    await loadChat();
   } catch(e) { toast('❌ Error enviando','error'); }
 }
 
@@ -1596,21 +1625,51 @@ async function adminEval() {
   if (!fin.length) { alert_('⚠️ Sin partidos finalizados','warning'); return; }
   let total=0, pts=0;
   for (const match of fin) {
+    const realHome = match.homeScore;
+    const realAway = match.awayScore;
+    const realResult = realHome === realAway ? 'empate' : realHome > realAway ? 'home' : 'away';
     const psnap=await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
     for (const pd of psnap.docs) {
       const p=pd.data(); let points=0;
-      if (p.predictedHomeScore===match.homeScore&&p.predictedAwayScore===match.awayScore) {
-        points=ptsCfg.exactScore;
+      const predHome = p.predictedHomeScore;
+      const predAway = p.predictedAwayScore;
+      const predResult = predHome === predAway ? 'empate' : predHome > predAway ? 'home' : 'away';
+
+      if (predHome === realHome && predAway === realAway) {
+        // Resultado exacto — 5 pts siempre (gana, empate o pierde exacto)
+        points = 5;
         await db.collection('users').doc(p.userId).update({exactPredictions:firebase.firestore.FieldValue.increment(1)});
-      } else if (Math.sign(p.predictedHomeScore-p.predictedAwayScore)===Math.sign(match.homeScore-match.awayScore)) {
-        points=ptsCfg.correctResult;
+      } else if (predResult === realResult) {
+        // Acertó ganador o empate pero no exacto — 3 pts
+        points = 3;
+        await db.collection('users').doc(p.userId).update({correctResults:firebase.firestore.FieldValue.increment(1)});
+      } else {
+        // Falló — 0 pts
+        points = 0;
       }
-      if (points>0) { await db.collection('users').doc(p.userId).update({points:firebase.firestore.FieldValue.increment(points)}); pts+=points; }
-      await pd.ref.update({evaluated:true,pointsAwarded:points}); total++;
+
+      if (points > 0) {
+        await db.collection('users').doc(p.userId).update({points: firebase.firestore.FieldValue.increment(points)});
+        pts += points;
+      }
+      await pd.ref.update({evaluated:true, pointsAwarded:points});
+      total++;
     }
   }
-  alert_(`✅ ${total} evaluadas · ${pts} puntos distribuidos`,'success');
+  alert_(`✅ ${total} predicciones evaluadas · ${pts} puntos distribuidos`,'success');
   loadRanking();
+}
+
+async function adminResetPass() {
+  const email = prompt('📧 Email del usuario al que resetear contraseña:');
+  if (!email) return;
+  try {
+    await auth.sendPasswordResetEmail(email.trim());
+    toast(`✅ Enlace de recuperación enviado a ${email}`,'success');
+  } catch(e) {
+    if (e.code === 'auth/user-not-found') toast('❌ Email no registrado','error');
+    else toast(`❌ Error: ${e.message}`,'error');
+  }
 }
 
 async function adminReset() {
