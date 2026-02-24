@@ -1205,24 +1205,52 @@ async function savePreds() {
   const jDate = dayMatches[0]?.date;
   if (!jDate) { alert_('❌ No hay partidos cargados','error'); return; }
 
+  // Recoger predicciones del formulario
   const preds = [];
   dayMatches.forEach(m => {
     const hi = $(`hs_${m.id}`), ai = $(`as_${m.id}`);
     if (hi && ai) preds.push({ matchId:m.id, h:+hi.value||0, a:+ai.value||0, match:m });
   });
-  if (!preds.length) { alert_('❌ Sin predicciones para guardar','error'); return; }
+  if (!preds.length) { alert_('❌ Sin partidos disponibles','error'); return; }
 
+  // Verificar si ya tiene predicciones guardadas para esta jornada
+  try {
+    const existing = await db.collection('predictions')
+      .where('userId','==',me.uid)
+      .where('jornadaDate','==',jDate)
+      .limit(1).get();
+
+    if (!existing.empty) {
+      alert_('❌ Ya tienes predicciones guardadas para esta jornada. No se puede repetir ni corregir.','error');
+      return;
+    }
+  } catch(e) { /* continuar si falla la verificación */ }
+
+  // Mostrar resumen para confirmar
+  let resumen = '⚽ TUS PREDICCIONES:\n\n';
+  preds.forEach(p => {
+    resumen += `${p.match.home} ${p.h} - ${p.a} ${p.match.away}\n`;
+  });
+  resumen += '\n¿Estás seguro? NO podrás cambiarlas después.';
+
+  if (!confirm(resumen)) return;
+
+  // Guardar — usar el matchId como parte del ID para evitar duplicados
   try {
     const b = db.batch();
-    preds.forEach(p => b.set(db.collection('predictions').doc(), {
-      userId:me.uid, username:me.username,
-      matchId:p.matchId, predictedHomeScore:p.h, predictedAwayScore:p.a,
-      home:p.match.home, away:p.match.away, homeFlag:p.match.homeFlag, awayFlag:p.match.awayFlag,
-      tournamentId:p.match.tournamentId, jornadaDate:jDate,
-      evaluated:false, timestamp:firebase.firestore.FieldValue.serverTimestamp()
-    }));
+    preds.forEach(p => {
+      const docId = `${me.uid}_${p.matchId}`;
+      b.set(db.collection('predictions').doc(docId), {
+        userId:me.uid, username:me.username,
+        matchId:p.matchId, predictedHomeScore:p.h, predictedAwayScore:p.a,
+        home:p.match.home, away:p.match.away, homeFlag:p.match.homeFlag, awayFlag:p.match.awayFlag,
+        tournamentId:p.match.tournamentId, jornadaDate:jDate,
+        evaluated:false, timestamp:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
     await b.commit();
-    toast(`✅ ${preds.length} predicciones guardadas`,'success');
+    toast(`✅ ${preds.length} predicciones guardadas. ¡Suerte!`,'success');
+    alert_(`✅ ${preds.length} predicciones guardadas correctamente`,'success');
   } catch(e) { toast(`❌ Error: ${e.message}`,'error'); }
 }
 
