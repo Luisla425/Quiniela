@@ -1695,22 +1695,38 @@ async function loadGroups() {
     let found=0;
     snap.forEach(doc=>{
       const g=doc.data();
-      if (!g.members?.some(m=>m.userId===me.uid)) return;
+      if (!me.isAdmin && !g.members?.some(m=>m.userId===me.uid)) return;
       found++;
-      const isAdmin=g.members.find(m=>m.userId===me.uid)?.isAdmin;
+      const isMember=g.members?.some(m=>m.userId===me.uid);
+      const isGrpAdmin=g.members?.find(m=>m.userId===me.uid)?.isAdmin;
       const div=document.createElement('div');
       div.className='group-card';
       div.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <strong style="font-size:1.05em;">${g.name}</strong>
-          ${isAdmin?`<span class="badge badge-admin">👑 Admin</span>`:''}
+          <div style="display:flex;gap:6px;align-items:center;">
+            ${isGrpAdmin?`<span class="badge badge-admin">👑</span>`:''}
+            ${me.isAdmin?`<button onclick="deleteGroup('${doc.id}','${g.name}')" style="background:rgba(239,68,68,0.2);border:1px solid var(--red);color:var(--red);padding:4px 10px;border-radius:6px;font-size:0.75em;font-weight:700;cursor:pointer;">🗑️ Borrar</button>`:''}
+          </div>
         </div>
-        <p style="font-size:0.82em;color:var(--muted);margin-bottom:10px;">🔐 Código: <strong style="color:var(--accent2);">${g.code}</strong> · 👥 ${g.members.length}/${g.maxMembers}</p>
+        <p style="font-size:0.82em;color:var(--muted);margin-bottom:10px;">🔐 Código: <strong style="color:var(--accent2);">${g.code}</strong> · 👥 ${g.members?.length||0}/${g.maxMembers}</p>
         <button class="btn btn-purple" style="font-size:0.82em;padding:10px;" onclick="viewGroup('${doc.id}')">🏆 Ver Clasificación</button>`;
       el.appendChild(div);
     });
-    if (!found) el.innerHTML=`<div class="empty"><span class="icon">👥</span>No perteneces a ningún grupo aún</div>`;
+    if (!found) el.innerHTML=`<div class="empty"><span class="icon">👥</span>No hay grupos aún</div>`;
   } catch(e) { el.innerHTML=`<div class="empty"><span class="icon">❌</span>${e.message}</div>`; }
+}
+
+async function deleteGroup(gid, gname) {
+  if (!me.isAdmin) return;
+  if (!confirm(`¿Borrar el grupo "${gname}"? Esta acción no se puede deshacer.`)) return;
+  try {
+    await db.collection('groups').doc(gid).delete();
+    toast(`✅ Grupo "${gname}" eliminado`,'success');
+    loadGroups();
+  } catch(e) {
+    toast(`❌ Error: ${e.message}`,'error');
+  }
 }
 
 async function viewGroup(gid) {
