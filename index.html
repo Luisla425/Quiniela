@@ -1690,8 +1690,15 @@ async function loadGroups() {
   const el=$('groupsList');
   el.innerHTML=`<div class="empty"><span class="icon">⏳</span>Cargando...</div>`;
   try {
+    // Refrescar datos del usuario para asegurar isAdmin actualizado
+    try {
+      const freshDoc = await db.collection('users').doc(me.uid).get();
+      if (freshDoc.exists) me = { uid: me.uid, ...freshDoc.data() };
+    } catch(e2) {}
     const snap=await db.collection('groups').get();
-    el.innerHTML='';
+    el.innerHTML = me.isAdmin
+      ? `<div style="background:rgba(245,158,11,0.1);border:1px solid var(--yellow);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.78em;color:var(--yellow);font-weight:700;">👑 Admin — ves todos los grupos</div>`
+      : '';
     let found=0;
     snap.forEach(doc=>{
       const g=doc.data();
@@ -1706,7 +1713,7 @@ async function loadGroups() {
           <strong style="font-size:1.05em;">${g.name}</strong>
           <div style="display:flex;gap:6px;align-items:center;">
             ${isGrpAdmin?`<span class="badge badge-admin">👑</span>`:''}
-            ${me.isAdmin?`<button onclick="deleteGroup('${doc.id}','${g.name}')" style="background:rgba(239,68,68,0.2);border:1px solid var(--red);color:var(--red);padding:4px 10px;border-radius:6px;font-size:0.75em;font-weight:700;cursor:pointer;">🗑️ Borrar</button>`:''}
+            ${(me.isAdmin===true||me.isAdmin==="true")?`<button onclick="deleteGroup('${doc.id}','${g.name}')" style="background:rgba(239,68,68,0.2);border:1px solid var(--red);color:var(--red);padding:4px 10px;border-radius:6px;font-size:0.75em;font-weight:700;cursor:pointer;">🗑️ Borrar</button>`:''}
           </div>
         </div>
         <p style="font-size:0.82em;color:var(--muted);margin-bottom:10px;">🔐 Código: <strong style="color:var(--accent2);">${g.code}</strong> · 👥 ${g.members?.length||0}/${g.maxMembers}</p>
