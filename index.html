@@ -707,6 +707,36 @@ body {
   </div>
 </div>
 
+<!-- WHATSAPP MODAL -->
+<div class="modal" id="waModal">
+  <div class="modal-box" style="max-width:520px;">
+    <button class="modal-close" onclick="closeModal('waModal')">✕</button>
+    <h3 style="font-weight:900;margin-bottom:4px;">📲 Enviar por WhatsApp</h3>
+    <p style="font-size:0.8em;color:var(--muted);margin-bottom:16px;">Para: <strong id="waRecipient" style="color:var(--accent2);">—</strong></p>
+
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:8px;">📋 Mensajes Predefinidos</label>
+      <div id="waMsgList" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">✏️ Mensaje Personalizado</label>
+      <textarea id="waCustomMsg" rows="4" style="width:100%;padding:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:0.88em;resize:vertical;" placeholder="Escribe tu mensaje aquí..."></textarea>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px;">📱 Número WhatsApp (con código de país)</label>
+      <input type="tel" id="waPhone" placeholder="Ej: 584141234567" style="width:100%;padding:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Outfit',sans-serif;font-size:0.95em;">
+      <p style="font-size:0.72em;color:var(--muted);margin-top:4px;">Venezuela: 58 + número sin el 0. Ej: 584141234567</p>
+    </div>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-green" onclick="sendWhatsApp()" style="flex:1;">📲 Abrir WhatsApp</button>
+      <button class="btn btn-gray" onclick="closeModal('waModal')" style="width:auto;padding:14px 18px;">✕</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- ═══════════════════════════════════════════
@@ -1704,18 +1734,97 @@ async function adminUsers() {
   const el=$('adminContent');
   el.innerHTML=`<div class="empty"><span class="icon">⏳</span>Cargando...</div>`;
   const snap=await db.collection('users').orderBy('points','desc').get();
-  let html=`<p style="font-weight:700;margin-bottom:10px;font-size:0.88em;">👥 ${snap.size} usuarios registrados</p>`;
-  snap.docs.forEach(doc=>{
+
+  // Construir pizarra actual para incluir en mensajes
+  let pizarra = '📊 *PIZARRA QUINIELA LUAN*\n';
+  pizarra += '━━━━━━━━━━━━━━━━━━━━\n';
+  snap.docs.forEach((doc,i) => {
     const u=doc.data();
-    html+=`<div class="rank-row" style="margin-bottom:6px;">
-      <div style="font-size:1em;">👤</div>
-      <div><div style="font-weight:700;font-size:0.88em;">${u.username} ${u.isAdmin?'👑':''}</div>
-        <div style="font-size:0.72em;color:var(--muted);">${u.email} · Inv: ${u.personalInviteCode}</div></div>
-      <div style="font-size:0.8em;color:var(--muted);">${u.exactPredictions||0}⭐</div>
-      <div class="rank-pts">${u.points||0}</div>
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    pizarra += `${medal} ${u.username} — *${u.points||0} pts* (⭐${u.exactPredictions||0} exactos)\n`;
+  });
+  pizarra += '━━━━━━━━━━━━━━━━━━━━\n';
+  pizarra += '⚽ _Quiniela Luan_';
+
+  window._pizarraText = pizarra;
+
+  let html=`<p style="font-weight:700;margin-bottom:10px;font-size:0.88em;">👥 ${snap.size} usuarios registrados</p>`;
+  snap.docs.forEach((doc,i)=>{
+    const u=doc.data();
+    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    html+=`<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div>
+          <div style="font-weight:700;font-size:0.9em;">${medal} ${u.username} ${u.isAdmin?'👑':''}</div>
+          <div style="font-size:0.72em;color:var(--muted);">${u.email} · Inv: <strong>${u.personalInviteCode}</strong></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4em;color:var(--accent2);">${u.points||0}</div>
+          <div style="font-size:0.7em;color:var(--muted);">⭐${u.exactPredictions||0} exactos</div>
+        </div>
+      </div>
+      <button onclick="openWA('${u.username}', '${u.email}')" style="width:100%;padding:8px;background:rgba(37,211,102,0.15);border:1px solid #25d366;color:#25d366;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📲 Enviar WhatsApp</button>
     </div>`;
   });
   el.innerHTML=html;
+}
+
+function openWA(username, email) {
+  $('waRecipient').textContent = username;
+  $('waPhone').value = '';
+  $('waCustomMsg').value = '';
+
+  const pizarra = window._pizarraText || '📊 Pizarra no disponible';
+
+  // Mensajes predefinidos
+  const mensajes = [
+    {
+      label: '📊 Enviar Pizarra',
+      texto: `Hola ${username}! 👋\n\n${pizarra}\n\n⚽ ¡Sigue jugando!`
+    },
+    {
+      label: '🎯 Invitar a jugar mañana',
+      texto: `Hola ${username}! 🏆\n\n${pizarra}\n\n¡Mañana hay más partidos! No olvides entrar y hacer tus predicciones a tiempo 🔥\n\n⚽ _Quiniela Luan_`
+    },
+    {
+      label: '🎉 Felicitar al líder',
+      texto: `🥇 ¡Felicitaciones ${username}! Vas liderando la Quiniela Luan. ¡Mantén ese nivel! 💪\n\n${pizarra}\n\n⚽ _Quiniela Luan_`
+    },
+    {
+      label: '⏰ Recordatorio predicciones',
+      texto: `⏰ Hola ${username}! Recuerda hacer tus predicciones antes de que empiecen los partidos de hoy. ¡No pierdas la oportunidad de sumar puntos! ⚽\n\n_Quiniela Luan_`
+    },
+    {
+      label: '🙏 Gracias por participar',
+      texto: `Hola ${username}! 🙏 Gracias por ser parte de la Quiniela Luan. Tu participación hace el juego más emocionante. \n\n${pizarra}\n\n¡Nos vemos mañana! ⚽`
+    },
+  ];
+
+  const lista = $('waMsgList');
+  lista.innerHTML = '';
+  mensajes.forEach(m => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'width:100%;padding:10px 14px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Outfit,sans-serif;font-weight:700;font-size:0.8em;cursor:pointer;text-align:left;transition:all 0.2s;';
+    btn.textContent = m.label;
+    btn.onclick = () => {
+      $('waCustomMsg').value = m.texto;
+      lista.querySelectorAll('button').forEach(b=>b.style.borderColor='var(--border)');
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent2)';
+    };
+    lista.appendChild(btn);
+  });
+
+  openModal('waModal');
+}
+
+function sendWhatsApp() {
+  const phone = $('waPhone').value.trim().replace(/[^0-9]/g,'');
+  const msg = $('waCustomMsg').value.trim();
+  if (!phone) { toast('❌ Ingresa el número de WhatsApp','error'); return; }
+  if (!msg) { toast('❌ Selecciona o escribe un mensaje','error'); return; }
+  const encoded = encodeURIComponent(msg);
+  window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
 }
 
 async function adminEval() {
