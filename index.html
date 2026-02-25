@@ -626,6 +626,7 @@ body {
       <button class="admin-btn" onclick="adminEval()">⚡ Evaluar Partidos</button>
       <button class="admin-btn" onclick="adminPoints()">🎯 Config Puntos</button>
       <button class="admin-btn" onclick="adminReset()">🗑️ Borrar Datos</button>
+      <button class="admin-btn" onclick="adminEvalManual()" style="grid-column:span 2;border-color:var(--yellow);color:var(--yellow);">🔧 Evaluar con Resultados Reales (Manual)</button>
       <button class="admin-btn" onclick="adminResetPass()" style="grid-column:span 2;">🔐 Recuperar Contraseña de Usuario</button>
     </div>
     <div id="adminContent"></div>
@@ -1756,6 +1757,108 @@ async function adminEval() {
     }
   }
   alert_(`✅ ${total} predicciones evaluadas · ${pts} puntos distribuidos`,'success');
+  loadRanking();
+}
+
+async function adminEvalManual() {
+  // Carga todas las predicciones no evaluadas y cruza con los resultados reales
+  // que ya están en memoria (allMatches) independientemente del status
+  const matchesWithScores = allMatches.filter(m => m.homeScore != null && m.awayScore != null);
+  
+  if (!matchesWithScores.length) {
+    // Si allMatches no tiene datos, cargar desde Firestore
+    try {
+      const snap = await db.collection('matches').get();
+      const fsMatches = snap.docs.map(d=>({id:d.id,...d.data()})).filter(m=>m.homeScore!=null&&m.awayScore!=null);
+      if (!fsMatches.empty && fsMatches.length) {
+        await evalWithMatches(fsMatches);
+        return;
+      }
+    } catch(e) {}
+    
+    // Si tampoco hay en Firestore, pedir resultados manualmente
+    alert_('⚠️ No hay resultados en memoria. Ingresa los resultados manualmente.','warning');
+    await adminEvalInputManual();
+    return;
+  }
+  
+  if (!confirm(`¿Evaluar usando ${matchesWithScores.length} partidos con resultados disponibles?`)) return;
+  await evalWithMatches(matchesWithScores);
+}
+
+async function evalWithMatches(matches) {
+  alert_('⏳ Evaluando...','info');
+  let total=0, pts=0;
+  for (const match of matches) {
+    const realHome = match.homeScore;
+    const realAway = match.awayScore;
+    const realResult = realHome===realAway?'empate':realHome>realAway?'home':'away';
+    const psnap = await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
+    for (const pd of psnap.docs) {
+      const p=pd.data(); let points=0;
+      const predHome=p.predictedHomeScore, predAway=p.predictedAwayScore;
+      const predResult=predHome===predAway?'empate':predHome>predAway?'home':'away';
+      if (predHome===realHome && predAway===realAway) {
+        points=5;
+        await db.collection('users').doc(p.userId).update({exactPredictions:firebase.firestore.FieldValue.increment(1)});
+      } else if (predResult===realResult) {
+        points=3;
+        await db.collection('users').doc(p.userId).update({correctResults:firebase.firestore.FieldValue.increment(1)});
+      }
+      if (points>0) { await db.collection('users').doc(p.userId).update({points:firebase.firestore.FieldValue.increment(points)}); pts+=points; }
+      await pd.ref.update({evaluated:true,pointsAwarded:points});
+      total++;
+    }
+  }
+  if (total===0) {
+    alert_('⚠️ No se encontraron predicciones sin evaluar. Prueba "Ingresar Resultados Manual".','warning');
+    await adminEvalInputManual();
+    return;
+  }
+  alert_(`✅ ${total} predicciones evaluadas · ${pts} puntos distribuidos`,'success');
+  loadRanking();
+}
+
+async function adminEvalInputManual() {
+  // Obtener predicciones únicas por matchId
+  const psnap = await db.collection('predictions').where('evaluated','==',false).get();
+  if (psnap.empty) { alert_('⚠️ No hay predicciones sin evaluar','warning'); return; }
+  
+  const matchIds = [...new Set(psnap.docs.map(d=>d.data().matchId))];
+  const matchNames = {};
+  psnap.docs.forEach(d=>{ const p=d.data(); matchNames[p.matchId]=`${p.home} vs ${p.away}`; });
+  
+  const results = {};
+  for (const mid of matchIds) {
+    const name = matchNames[mid] || mid;
+    const rh = prompt(`⚽ ${name}\n\nGoles LOCAL (equipo de casa):`);
+    if (rh===null) return;
+    const ra = prompt(`⚽ ${name}\n\nGoles VISITANTE:`);
+    if (ra===null) return;
+    results[mid] = { homeScore: parseInt(rh)||0, awayScore: parseInt(ra)||0 };
+  }
+  
+  // Evaluar con resultados ingresados
+  let total=0, pts=0;
+  for (const pd of psnap.docs) {
+    const p=pd.data();
+    const r=results[p.matchId];
+    if (!r) continue;
+    let points=0;
+    const predResult=p.predictedHomeScore===p.predictedAwayScore?'empate':p.predictedHomeScore>p.predictedAwayScore?'home':'away';
+    const realResult=r.homeScore===r.awayScore?'empate':r.homeScore>r.awayScore?'home':'away';
+    if (p.predictedHomeScore===r.homeScore && p.predictedAwayScore===r.awayScore) {
+      points=5;
+      await db.collection('users').doc(p.userId).update({exactPredictions:firebase.firestore.FieldValue.increment(1)});
+    } else if (predResult===realResult) {
+      points=3;
+      await db.collection('users').doc(p.userId).update({correctResults:firebase.firestore.FieldValue.increment(1)});
+    }
+    if (points>0) { await db.collection('users').doc(p.userId).update({points:firebase.firestore.FieldValue.increment(points)}); pts+=points; }
+    await pd.ref.update({evaluated:true,pointsAwarded:points,realHomeScore:r.homeScore,realAwayScore:r.awayScore});
+    total++;
+  }
+  alert_(`✅ ${total} evaluadas · ${pts} puntos distribuidos`,'success');
   loadRanking();
 }
 
