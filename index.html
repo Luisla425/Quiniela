@@ -1739,31 +1739,57 @@ async function viewGroup(gid) {
 }
 
 async function createGroup() {
-  if (!me.isAdmin) { toast('❌ Solo el admin puede crear grupos','error'); closeModal('createGrpModal'); return; }
+  if (!me || !me.isAdmin) { toast('❌ Solo el admin puede crear grupos','error'); closeModal('createGrpModal'); return; }
   const name=$('grpName').value.trim(), max=$('grpMax').value;
   if (!name) { toast('❌ Nombre requerido','error'); return; }
-  const code=randCode(6);
-  await db.collection('groups').add({
-    name, code, maxMembers:+max,
-    createdBy:me.uid, createdAt:new Date().toISOString(),
-    members:[{userId:me.uid,username:me.username,joinedAt:new Date().toISOString(),isAdmin:true}]
-  });
-  closeModal('createGrpModal');
-  alert(`🎉 Grupo creado!\n\nNombre: ${name}\n🔐 Código: ${code}\n\nComparte el código con tus amigos.`);
-  loadGroups();
+  const btn = document.querySelector('#createGrpModal .btn-green');
+  if (btn) btn.disabled = true;
+  try {
+    const code=randCode(6);
+    await db.collection('groups').add({
+      name, code, maxMembers:+max,
+      createdBy:me.uid, createdAt:new Date().toISOString(),
+      members:[{userId:me.uid,username:me.username,joinedAt:new Date().toISOString(),isAdmin:true}]
+    });
+    closeModal('createGrpModal');
+    $('grpName').value = '';
+    // Mostrar código en toast largo
+    toast(`✅ Grupo "${name}" creado · Código: ${code}`,'success');
+    // Guardar código en adminContent para que lo vea el admin
+    const ac = $('adminContent');
+    if (ac) ac.innerHTML = `<div class="alert alert-success" style="margin-top:10px;">🎉 Grupo creado: <strong>${name}</strong><br>🔐 Código: <strong style="font-size:1.4em;letter-spacing:3px;">${code}</strong><br><small>Comparte este código con tus jugadores</small></div>` + ac.innerHTML;
+    loadGroups();
+  } catch(e) {
+    toast(`❌ Error creando grupo: ${e.message}`,'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 async function joinGroup() {
   const code=$('grpCode').value.trim().toUpperCase();
   if (code.length!==6) { toast('❌ Código de 6 caracteres','error'); return; }
-  const snap=await db.collection('groups').where('code','==',code).limit(1).get();
-  if (snap.empty) { toast('❌ Grupo no encontrado','error'); return; }
-  const gdoc=snap.docs[0]; const g=gdoc.data();
-  if (g.members.some(m=>m.userId===me.uid)) { toast('⚠️ Ya eres miembro','warning'); return; }
-  await gdoc.ref.update({members:firebase.firestore.FieldValue.arrayUnion({userId:me.uid,username:me.username,joinedAt:new Date().toISOString(),isAdmin:false})});
-  closeModal('joinGrpModal');
-  toast('✅ ¡Unido al grupo!','success');
-  loadGroups();
+  const btn = document.querySelector('#joinGrpModal .btn-purple');
+  if (btn) btn.disabled = true;
+  try {
+    const snap=await db.collection('groups').where('code','==',code).limit(1).get();
+    if (snap.empty) { toast('❌ Grupo no encontrado','error'); return; }
+    const gdoc=snap.docs[0]; const g=gdoc.data();
+    if (g.members.some(m=>m.userId===me.uid)) { toast('⚠️ Ya eres miembro','warning'); closeModal('joinGrpModal'); return; }
+    if (g.members.length >= g.maxMembers) { toast('❌ Grupo lleno','error'); return; }
+    await gdoc.ref.update({members:firebase.firestore.FieldValue.arrayUnion({
+      userId:me.uid, username:me.username,
+      joinedAt:new Date().toISOString(), isAdmin:false
+    })});
+    closeModal('joinGrpModal');
+    $('grpCode').value = '';
+    toast(`✅ ¡Unido a "${g.name}"!`,'success');
+    loadGroups();
+  } catch(e) {
+    toast(`❌ Error: ${e.message}`,'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ────────────────────────────────────────────
