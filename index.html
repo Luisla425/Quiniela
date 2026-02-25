@@ -696,6 +696,16 @@ body {
 </div>
 
 <!-- Toast container -->
+<!-- STATS MODAL -->
+<div class="modal" id="statsModal">
+  <div class="modal-box" style="max-width:520px;">
+    <button class="modal-close" onclick="closeModal('statsModal')">✕</button>
+    <h3 style="font-weight:900;margin-bottom:4px;" id="statsTitle">📊 Estadísticas</h3>
+    <p style="font-size:0.78em;color:var(--muted);margin-bottom:16px;" id="statsSubtitle"></p>
+    <div id="statsContent"><div class="empty"><span class="icon">⏳</span>Cargando...</div></div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- ═══════════════════════════════════════════
@@ -1081,7 +1091,7 @@ function startVzTime() {
         loadRanking();
       }
     }
-  }, 60000);
+  }, 30000); // 30s cuando hay partidos en vivo
 }
 
 function updateCountdown() {
@@ -1144,6 +1154,7 @@ function parseEvent(ev, t) {
     homeScore: ev.intHomeScore!=null ? +ev.intHomeScore : null,
     awayScore: ev.intAwayScore!=null ? +ev.intAwayScore : null,
     status: ev.strStatus || (ev.intHomeScore!=null ? 'Match Finished' : 'Not Started'),
+    minute: ev.strProgress || ev.intProgress || null,
     venue: ev.strVenue||'—', round: ev.intRound||1,
     tournamentId: t.id, tournamentName: t.name
   };
@@ -1235,8 +1246,13 @@ function buildMatchCard(m) {
     ? `<span class="badge badge-done">✅ Final</span>`
     : `<span style="font-family:'Bebas Neue',sans-serif;font-size:1.1em;color:var(--accent2);">⏰ ${vzTime(m.time)}</span>`;
 
-  const scoreArea = (isLive||isFinished)
-    ? ''
+  // Minuto en vivo si existe
+  const minuto = isLive && m.minute ? `<span style="color:var(--red);font-weight:900;font-size:0.82em;">⏱ ${m.minute}'</span>` : '';
+
+  const scoreArea = (isLive || isFinished)
+    ? `<div style="text-align:center;margin-top:6px;">
+        <button onclick="openStats('${m.id}')" style="background:rgba(124,58,237,0.2);border:1px solid var(--accent);color:var(--accent2);padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📊 Ver Estadísticas</button>
+       </div>`
     : `<div class="score-row">
         <input type="number" min="0" max="20" value="0" id="hs_${m.id}" class="score-box">
         <span class="score-dash">—</span>
@@ -1246,23 +1262,106 @@ function buildMatchCard(m) {
   div.innerHTML = `
     <div class="match-meta">
       <span>${m.tournamentName||'Torneo'}</span>
-      ${badge}
+      <div style="display:flex;align-items:center;gap:8px;">${minuto}${badge}</div>
     </div>
     <div class="match-teams">
       <div class="team-side">
         <span class="team-flag">${m.homeFlag}</span>
         <span class="team-name">${m.home}</span>
-        ${isLive||isFinished?`<span class="team-score-big">${m.homeScore??0}</span>`:''}
+        ${isLive||isFinished?`<span class="team-score-big" style="color:${isLive?'var(--red)':'var(--accent2)'};">${m.homeScore??0}</span>`:''}
       </div>
-      <div class="vs-divider">VS</div>
+      <div class="vs-divider">${isLive||isFinished?'—':'VS'}</div>
       <div class="team-side">
         <span class="team-flag">${m.awayFlag}</span>
         <span class="team-name">${m.away}</span>
-        ${isLive||isFinished?`<span class="team-score-big">${m.awayScore??0}</span>`:''}
+        ${isLive||isFinished?`<span class="team-score-big" style="color:${isLive?'var(--red)':'var(--accent2)'};">${m.awayScore??0}</span>`:''}
       </div>
     </div>
     ${scoreArea}`;
   return div;
+}
+
+// ── ESTADÍSTICAS DEL PARTIDO ──
+async function openStats(matchId) {
+  openModal('statsModal');
+  const match = allMatches.find(m => m.id === matchId);
+  if (match) {
+    $('statsTitle').textContent = `${match.homeFlag} ${match.home} ${match.homeScore??0} — ${match.awayScore??0} ${match.away} ${match.awayFlag}`;
+    $('statsSubtitle').textContent = `${match.tournamentName} · ${match.status==='In Play'?'🔴 EN VIVO':'✅ Finalizado'}`;
+  }
+  $('statsContent').innerHTML = `<div class="empty"><span class="icon">⏳</span>Cargando estadísticas...</div>`;
+  try {
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/lookupevent.php?id=${matchId}`);
+    const data = await res.json();
+    const ev = data?.events?.[0];
+    if (!ev) { $('statsContent').innerHTML = `<div class="empty"><span class="icon">📭</span>Sin estadísticas disponibles aún</div>`; return; }
+
+    // Timeline de goles
+    const goals = [];
+    for (let i = 1; i <= 5; i++) {
+      const detail = ev[`strGoalDetail${i}`] || ev[`strEvent${i}`];
+      if (detail) goals.push(detail);
+    }
+
+    // Construir HTML de estadísticas
+    let html = '';
+
+    // Marcador grande
+    html += `<div style="text-align:center;background:var(--card2);border-radius:12px;padding:16px;margin-bottom:12px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:3em;color:var(--accent2);">${ev.intHomeScore??0} — ${ev.intAwayScore??0}</div>
+      <div style="font-size:0.78em;color:var(--muted);margin-top:4px;">${ev.strStatus||''} ${ev.strProgress||''}</div>
+    </div>`;
+
+    // Goles detallados
+    const homeGoals = (ev.strHomeGoalDetails||'').split(';').filter(g=>g.trim());
+    const awayGoals = (ev.strAwayGoalDetails||'').split(';').filter(g=>g.trim());
+
+    if (homeGoals.length || awayGoals.length) {
+      html += `<div style="margin-bottom:12px;">
+        <div style="font-weight:900;font-size:0.82em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">⚽ Goles</div>`;
+      homeGoals.forEach(g => { html += `<div style="background:var(--card2);border-left:3px solid var(--green);padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:0.85em;font-weight:700;">${match?.homeFlag||'⚽'} ${g.trim()}</div>`; });
+      awayGoals.forEach(g => { html += `<div style="background:var(--card2);border-left:3px solid var(--blue);padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:0.85em;font-weight:700;">${match?.awayFlag||'⚽'} ${g.trim()}</div>`; });
+      html += `</div>`;
+    }
+
+    // Tarjetas
+    const homeYellow = ev.strHomeYellowCards||''; const awayYellow = ev.strAwayYellowCards||'';
+    const homeRed = ev.strHomeRedCards||''; const awayRed = ev.strAwayRedCards||'';
+    if (homeYellow||awayYellow||homeRed||awayRed) {
+      html += `<div style="margin-bottom:12px;"><div style="font-weight:900;font-size:0.82em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">🟨 Tarjetas</div>`;
+      if (homeYellow) homeYellow.split(';').filter(Boolean).forEach(p=>{ html+=`<div style="background:var(--card2);border-left:3px solid var(--yellow);padding:6px 12px;border-radius:8px;margin-bottom:4px;font-size:0.82em;">🟨 ${match?.homeFlag||''} ${p.trim()}</div>`; });
+      if (awayYellow) awayYellow.split(';').filter(Boolean).forEach(p=>{ html+=`<div style="background:var(--card2);border-left:3px solid var(--yellow);padding:6px 12px;border-radius:8px;margin-bottom:4px;font-size:0.82em;">🟨 ${match?.awayFlag||''} ${p.trim()}</div>`; });
+      if (homeRed) homeRed.split(';').filter(Boolean).forEach(p=>{ html+=`<div style="background:var(--card2);border-left:3px solid var(--red);padding:6px 12px;border-radius:8px;margin-bottom:4px;font-size:0.82em;">🟥 ${match?.homeFlag||''} ${p.trim()}</div>`; });
+      if (awayRed) awayRed.split(';').filter(Boolean).forEach(p=>{ html+=`<div style="background:var(--card2);border-left:3px solid var(--red);padding:6px 12px;border-radius:8px;margin-bottom:4px;font-size:0.82em;">🟥 ${match?.awayFlag||''} ${p.trim()}</div>`; });
+      html += `</div>`;
+    }
+
+    // Estadísticas generales
+    const stats = [
+      ['⚽ Tiros al arco', ev.intHomeShots, ev.intAwayShots],
+      ['🏁 Posesión', ev.strHomeFormation ? ev.strHomeFormation+' - '+ev.strAwayFormation : null, null],
+    ].filter(s=>s[1]);
+
+    if (stats.length) {
+      html += `<div style="margin-bottom:12px;"><div style="font-weight:900;font-size:0.82em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">📈 Stats</div>`;
+      stats.forEach(([label, home, away]) => {
+        html += `<div style="background:var(--card2);padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:0.82em;display:flex;justify-content:space-between;">
+          <span style="color:var(--green);font-weight:700;">${home||'—'}</span>
+          <span style="color:var(--muted);">${label}</span>
+          <span style="color:var(--blue);font-weight:700;">${away||'—'}</span>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (!html.includes('Goles') && !html.includes('Tarjetas') && !homeGoals.length) {
+      html += `<div class="empty"><span class="icon">⏳</span>Estadísticas detalladas aún no disponibles</div>`;
+    }
+
+    $('statsContent').innerHTML = html;
+  } catch(e) {
+    $('statsContent').innerHTML = `<div class="empty"><span class="icon">❌</span>Error cargando: ${e.message}</div>`;
+  }
 }
 
 // ────────────────────────────────────────────
