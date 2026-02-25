@@ -1,0 +1,15 @@
+{
+  "name": "LUAN SYSTEM",
+  "short_name": "LUAN",
+  "start_url": "/Quiniela/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "icono.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
