@@ -449,7 +449,6 @@ body {
   .rank-row { grid-template-columns:32px 1fr auto auto; }
 }
 </style>
-<link rel="manifest" href="manifest.json">
 </head>
 <body>
 
@@ -473,8 +472,12 @@ body {
   <!-- LOGIN -->
   <div id="loginTab" class="card">
     <div class="field">
-      <label>📧 Email</label>
-      <input type="email" id="loginEmail" placeholder="tu@email.com" autocomplete="email">
+      <label>📱 Teléfono (+58)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-weight:700;color:var(--accent2);white-space:nowrap;">+58</span>
+        <input type="tel" id="loginPhone" placeholder="4141234567" autocomplete="tel" style="flex:1;" onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <p style="font-size:0.72em;color:var(--muted);margin-top:4px;">Sin el 0 inicial. Ej: 4141234567</p>
     </div>
     <div class="field">
       <label>🔑 Contraseña</label>
@@ -493,8 +496,14 @@ body {
       <p style="font-size:0.75em;color:var(--muted);margin-top:4px;">Usa este código si eres el administrador. Otros necesitan código de invitación.</p>
     </div>
     <div class="field"><label>👤 Nombre</label><input type="text" id="regName" placeholder="Luis Lárez"></div>
-    <div class="field"><label>📧 Email</label><input type="email" id="regEmail" placeholder="tu@email.com" autocomplete="email"></div>
-    <div class="field"><label>🎮 Usuario</label><input type="text" id="regUser" placeholder="alias en la quiniela" autocomplete="username" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;"></div>
+    <div class="field"><label>📱 Teléfono (+58)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-weight:700;color:var(--muted);white-space:nowrap;">+58</span>
+        <input type="tel" id="regPhone" placeholder="4141234567" autocomplete="tel" style="flex:1;">
+      </div>
+      <p style="font-size:0.72em;color:var(--muted);margin-top:4px;">Sin el 0 inicial. Ej: 4141234567</p>
+    </div>
+    <div class="field"><label>🎮 Usuario (máx. 8 letras)</label><input type="text" id="regUser" placeholder="alias" autocomplete="username" oninput="this.value=this.value.toUpperCase().slice(0,8)" style="text-transform:uppercase;" maxlength="8"></div>
     <div class="field"><label>🔑 Contraseña</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres" autocomplete="new-password"></div>
     <div class="field"><label>🔑 Confirmar</label><input type="password" id="regPass2" placeholder="repite la contraseña" autocomplete="new-password"></div>
     <div class="field"><label>🎟️ Código de acceso</label><input type="text" id="regCode" placeholder="Admin o invitación"></div>
@@ -644,7 +653,12 @@ body {
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal('resetPassModal')">✕</button>
     <h3 style="font-weight:900;margin-bottom:16px;">🔐 Recuperar Contraseña</h3>
-    <div class="field"><label>📧 Tu Email</label><input type="email" id="resetEmail" placeholder="tu@email.com"></div>
+    <div class="field"><label>📱 Tu Teléfono (+58)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-weight:700;color:var(--accent2);">+58</span>
+        <input type="tel" id="resetPhone" placeholder="4141234567" style="flex:1;">
+      </div>
+    </div>
     <button class="btn btn-purple" onclick="sendReset()">📤 Enviar enlace</button>
   </div>
 </div>
@@ -735,6 +749,20 @@ body {
       <button class="btn btn-green" onclick="sendWhatsApp()" style="flex:1;">📲 Abrir WhatsApp</button>
       <button class="btn btn-gray" onclick="closeModal('waModal')" style="width:auto;padding:14px 18px;">✕</button>
     </div>
+  </div>
+</div>
+
+<!-- CAMBIAR USERNAME MODAL -->
+<div class="modal" id="changeUserModal" style="z-index:99999;">
+  <div class="modal-box" style="max-width:400px;">
+    <h3 style="font-weight:900;margin-bottom:8px;">✏️ Actualiza tu usuario</h3>
+    <p style="font-size:0.85em;color:var(--muted);margin-bottom:16px;">Los nombres de usuario ahora tienen máximo <strong style="color:var(--yellow);">8 letras</strong>. El tuyo es muy largo, elige uno nuevo.</p>
+    <div class="field">
+      <label>🎮 Nuevo Usuario (máx. 8 letras)</label>
+      <input type="text" id="newUsername" placeholder="ALIAS" maxlength="8" oninput="this.value=this.value.toUpperCase().slice(0,8);$('newUsernameCount').textContent=this.value.length+'/8 letras';" style="text-transform:uppercase;font-size:1.2em;text-align:center;letter-spacing:3px;">
+      <p style="font-size:0.72em;color:var(--muted);margin-top:4px;" id="newUsernameCount">0/8 letras</p>
+    </div>
+    <button class="btn btn-green" onclick="saveNewUsername()">✅ Guardar</button>
   </div>
 </div>
 
@@ -934,7 +962,7 @@ async function doRegister() {
     // Guardar en Firestore — con retry
     const invCode = randCode(6);
     const data = {
-      name, username: finalUsername, email,
+      name, username: finalUsername, phone: '+' + phone, email,
       personalInviteCode: invCode,
       isAdmin,
       points: 0, exactPredictions: 0, correctResults: 0,
@@ -974,10 +1002,13 @@ async function doRegister() {
 // AUTH — LOGIN
 // ────────────────────────────────────────────
 async function doLogin() {
-  const email = $('loginEmail').value.trim();
+  const rawPhone = $('loginPhone').value.trim().replace(/[^0-9]/g,'');
   const pass  = $('loginPass').value;
 
-  if (!email || !pass) { alert_('❌ Completa email y contraseña','error','alertAuth'); return; }
+  if (!rawPhone || !pass) { alert_('❌ Completa teléfono y contraseña','error','alertAuth'); return; }
+  if (rawPhone.length < 10) { alert_('❌ Teléfono inválido','error','alertAuth'); return; }
+  const phone = '58' + rawPhone.replace(/^0/,'');
+  const email = phone + '@quiniela.app';
 
   const btn = $('loginBtn');
   btn.disabled = true;
@@ -1054,7 +1085,6 @@ function enterApp() {
     $('clearChatBtn').classList.remove('hidden');
   }
   if (me.tournaments) myTournaments = me.tournaments;
-  // FIX 3: Ocultar botón crear grupo si no es admin
   if (!me.isAdmin) {
     const createBtn = document.querySelector('button[onclick*="createGrpModal"]');
     if (createBtn) createBtn.style.display = 'none';
@@ -1066,6 +1096,33 @@ function enterApp() {
   loadRanking();
   showScreen('matches');
   toast(`🎉 ¡Bienvenido ${me.username}!`,'success');
+
+  // Forzar cambio de username si tiene más de 8 letras
+  if (me.username && me.username.length > 8) {
+    setTimeout(() => openModal('changeUserModal'), 800);
+  }
+}
+
+async function saveNewUsername() {
+  const newUser = $('newUsername').value.trim();
+  if (!newUser || newUser.length < 2) { toast('❌ Mínimo 2 letras','error'); return; }
+  if (newUser.length > 8) { toast('❌ Máximo 8 letras','error'); return; }
+
+  // Verificar que no exista
+  try {
+    const snap = await db.collection('users').where('username','==', newUser).limit(1).get();
+    if (!snap.empty) { toast('❌ Ese usuario ya existe, elige otro','error'); return; }
+  } catch(e) {}
+
+  try {
+    await db.collection('users').doc(me.uid).update({ username: newUser });
+    me.username = newUser;
+    $('hdrName').textContent = newUser;
+    closeModal('changeUserModal');
+    toast(`✅ Usuario cambiado a ${newUser}`,'success');
+  } catch(e) {
+    toast(`❌ Error: ${e.message}`,'error');
+  }
 }
 
 // ────────────────────────────────────────────
@@ -1090,13 +1147,15 @@ async function doLogout() {
 // ────────────────────────────────────────────
 function showResetPass() { openModal('resetPassModal'); }
 async function sendReset() {
-  const email = $('resetEmail').value.trim();
-  if (!email) { toast('❌ Ingresa tu email','error'); return; }
+  const rawPhone = $('resetPhone').value.trim().replace(/[^0-9]/g,'');
+  if (!rawPhone || rawPhone.length < 10) { toast('❌ Teléfono inválido','error'); return; }
+  const phone = '58' + rawPhone.replace(/^0/,'');
+  const email = phone + '@quiniela.app';
   try {
     await auth.sendPasswordResetEmail(email);
-    toast('✅ Enlace enviado. Revisa tu correo.','success');
+    toast('✅ Enlace enviado. Revisa tu correo asociado.','success');
     closeModal('resetPassModal');
-  } catch(e) { toast('❌ Email no registrado','error'); }
+  } catch(e) { toast('❌ Teléfono no registrado','error'); }
 }
 
 // ────────────────────────────────────────────
@@ -1757,22 +1816,23 @@ async function adminUsers() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div>
           <div style="font-weight:700;font-size:0.9em;">${medal} ${u.username} ${u.isAdmin?'👑':''}</div>
-          <div style="font-size:0.72em;color:var(--muted);">${u.email} · Inv: <strong>${u.personalInviteCode}</strong></div>
+          <div style="font-size:0.72em;color:var(--muted);">${u.phone||u.email} · Inv: <strong>${u.personalInviteCode}</strong></div>
         </div>
         <div style="text-align:right;">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4em;color:var(--accent2);">${u.points||0}</div>
           <div style="font-size:0.7em;color:var(--muted);">⭐${u.exactPredictions||0} exactos</div>
         </div>
       </div>
-      <button onclick="openWA('${u.username}', '${u.email}')" style="width:100%;padding:8px;background:rgba(37,211,102,0.15);border:1px solid #25d366;color:#25d366;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📲 Enviar WhatsApp</button>
+      <button onclick="openWA('${u.username}', '${u.phone||''}')" style="width:100%;padding:8px;background:rgba(37,211,102,0.15);border:1px solid #25d366;color:#25d366;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📲 Enviar WhatsApp</button>
     </div>`;
   });
   el.innerHTML=html;
 }
 
-function openWA(username, email) {
+function openWA(username, phone) {
   $('waRecipient').textContent = username;
-  $('waPhone').value = '';
+  // Pre-llenar teléfono sin el + para wa.me
+  $('waPhone').value = phone ? phone.replace('+','') : '';
   $('waCustomMsg').value = '';
 
   const pizarra = window._pizarraText || '📊 Pizarra no disponible';
@@ -1973,13 +2033,15 @@ async function adminEvalInputManual() {
 }
 
 async function adminResetPass() {
-  const email = prompt('📧 Email del usuario al que resetear contraseña:');
-  if (!email) return;
+  const rawPhone = prompt('📱 Teléfono del usuario (sin +58, ej: 4141234567):');
+  if (!rawPhone) return;
+  const phone = '58' + rawPhone.trim().replace(/^0/,'').replace(/[^0-9]/g,'');
+  const email = phone + '@quiniela.app';
   try {
-    await auth.sendPasswordResetEmail(email.trim());
-    toast(`✅ Enlace de recuperación enviado a ${email}`,'success');
+    await auth.sendPasswordResetEmail(email);
+    toast(`✅ Enlace enviado al teléfono +${phone}`,'success');
   } catch(e) {
-    if (e.code === 'auth/user-not-found') toast('❌ Email no registrado','error');
+    if (e.code === 'auth/user-not-found') toast('❌ Teléfono no registrado','error');
     else toast(`❌ Error: ${e.message}`,'error');
   }
 }
