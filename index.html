@@ -1508,6 +1508,8 @@ async function syncAPI() {
       await b.commit();
       loadDayMatches();
       alert_(`✅ Partidos actualizados · ${found.length} de API + guardados`,'success');
+      // Auto-evaluar partidos finalizados
+      await autoEvalFinished();
     } else {
       // API no devolvió nada — cargar desde Firestore y actualizar marcadores individualmente
       try {
@@ -1579,8 +1581,57 @@ async function refreshLiveScores() {
     try { await batch.commit(); } catch(e) {}
     loadDayMatches();
     alert_(`✅ ${updated} marcadores actualizados`, 'success');
+    // Auto-evaluar partidos que terminaron
+    await autoEvalFinished();
   } else {
     alert_('📂 Datos guardados cargados', 'info');
+  }
+}
+
+// Evaluación automática — corre después de cada Sync
+async function autoEvalFinished() {
+  const finished = allMatches.filter(m => isFinishedStatus(m.status) && m.homeScore != null);
+  if (!finished.length) return;
+
+  let total = 0, evaluated = 0;
+  for (const match of finished) {
+    const realHome = +match.homeScore;
+    const realAway = +match.awayScore;
+    const realResult = realHome === realAway ? 'empate' : realHome > realAway ? 'home' : 'away';
+
+    // Buscar predicciones no evaluadas de este partido (cualquier grupo)
+    try {
+      const pSnap = await db.collection('predictions')
+        .where('matchId', '==', String(match.id))
+        .where('evaluated', '==', false)
+        .get();
+
+      for (const pd of pSnap.docs) {
+        const p = pd.data();
+        const predHome = +p.predictedHomeScore;
+        const predAway = +p.predictedAwayScore;
+        const predResult = predHome === predAway ? 'empate' : predHome > predAway ? 'home' : 'away';
+        let points = 0;
+
+        if (predHome === realHome && predAway === realAway) {
+          points = 5; // Exacto
+        } else if (predResult === realResult) {
+          points = 3; // Ganador correcto
+        }
+
+        await pd.ref.update({
+          evaluated: true,
+          pointsAwarded: points,
+          realHome, realAway
+        });
+        evaluated++;
+      }
+      if (pSnap.size > 0) total += pSnap.size;
+    } catch(e) { console.warn('autoEval error:', match.id, e.message); }
+  }
+
+  if (evaluated > 0) {
+    toast(`🏆 ${evaluated} predicciones evaluadas automáticamente`, 'success');
   }
 }
 
@@ -1880,8 +1931,10 @@ async function loadMyPreds() {
       div.innerHTML = `
         <div class="pred-match">${p.homeFlag} ${p.home}<br><span style="color:var(--muted);font-size:0.82em;">vs ${p.away} ${p.awayFlag}</span></div>
         <div class="pred-score">${p.predictedHomeScore}–${p.predictedAwayScore}</div>
-        ${match&&match.homeScore!=null?`<div style="text-align:center;font-size:0.8em;color:var(--muted);">Real<br><strong style="color:var(--green);font-size:1.2em;">${match.homeScore}–${match.awayScore}</strong></div>`:''}
-        <div class="pred-pts" style="color:${p.evaluated?'var(--green)':'var(--muted)'};">${p.evaluated?`+${p.pointsAwarded||0}pts`:'⏳'}</div>`;
+        ${match&&match.homeScore!=null?`<div style="text-align:center;font-size:0.8em;color:var(--muted);">Real<br><strong style="color:${match.homeScore!=null&&isFinishedStatus(match.status)?'var(--green)':'var(--yellow)'};font-size:1.2em;">${match.homeScore}–${match.awayScore}</strong></div>`:''}
+        <div class="pred-pts" style="color:${p.evaluated?(p.pointsAwarded>0?'var(--green)':'var(--muted)'):'var(--yellow)'};">
+          ${p.evaluated ? (p.pointsAwarded===5?'⭐ 5pts':p.pointsAwarded===3?'🎯 3pts':'❌ 0pts') : (match&&isFinishedStatus(match.status)?'⏳ Evaluando...':'🔒 En juego')}
+        </div>`;
       el.appendChild(div);
     });
   } catch(e) { el.innerHTML=`<div class="empty"><span class="icon">❌</span>${e.message}</div>`; }
@@ -2637,4 +2690,5 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
 
