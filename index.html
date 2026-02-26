@@ -1394,16 +1394,23 @@ async function refreshMatchesFromFirestore() {
 // API SYNC — próximos Y pasados (DeepSeek fix)
 // ────────────────────────────────────────────
 function parseEvent(ev, t) {
+  // Soporta v1 y v2 field names
+  const homeScore = ev.intHomeScore ?? ev.homeScore ?? ev.score_home ?? null;
+  const awayScore = ev.intAwayScore ?? ev.awayScore ?? ev.score_away ?? null;
   return {
-    id: ev.idEvent,
-    home: ev.strHomeTeam, away: ev.strAwayTeam,
-    homeFlag: FLAGS[ev.strHomeTeam]||'⚽', awayFlag: FLAGS[ev.strAwayTeam]||'⚽',
-    date: ev.dateEvent, time: ev.strTime||'00:00',
-    homeScore: ev.intHomeScore!=null ? +ev.intHomeScore : null,
-    awayScore: ev.intAwayScore!=null ? +ev.intAwayScore : null,
-    status: ev.strStatus || (ev.intHomeScore!=null ? 'Match Finished' : 'Not Started'),
-    minute: ev.strProgress || ev.intProgress || null,
-    venue: ev.strVenue||'—', round: ev.intRound||1,
+    id: ev.idEvent || ev.id,
+    home: ev.strHomeTeam || ev.home_team || ev.homeTeam,
+    away: ev.strAwayTeam || ev.away_team || ev.awayTeam,
+    homeFlag: FLAGS[ev.strHomeTeam || ev.home_team]||'⚽',
+    awayFlag: FLAGS[ev.strAwayTeam || ev.away_team]||'⚽',
+    date: ev.dateEvent || ev.date,
+    time: ev.strTime || ev.time || '00:00',
+    homeScore: homeScore!=null ? +homeScore : null,
+    awayScore: awayScore!=null ? +awayScore : null,
+    status: ev.strStatus || ev.status || (homeScore!=null ? 'Match Finished' : 'Not Started'),
+    minute: ev.strProgress || ev.intProgress || ev.minute || null,
+    venue: ev.strVenue || ev.venue || '—',
+    round: ev.intRound || ev.round || 1,
     tournamentId: t.id, tournamentName: t.name
   };
 }
@@ -1432,17 +1439,25 @@ async function syncAPI() {
     for (const t of TOURNAMENTS) {
       if (!myTournaments.includes(t.id)) continue;
 
-      // Próximos partidos
-      try {
-        const dataNext = await apiGet(`eventsnextleague.php?id=${t.lid}`);
-        (dataNext?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
-      } catch(e) { console.warn('Next league error:', t.name, e.message); }
+      // Intentar múltiples endpoints v2 hasta que uno funcione
+      const endpoints = [
+        `schedule/next/league/${t.lid}`,
+        `schedule/previous/league/${t.lid}`,
+        `eventsnextleague.php?id=${t.lid}`,
+        `eventspastleague.php?id=${t.lid}`,
+      ];
 
-      // Partidos pasados — para resultados reales
-      try {
-        const dataPast = await apiGet(`eventspastleague.php?id=${t.lid}`);
-        (dataPast?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
-      } catch(e) { console.warn('Past league error:', t.name, e.message); }
+      for (const ep of endpoints) {
+        try {
+          const data = await apiGet(ep);
+          // v2 puede devolver events, schedule, results, matches
+          const evs = data?.events || data?.schedule || data?.results || data?.matches || data?.event || [];
+          if (evs.length) {
+            evs.forEach(ev => found.push(parseEvent(ev, t)));
+            console.log(`✅ ${t.name} via ${ep}: ${evs.length} eventos`);
+          }
+        } catch(e) { console.warn(`❌ ${ep}:`, e.message); }
+      }
     }
 
     if (found.length) {
