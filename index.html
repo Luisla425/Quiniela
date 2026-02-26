@@ -1338,7 +1338,7 @@ let userEnteringPreds = false; // Flag: usuario escribiendo predicciones
 
 // ¿Ya empezó algún partido del día? → apuestas cerradas → se pueden ver predicciones
 function bettingClosed() {
-  return dayMatches.some(m => m.status === 'In Play' || m.status === 'Match Finished');
+  return dayMatches.some(m => isLiveStatus(m.status) || isFinishedStatus(m.status));
 }
 function startVzTime() {
   const update = () => {
@@ -1353,7 +1353,7 @@ function startVzTime() {
   autoSyncInterval = setInterval(async () => {
     // NO hacer sync si el usuario está escribiendo predicciones
     if (userEnteringPreds) return;
-    const hasLive = dayMatches.some(m => m.status === 'In Play' || m.status === 'Not Started');
+    const hasLive = dayMatches.some(m => isLiveStatus(m.status) || m.status === 'Not Started');
     if (hasLive) {
       await syncAPI();
       const hasInPlay = dayMatches.some(m => m.status === 'In Play');
@@ -1433,6 +1433,18 @@ function parseEvent(ev, t) {
     homeScore: homeScore!=null ? +homeScore : null,
     awayScore: awayScore!=null ? +awayScore : null,
     status: ev.strStatus || ev.status || (homeScore!=null ? 'Match Finished' : 'Not Started'),
+    statusLabel: (() => {
+      const s = (ev.strStatus||'').toUpperCase();
+      if (s==='1H') return '⏱ 1er Tiempo';
+      if (s==='HT') return '⏸ Medio Tiempo';
+      if (s==='2H') return '⏱ 2do Tiempo';
+      if (s==='ET') return '⏱ Tiempo Extra';
+      if (s==='P')  return '🥅 Penaltis';
+      if (s==='FT'||s==='MATCH FINISHED') return '✅ Final';
+      if (s==='AET') return '✅ Final (T. Extra)';
+      if (s==='AP'||s==='PEN') return '✅ Final (Penaltis)';
+      return s;
+    })(),
     minute: ev.strProgress || ev.intProgress || ev.minute || null,
     homeGoals: ev.strHomeGoalDetails || '',
     awayGoals: ev.strAwayGoalDetails || '',
@@ -1609,13 +1621,13 @@ function buildMatchCard(m) {
   const div = document.createElement('div');
   div.className = 'match-item' + (m.status==='In Play'?' live':m.status==='Match Finished'?' finished':'');
 
-  const isLive     = m.status === 'In Play' || m.status === 'HT';
+  const isLive     = isLiveStatus(m.status);
   const isFinished = isFinishedStatus(m.status);
 
   const badge = isLive
-    ? `<span class="badge badge-live">🔴 En Vivo</span>`
+    ? `<span class="badge badge-live">🔴 ${m.statusLabel||'En Vivo'}</span>`
     : isFinished
-    ? `<span class="badge badge-done">✅ Final</span>`
+    ? `<span class="badge badge-done">${m.statusLabel||'✅ Final'}</span>`
     : `<span style="font-family:'Bebas Neue',sans-serif;font-size:1.1em;color:var(--accent2);">⏰ ${vzTime(m.time)}</span>`;
 
   // Minuto en vivo si existe
@@ -2283,8 +2295,16 @@ function sendWhatsApp() {
 function isFinishedStatus(s) {
   if (!s) return false;
   const st = s.toLowerCase();
-  return st === 'match finished' || st === 'ft' || st === 'finished' || 
-         st === 'aet' || st === 'pen' || st === 'complete' || st === 'final';
+  // TheSportsDB status values: FT=Full Time, AET=After Extra Time, PEN=Penalties
+  // Match Finished = generic, AP = After Penalties
+  return ['ft','match finished','finished','aet','pen','ap','complete','final','after penalties','after extra time'].includes(st);
+}
+
+function isLiveStatus(s) {
+  if (!s) return false;
+  const st = s.toLowerCase();
+  // 1H=First Half, 2H=Second Half, HT=Half Time, ET=Extra Time, P=Penalties shootout
+  return ['1h','2h','ht','et','p','in play','live','extra time','penalties'].includes(st);
 }
 
 async function adminEval() {
@@ -2484,8 +2504,3 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
-
-
-
-
-
