@@ -818,7 +818,7 @@ const FB_CFG = {
 };
 
 const ADMIN_CODE = "70484251307";
-const API_KEY    = "b8f5b12cd0b361706d5c3a47c24d3eb9";
+const API_KEY    = "333289"; // v1 key en URL — funciona desde web
 
 firebase.initializeApp(FB_CFG);
 const auth = firebase.auth();
@@ -1415,19 +1415,9 @@ function parseEvent(ev, t) {
   };
 }
 
-// Headers para API v2
-function apiHeaders() {
-  return {
-    'X-API-KEY': API_KEY,
-    'Content-Type': 'application/json'
-  };
-}
-
+// API v1 — key en URL, funciona desde web sin CORS issues
 async function apiGet(endpoint) {
-  const res = await fetch(`https://www.thesportsdb.com/api/v2/json/${endpoint}`, {
-    method: 'GET',
-    headers: apiHeaders()
-  });
+  const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/${endpoint}`);
   if (!res.ok) throw new Error(`API error ${res.status}`);
   return res.json();
 }
@@ -1439,25 +1429,17 @@ async function syncAPI() {
     for (const t of TOURNAMENTS) {
       if (!myTournaments.includes(t.id)) continue;
 
-      // Intentar múltiples endpoints v2 hasta que uno funcione
-      const endpoints = [
-        `schedule/next/league/${t.lid}`,
-        `schedule/previous/league/${t.lid}`,
-        `eventsnextleague.php?id=${t.lid}`,
-        `eventspastleague.php?id=${t.lid}`,
-      ];
+      // Próximos partidos
+      try {
+        const dataNext = await apiGet(`eventsnextleague.php?id=${t.lid}`);
+        (dataNext?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
+      } catch(e) { console.warn('Next:', t.name, e.message); }
 
-      for (const ep of endpoints) {
-        try {
-          const data = await apiGet(ep);
-          // v2 puede devolver events, schedule, results, matches
-          const evs = data?.events || data?.schedule || data?.results || data?.matches || data?.event || [];
-          if (evs.length) {
-            evs.forEach(ev => found.push(parseEvent(ev, t)));
-            console.log(`✅ ${t.name} via ${ep}: ${evs.length} eventos`);
-          }
-        } catch(e) { console.warn(`❌ ${ep}:`, e.message); }
-      }
+      // Partidos pasados — para resultados reales
+      try {
+        const dataPast = await apiGet(`eventspastleague.php?id=${t.lid}`);
+        (dataPast?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
+      } catch(e) { console.warn('Past:', t.name, e.message); }
     }
 
     if (found.length) {
@@ -1567,7 +1549,7 @@ async function openStats(matchId) {
   }
   $('statsContent').innerHTML = `<div class="empty"><span class="icon">⏳</span>Cargando estadísticas...</div>`;
   try {
-    const res = await fetch(`https://www.thesportsdb.com/api/v2/json/lookupevent.php?id=${matchId}`, { headers: apiHeaders() });
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/lookupevent.php?id=${matchId}`);
     const data = await res.json();
     const ev = data?.events?.[0];
     if (!ev) { $('statsContent').innerHTML = `<div class="empty"><span class="icon">📭</span>Sin estadísticas disponibles aún</div>`; return; }
