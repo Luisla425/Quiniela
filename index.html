@@ -1319,6 +1319,7 @@ async function sendReset() {
 // VENEZUELA TIME + COUNTDOWN
 // ────────────────────────────────────────────
 let autoSyncInterval = null;
+let userEnteringPreds = false; // Flag: usuario escribiendo predicciones
 function startVzTime() {
   const update = () => {
     const now = new Date();
@@ -1330,16 +1331,17 @@ function startVzTime() {
   updateCountdown();
   // FIX 2 & 4: Auto-sync cada 60 segundos durante partidos activos
   autoSyncInterval = setInterval(async () => {
+    // NO hacer sync si el usuario está escribiendo predicciones
+    if (userEnteringPreds) return;
     const hasLive = dayMatches.some(m => m.status === 'In Play' || m.status === 'Not Started');
     if (hasLive) {
       await syncAPI();
-      // Si hay partidos en vivo, actualizar pizarra también
       const hasInPlay = dayMatches.some(m => m.status === 'In Play');
       if (hasInPlay && $('rankingScreen') && !$('rankingScreen').classList.contains('hidden')) {
         loadRanking();
       }
     }
-  }, 30000); // 30s cuando hay partidos en vivo
+  }, 30000);
 }
 
 function updateCountdown() {
@@ -1486,9 +1488,26 @@ function renderMatches(list) {
     el.innerHTML = `<div class="empty"><span class="icon">📭</span>Sin partidos. Pulsa Sync.</div>`;
     return;
   }
+
+  // Guardar predicciones que el usuario ya escribió antes de re-renderizar
+  const savedPreds = {};
+  list.forEach(m => {
+    const hi = $(`hs_${m.id}`), ai = $(`as_${m.id}`);
+    if (hi && ai && (hi.value !== '0' || ai.value !== '0')) {
+      savedPreds[m.id] = { h: hi.value, a: ai.value };
+    }
+  });
+
   const sorted = [...list].sort((a,b)=>(a.time||'23:59').localeCompare(b.time||'23:59'));
   el.innerHTML = '';
   sorted.forEach(m => el.appendChild(buildMatchCard(m)));
+
+  // Restaurar predicciones guardadas
+  Object.entries(savedPreds).forEach(([mid, vals]) => {
+    const hi = $(`hs_${mid}`), ai = $(`as_${mid}`);
+    if (hi) hi.value = vals.h;
+    if (ai) ai.value = vals.a;
+  });
 }
 
 function buildMatchCard(m) {
@@ -1512,9 +1531,9 @@ function buildMatchCard(m) {
         <button onclick="openStats('${m.id}')" style="background:rgba(124,58,237,0.2);border:1px solid var(--accent);color:var(--accent2);padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📊 Ver Estadísticas</button>
        </div>`
     : `<div class="score-row">
-        <input type="number" min="0" max="20" value="0" id="hs_${m.id}" class="score-box">
+        <input type="number" min="0" max="20" value="0" id="hs_${m.id}" class="score-box" oninput="userEnteringPreds=true">
         <span class="score-dash">—</span>
-        <input type="number" min="0" max="20" value="0" id="as_${m.id}" class="score-box">
+        <input type="number" min="0" max="20" value="0" id="as_${m.id}" class="score-box" oninput="userEnteringPreds=true">
        </div>`;
 
   div.innerHTML = `
@@ -1674,6 +1693,7 @@ async function savePreds() {
       });
     });
     await b.commit();
+    userEnteringPreds = false;
     toast(`✅ ${preds.length} predicciones guardadas. ¡Suerte!`,'success');
     alert_(`✅ ${preds.length} predicciones guardadas correctamente`,'success');
   } catch(e) { toast(`❌ Error: ${e.message}`,'error'); }
@@ -2292,3 +2312,4 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
