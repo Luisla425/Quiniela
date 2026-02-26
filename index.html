@@ -1320,6 +1320,11 @@ async function sendReset() {
 // ────────────────────────────────────────────
 let autoSyncInterval = null;
 let userEnteringPreds = false; // Flag: usuario escribiendo predicciones
+
+// ¿Ya empezó algún partido del día? → apuestas cerradas → se pueden ver predicciones
+function bettingClosed() {
+  return dayMatches.some(m => m.status === 'In Play' || m.status === 'Match Finished');
+}
 function startVzTime() {
   const update = () => {
     const now = new Date();
@@ -1411,6 +1416,8 @@ function parseEvent(ev, t) {
     awayScore: awayScore!=null ? +awayScore : null,
     status: ev.strStatus || ev.status || (homeScore!=null ? 'Match Finished' : 'Not Started'),
     minute: ev.strProgress || ev.intProgress || ev.minute || null,
+    homeGoals: ev.strHomeGoalDetails || '',
+    awayGoals: ev.strAwayGoalDetails || '',
     venue: ev.strVenue || ev.venue || '—',
     round: ev.intRound || ev.round || 1,
     tournamentId: t.id, tournamentName: t.name
@@ -1526,9 +1533,21 @@ function buildMatchCard(m) {
   // Minuto en vivo si existe
   const minuto = isLive && m.minute ? `<span style="color:var(--red);font-weight:900;font-size:0.82em;">⏱ ${m.minute}'</span>` : '';
 
+  // Info en vivo: goles si los hay
+  const liveGoals = (() => {
+    if (!isLive && !isFinished) return '';
+    const hg = m.homeGoals || ''; const ag = m.awayGoals || '';
+    if (!hg && !ag) return '';
+    let g = '<div style="margin-top:8px;font-size:0.75em;">';
+    if (hg) hg.split(';').filter(Boolean).forEach(x=>{ g+=`<div style="color:var(--green);font-weight:700;">⚽ ${x.trim()}</div>`; });
+    if (ag) ag.split(';').filter(Boolean).forEach(x=>{ g+=`<div style="color:var(--blue);font-weight:700;">⚽ ${x.trim()}</div>`; });
+    return g + '</div>';
+  })();
+
   const scoreArea = (isLive || isFinished)
-    ? `<div style="text-align:center;margin-top:6px;">
-        <button onclick="openStats('${m.id}')" style="background:rgba(124,58,237,0.2);border:1px solid var(--accent);color:var(--accent2);padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📊 Ver Estadísticas</button>
+    ? `${liveGoals}
+       <div style="text-align:center;margin-top:8px;">
+        <button onclick="openStats('${m.id}')" style="background:rgba(124,58,237,0.2);border:1px solid var(--accent);color:var(--accent2);padding:6px 16px;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📊 Estadísticas & Goles</button>
        </div>`
     : `<div class="score-row">
         <input type="number" min="0" max="20" value="0" id="hs_${m.id}" class="score-box" oninput="userEnteringPreds=true">
@@ -1703,6 +1722,11 @@ async function savePreds() {
 // MY PREDICTIONS
 // ────────────────────────────────────────────
 async function loadMyPreds() {
+  // Mostrar u ocultar búsqueda según si ya empezaron los partidos
+  const closed = bettingClosed();
+  if ($('searchLocked')) $('searchLocked').classList.toggle('hidden', closed);
+  if ($('searchUnlocked')) $('searchUnlocked').classList.toggle('hidden', !closed);
+
   const el = $('myPredsList');
   el.innerHTML = `<div class="empty"><span class="icon">⏳</span>Cargando...</div>`;
   try {
@@ -2312,4 +2336,5 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
 
