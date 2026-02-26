@@ -1486,13 +1486,15 @@ async function syncAPI() {
       loadDayMatches();
       alert_(`✅ Partidos actualizados · ${found.length} de API + guardados`,'success');
     } else {
-      // API no devolvió nada — cargar siempre desde Firestore
+      // API no devolvió nada — cargar desde Firestore y actualizar marcadores individualmente
       try {
         const snap = await db.collection('matches').get();
         if (!snap.empty) {
           allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
           loadDayMatches();
-          alert_('📂 Mostrando últimos datos guardados','info');
+          alert_('📂 Cargando datos guardados · Actualizando marcadores...','info');
+          // Buscar marcador actual de cada partido por ID
+          await refreshLiveScores();
         } else {
           alert_('⚠️ Sin partidos. Selecciona torneos y sincroniza.','warning');
         }
@@ -1507,6 +1509,55 @@ async function syncAPI() {
       allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
       loadDayMatches();
     } catch(e2) { console.error(e2); }
+  }
+}
+
+async function refreshLiveScores() {
+  // Obtener marcador actual de cada partido del día via lookupevent
+  const nowVZ = new Date(Date.now() - 4*3600000);
+  const today = nowVZ.toISOString().split('T')[0];
+  const todayMatches = allMatches.filter(m => m.date === today || m.date >= today);
+  if (!todayMatches.length) return;
+
+  let updated = 0;
+  const batch = db.batch();
+
+  for (const m of todayMatches) {
+    try {
+      const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/lookupevent.php?id=${m.id}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const ev = data?.events?.[0];
+      if (!ev) continue;
+
+      const homeScore = ev.intHomeScore != null ? +ev.intHomeScore : null;
+      const awayScore = ev.intAwayScore != null ? +ev.intAwayScore : null;
+      const status = ev.strStatus || (homeScore != null ? 'Match Finished' : 'Not Started');
+      const minute = ev.strProgress || ev.intProgress || null;
+      const homeGoals = ev.strHomeGoalDetails || '';
+      const awayGoals = ev.strAwayGoalDetails || '';
+
+      // Actualizar en memoria
+      const idx = allMatches.findIndex(x => x.id === m.id);
+      if (idx !== -1) {
+        allMatches[idx] = { ...allMatches[idx], homeScore, awayScore, status, minute, homeGoals, awayGoals };
+        updated++;
+      }
+
+      // Guardar en Firestore
+      batch.set(db.collection('matches').doc(m.id),
+        { homeScore, awayScore, status, minute, homeGoals, awayGoals },
+        { merge: true }
+      );
+    } catch(e) { console.warn('lookupevent fail:', m.id, e.message); }
+  }
+
+  if (updated > 0) {
+    try { await batch.commit(); } catch(e) {}
+    loadDayMatches();
+    alert_(`✅ ${updated} marcadores actualizados`, 'success');
+  } else {
+    alert_('📂 Datos guardados cargados', 'info');
   }
 }
 
