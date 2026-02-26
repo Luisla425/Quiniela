@@ -556,7 +556,7 @@ body {
     <div>
       <div style="font-size:0.75em;color:var(--muted);font-weight:700;text-transform:uppercase;">Bienvenido</div>
       <div style="font-weight:900;font-size:1.1em;">
-        <span id="hdrName">—</span>
+        <span id="hdrPlayerNum" style="color:var(--muted);font-size:0.75em;margin-right:2px;"></span><span id="hdrName">—</span>
         <span id="hdrAdmin" class="badge badge-admin hidden" style="margin-left:8px;">👑 Admin</span>
       </div>
       <div style="font-size:0.75em;color:var(--muted);margin-top:2px;">Invitación: <strong id="hdrCode" style="color:var(--accent2);">—</strong></div>
@@ -713,9 +713,16 @@ body {
 <div class="modal" id="joinGrpModal">
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal('joinGrpModal')">✕</button>
-    <h3 style="font-weight:900;margin-bottom:16px;">🔗 Unirse a Grupo</h3>
-    <div class="field"><label>Código del grupo (6 caracteres)</label><input type="text" id="grpCode" placeholder="ABC123" maxlength="6" style="text-transform:uppercase;"></div>
-    <button class="btn btn-purple" onclick="joinGroup()">✅ Unirse</button>
+    <h3 style="font-weight:900;margin-bottom:8px;">🔗 Unirse a Grupo</h3>
+    <p style="font-size:0.82em;color:var(--muted);margin-bottom:16px;">Escribe el código de 6 letras que te compartió el admin</p>
+    <div class="field">
+      <label>Código del grupo</label>
+      <input type="text" id="grpCode" placeholder="ABC123" maxlength="6"
+        style="text-transform:uppercase;font-size:1.4em;text-align:center;letter-spacing:6px;font-weight:900;"
+        oninput="this.value=this.value.toUpperCase();$('joinStatus').innerHTML=''">
+    </div>
+    <div id="joinStatus" style="margin-bottom:12px;min-height:20px;"></div>
+    <button class="btn btn-purple" id="joinBtn" onclick="joinGroup()">✅ Unirse al Grupo</button>
   </div>
 </div>
 
@@ -1116,6 +1123,9 @@ async function doRegister() {
 
     // Guardar en Firestore — con retry
     const invCode = randCode(6);
+    // Obtener número de jugador (contador total + 1)
+    const allUsersSnap = await db.collection('users').get();
+    const playerNumber = allUsersSnap.size + 1;
     const data = {
       name, username: finalUsername, phone: '+' + phone, phoneDisplay: selectedCountryReg.flag + ' ' + selectedCountryReg.code + ' ' + rawPhone, email,
       personalInviteCode: invCode,
@@ -1123,6 +1133,7 @@ async function doRegister() {
       points: 0, exactPredictions: 0, correctResults: 0,
       invitedBy: isAdmin ? 'MASTER' : code.toUpperCase(),
       tournaments: myTournaments,
+      playerNumber,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -1235,6 +1246,10 @@ function enterApp() {
 
   $('hdrName').textContent = me.username;
   $('hdrCode').textContent = me.personalInviteCode || '—';
+  if (me.playerNumber) {
+    const hdrNum = document.getElementById('hdrPlayerNum');
+    if (hdrNum) hdrNum.textContent = '#' + me.playerNumber;
+  }
   if (me.isAdmin) {
     $('hdrAdmin').classList.remove('hidden');
     $('adminTab').classList.remove('hidden');
@@ -1393,6 +1408,9 @@ async function refreshMatchesFromFirestore() {
     if (!snap.empty) {
       allMatches = snap.docs.map(d => ({id: d.id, ...d.data()}));
       loadDayMatches();
+      // Si hay partidos en vivo en Firestore, hacer sync inmediato para actualizar marcador
+      const hasLive = dayMatches.some(m => m.status === 'In Play');
+      if (hasLive) syncAPI();
     }
   } catch(e) { /* ignorar si falla */ }
 }
@@ -1452,19 +1470,38 @@ async function syncAPI() {
     }
 
     if (found.length) {
+      // API devolvió partidos — mergear con lo que hay en Firestore
       const unique = new Map();
+      // Primero cargar Firestore (base)
+      try {
+        const fsSnap = await db.collection('matches').get();
+        fsSnap.docs.forEach(d => unique.set(d.id, {id:d.id,...d.data()}));
+      } catch(e) {}
+      // Luego sobreescribir con datos frescos de API
       found.forEach(m => unique.set(m.id, m));
       allMatches = Array.from(unique.values());
       const b = db.batch();
-      allMatches.forEach(m => b.set(db.collection('matches').doc(m.id), m, {merge:true}));
+      found.forEach(m => b.set(db.collection('matches').doc(m.id), m, {merge:true}));
       await b.commit();
       loadDayMatches();
-      alert_(`✅ ${allMatches.length} partidos sincronizados`,'success');
+      alert_(`✅ Partidos actualizados · ${found.length} de API + guardados`,'success');
     } else {
-      alert_('⚠️ Sin partidos disponibles. Prueba en otro momento.','warning');
+      // API no devolvió nada — cargar siempre desde Firestore
+      try {
+        const snap = await db.collection('matches').get();
+        if (!snap.empty) {
+          allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
+          loadDayMatches();
+          alert_('📂 Mostrando últimos datos guardados','info');
+        } else {
+          alert_('⚠️ Sin partidos. Selecciona torneos y sincroniza.','warning');
+        }
+      } catch(e2) {
+        alert_('❌ Sin conexión y sin datos guardados','error');
+      }
     }
   } catch(e) {
-    alert_(`⚠️ Error: ${e.message}. Cargando datos guardados...`,'warning');
+    alert_(`⚠️ Error API. Cargando datos guardados...`,'warning');
     try {
       const snap = await db.collection('matches').get();
       allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1967,7 +2004,7 @@ async function viewGroup(gid) {
     div.className='rank-row'+(isMe?' me':'');
     div.innerHTML=`
       <div class="rank-pos">${medal}</div>
-      <div class="rank-name">${u.username}${isMe?' (TÚ)':''}</div>
+      <div class="rank-name">${u.username}${isMe?' (TÚ)':''}<span style="color:var(--muted);font-size:0.7em;margin-left:4px;">#${u.playerNumber||'?'}</span></div>
       <div class="rank-exact">${u.exactPredictions||0} ⭐</div>
       <div class="rank-pts">${u.points||0}</div>`;
     el.appendChild(div);
@@ -2004,28 +2041,62 @@ async function createGroup() {
 }
 
 async function joinGroup() {
-  const code=$('grpCode').value.trim().toUpperCase();
-  if (code.length!==6) { toast('❌ Código de 6 caracteres','error'); return; }
-  const btn = document.querySelector('#joinGrpModal .btn-purple');
-  if (btn) btn.disabled = true;
+  const code = $('grpCode').value.trim().toUpperCase();
+  const statusEl = $('joinStatus');
+  const btn = $('joinBtn');
+
+  const setStatus = (msg, type='info') => {
+    const colors = { info:'var(--blue)', success:'var(--green)', error:'var(--red)', warning:'var(--yellow)' };
+    statusEl.innerHTML = `<div style="padding:10px 14px;background:rgba(0,0,0,0.2);border-left:3px solid ${colors[type]};border-radius:8px;font-weight:700;font-size:0.88em;color:${colors[type]};">${msg}</div>`;
+  };
+
+  if (code.length !== 6) { setStatus('❌ El código debe tener 6 caracteres','error'); return; }
+
+  btn.disabled = true;
+  setStatus('🔍 Buscando grupo...','info');
+
   try {
-    const snap=await db.collection('groups').where('code','==',code).limit(1).get();
-    if (snap.empty) { toast('❌ Grupo no encontrado','error'); return; }
-    const gdoc=snap.docs[0]; const g=gdoc.data();
-    if (g.members.some(m=>m.userId===me.uid)) { toast('⚠️ Ya eres miembro','warning'); closeModal('joinGrpModal'); return; }
-    if (g.members.length >= g.maxMembers) { toast('❌ Grupo lleno','error'); return; }
-    await gdoc.ref.update({members:firebase.firestore.FieldValue.arrayUnion({
-      userId:me.uid, username:me.username,
-      joinedAt:new Date().toISOString(), isAdmin:false
+    const snap = await db.collection('groups').where('code','==',code).limit(1).get();
+
+    if (snap.empty) {
+      setStatus('❌ Código incorrecto. Verifica con el admin que te invitó.','error');
+      btn.disabled = false; return;
+    }
+
+    const gdoc = snap.docs[0];
+    const g = gdoc.data();
+
+    if (g.members.some(m => m.userId === me.uid)) {
+      setStatus(`✅ Ya eres miembro de "${g.name}"`, 'success');
+      setTimeout(() => closeModal('joinGrpModal'), 1500);
+      btn.disabled = false; return;
+    }
+
+    if (g.members.length >= g.maxMembers) {
+      setStatus(`❌ El grupo "${g.name}" está lleno (${g.members.length}/${g.maxMembers})`, 'error');
+      btn.disabled = false; return;
+    }
+
+    setStatus(`✅ Grupo encontrado: "${g.name}" · ${g.members.length}/${g.maxMembers} jugadores`, 'success');
+
+    await gdoc.ref.update({ members: firebase.firestore.FieldValue.arrayUnion({
+      userId: me.uid, username: me.username,
+      joinedAt: new Date().toISOString(), isAdmin: false
     })});
-    closeModal('joinGrpModal');
+
     $('grpCode').value = '';
-    toast(`✅ ¡Unido a "${g.name}"!`,'success');
-    loadGroups();
+
+    // Mostrar pantalla de bienvenida al grupo
+    setStatus(`🎉 ¡Bienvenido a "${g.name}"! Ya puedes ver la clasificación del grupo.`, 'success');
+    setTimeout(() => {
+      closeModal('joinGrpModal');
+      toast(`🎉 ¡Entraste a "${g.name}"!`, 'success');
+      loadGroups();
+    }, 2000);
+
   } catch(e) {
-    toast(`❌ Error: ${e.message}`,'error');
-  } finally {
-    if (btn) btn.disabled = false;
+    setStatus(`❌ Error de conexión: ${e.message}`, 'error');
+    btn.disabled = false;
   }
 }
 
@@ -2075,14 +2146,17 @@ async function adminUsers() {
 
   window._pizarraText = pizarra;
 
-  let html=`<p style="font-weight:700;margin-bottom:10px;font-size:0.88em;">👥 ${snap.size} usuarios registrados</p>`;
+  let html=`<div style="background:rgba(124,58,237,0.15);border:1px solid var(--accent);border-radius:10px;padding:12px 16px;margin-bottom:14px;text-align:center;"><span style="font-family:'Bebas Neue',sans-serif;font-size:2em;color:var(--accent2);">${snap.size}</span><span style="font-weight:700;color:var(--muted);font-size:0.88em;margin-left:8px;">JUGADORES REGISTRADOS</span></div>`;
   snap.docs.forEach((doc,i)=>{
     const u=doc.data();
     const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
     html+=`<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div>
-          <div style="font-weight:700;font-size:0.9em;">${medal} ${u.username} ${u.isAdmin?'👑':''}</div>
+          <div style="font-weight:700;font-size:0.9em;">
+            <span style="color:var(--muted);font-size:0.8em;margin-right:6px;">#${u.playerNumber||'?'}</span>
+            ${u.username} ${u.isAdmin?'👑':''}
+          </div>
           <div style="font-size:0.72em;color:var(--muted);">${u.phoneDisplay||u.phone||u.email} · Inv: <strong>${u.personalInviteCode}</strong></div>
         </div>
         <div style="text-align:right;">
@@ -2343,6 +2417,7 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
 
 
 
