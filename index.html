@@ -670,6 +670,7 @@ body {
       <button class="admin-btn" onclick="adminPoints()">🎯 Config Puntos</button>
       <button class="admin-btn" onclick="adminReset()">🗑️ Borrar Datos</button>
       <button class="admin-btn" onclick="adminEvalManual()" style="grid-column:span 2;border-color:var(--yellow);color:var(--yellow);">🔧 Evaluar con Resultados Reales (Manual)</button>
+      <button class="admin-btn" onclick="adminShowGroups()" style="grid-column:span 2;border-color:var(--accent2);color:var(--accent2);">📋 Ver Códigos de Grupos</button>
       <button class="admin-btn" onclick="adminResetPass()" style="grid-column:span 2;">🔐 Recuperar Contraseña de Usuario</button>
     </div>
     <div id="adminContent"></div>
@@ -759,6 +760,16 @@ body {
     <h3 style="font-weight:900;margin-bottom:4px;" id="statsTitle">📊 Estadísticas</h3>
     <p style="font-size:0.78em;color:var(--muted);margin-bottom:16px;" id="statsSubtitle"></p>
     <div id="statsContent"><div class="empty"><span class="icon">⏳</span>Cargando...</div></div>
+  </div>
+</div>
+
+<!-- GROUP SELECTOR MODAL -->
+<div class="modal" id="grpSelectorModal">
+  <div class="modal-box" style="max-width:400px;">
+    <button class="modal-close" onclick="closeModal('grpSelectorModal')">✕</button>
+    <h3 style="font-weight:900;margin-bottom:8px;">👥 ¿Para qué grupo?</h3>
+    <p style="font-size:0.82em;color:var(--muted);margin-bottom:16px;">Estás en varios grupos. Elige para cuál vas a predecir:</p>
+    <div id="grpSelectorList"></div>
   </div>
 </div>
 
@@ -1776,37 +1787,57 @@ async function savePreds() {
   });
   if (!preds.length) { alert_('❌ Sin partidos disponibles','error'); return; }
 
-  // Verificar si ya tiene predicciones guardadas para esta jornada
+  // Obtener grupos del jugador para seleccionar
+  const grpSnap = await db.collection('groups').get();
+  const myGroups = grpSnap.docs
+    .map(d=>({id:d.id,...d.data()}))
+    .filter(g=>g.members?.some(m=>m.userId===me.uid));
+
+  if (!myGroups.length) {
+    alert_('❌ No perteneces a ningún grupo. Únete a uno primero.','error'); return;
+  }
+
+  // Si solo hay un grupo, usarlo directamente
+  let selectedGroup = myGroups[0];
+  if (myGroups.length > 1) {
+    // Mostrar selector de grupo
+    openGroupSelector(myGroups, preds, jDate);
+    return;
+  }
+
+  await doSavePreds(preds, jDate, selectedGroup);
+}
+
+async function doSavePreds(preds, jDate, group) {
+  // Verificar si ya tiene predicciones para esta jornada EN ESTE GRUPO
   try {
     const existing = await db.collection('predictions')
       .where('userId','==',me.uid)
       .where('jornadaDate','==',jDate)
+      .where('groupId','==',group.id)
       .limit(1).get();
-
     if (!existing.empty) {
-      alert_('❌ Ya tienes predicciones guardadas para esta jornada. No se puede repetir ni corregir.','error');
+      alert_(`❌ Ya tienes predicciones para esta jornada en "${group.name}".`,'error');
       return;
     }
-  } catch(e) { /* continuar si falla la verificación */ }
+  } catch(e) {}
 
-  // Mostrar resumen para confirmar
-  let resumen = '⚽ TUS PREDICCIONES:\n\n';
-  preds.forEach(p => {
-    resumen += `${p.match.home} ${p.h} - ${p.a} ${p.match.away}\n`;
-  });
-  resumen += '\n¿Estás seguro? NO podrás cambiarlas después.';
-
+  // Confirmar
+  let resumen = `⚽ GRUPO: ${group.name}\n\nTUS PREDICCIONES:\n\n`;
+  preds.forEach(p => { resumen += `${p.match.home} ${p.h} - ${p.a} ${p.match.away}\n`; });
+  resumen += '\n¿Estás seguro? NO podrás cambiarlas.';
   if (!confirm(resumen)) return;
 
-  // Guardar — usar el matchId como parte del ID para evitar duplicados
   try {
     const b = db.batch();
     preds.forEach(p => {
-      const docId = `${me.uid}_${p.matchId}`;
+      const docId = `${me.uid}_${group.id}_${p.matchId}`;
       b.set(db.collection('predictions').doc(docId), {
         userId:me.uid, username:me.username,
+        groupId:group.id, groupName:group.name,
         matchId:p.matchId, predictedHomeScore:p.h, predictedAwayScore:p.a,
-        home:p.match.home, away:p.match.away, homeFlag:p.match.homeFlag, awayFlag:p.match.awayFlag,
+        home:p.match.home, away:p.match.away,
+        homeFlag:p.match.homeFlag, awayFlag:p.match.awayFlag,
         tournamentId:p.match.tournamentId, jornadaDate:jDate,
         evaluated:false, timestamp:firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -2000,6 +2031,22 @@ async function saveTournaments() {
 // ────────────────────────────────────────────
 // GROUPS
 // ────────────────────────────────────────────
+function openGroupSelector(groups, preds, jDate) {
+  const list = $('grpSelectorList');
+  list.innerHTML = '';
+  groups.forEach(g => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'width:100%;padding:14px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:Outfit,sans-serif;font-weight:700;font-size:0.9em;cursor:pointer;margin-bottom:8px;text-align:left;';
+    btn.innerHTML = `👥 ${g.name} <span style="color:var(--muted);font-size:0.78em;">· ${g.members?.length||0} jugadores</span>`;
+    btn.onclick = async () => {
+      closeModal('grpSelectorModal');
+      await doSavePreds(preds, jDate, g);
+    };
+    list.appendChild(btn);
+  });
+  openModal('grpSelectorModal');
+}
+
 async function loadGroups() {
   const el=$('groupsList');
   el.innerHTML=`<div class="empty"><span class="icon">⏳</span>Cargando...</div>`;
@@ -2051,34 +2098,74 @@ async function deleteGroup(gid, gname) {
 }
 
 async function viewGroup(gid) {
-  const gdoc=await db.collection('groups').doc(gid).get();
-  const g=gdoc.data();
-  const ids=g.members.map(m=>m.userId);
-  const usnap=await db.collection('users').where(firebase.firestore.FieldPath.documentId(),'in',ids).get();
-  const users=usnap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.points||0)-(a.points||0));
-
-  $('grpRankTitle').textContent=`🏆 ${g.name}`;
-  $('grpRankCode').textContent=g.code;
-  const el=$('grpRankList'); el.innerHTML='';
-  users.forEach((u,i)=>{
-    const isMe=u.id===me.uid;
-    const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-    const div=document.createElement('div');
-    div.className='rank-row'+(isMe?' me':'');
-    div.innerHTML=`
-      <div class="rank-pos">${medal}</div>
-      <div class="rank-name">${u.username}${isMe?' (TÚ)':''}<span style="color:var(--muted);font-size:0.7em;margin-left:4px;">#${u.playerNumber||'?'}</span></div>
-      <div class="rank-exact">${u.exactPredictions||0} ⭐</div>
-      <div class="rank-pts">${u.points||0}</div>`;
-    el.appendChild(div);
-  });
+  const gdoc = await db.collection('groups').doc(gid).get();
+  const g = gdoc.data();
+  $('grpRankTitle').textContent = `🏆 ${g.name}`;
+  $('grpRankCode').textContent = g.code;
+  const el = $('grpRankList');
+  el.innerHTML = `<div class="empty"><span class="icon">⏳</span>Calculando pizarra...</div>`;
   openModal('grpRankModal');
+
+  const memberIds = g.members.map(m => m.userId);
+  const pointsMap = {};
+  memberIds.forEach(id => { pointsMap[id] = {pts:0, exact:0, correct:0}; });
+
+  try {
+    const pSnap = await db.collection('predictions')
+      .where('groupId','==',gid)
+      .where('evaluated','==',true)
+      .get();
+
+    pSnap.docs.forEach(d => {
+      const p = d.data();
+      if (!pointsMap[p.userId]) pointsMap[p.userId] = {pts:0,exact:0,correct:0};
+      const pts = p.pointsAwarded || 0;
+      pointsMap[p.userId].pts += pts;
+      if (pts === 5) pointsMap[p.userId].exact++;
+      else if (pts === 3) pointsMap[p.userId].correct++;
+    });
+
+    const uSnap = await db.collection('users')
+      .where(firebase.firestore.FieldPath.documentId(),'in',memberIds).get();
+    const users = uSnap.docs
+      .map(d=>({id:d.id,...d.data()}))
+      .map(u=>({...u,
+        grpPts: pointsMap[u.id]?.pts||0,
+        grpExact: pointsMap[u.id]?.exact||0,
+        grpCorrect: pointsMap[u.id]?.correct||0
+      }))
+      .sort((a,b)=>b.grpPts-a.grpPts);
+
+    el.innerHTML = '';
+    users.forEach((u,i) => {
+      const isMe = u.id === me.uid;
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+      const div = document.createElement('div');
+      div.className = 'rank-row'+(isMe?' me':'');
+      div.innerHTML = `
+        <div class="rank-pos" style="color:${i<3?'var(--yellow)':'var(--muted)'};">${medal}</div>
+        <div class="rank-name">${u.username}${isMe?' <span style="color:var(--accent2);font-size:0.75em;">(TÚ)</span>':''}</div>
+        <div class="rank-exact" style="font-size:0.8em;">⭐${u.grpExact} exactos</div>
+        <div class="rank-pts">${u.grpPts} pts</div>`;
+      el.appendChild(div);
+    });
+    if (!users.length) el.innerHTML = `<div class="empty"><span class="icon">📭</span>Sin jugadores</div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><span class="icon">❌</span>${e.message}</div>`;
+  }
 }
+
 
 async function createGroup() {
   if (!me || !me.isAdmin) { toast('❌ Solo el admin puede crear grupos','error'); closeModal('createGrpModal'); return; }
   const name=$('grpName').value.trim(), max=$('grpMax').value;
   if (!name) { toast('❌ Nombre requerido','error'); return; }
+  // Máximo 5 grupos en toda la app
+  const totalGroups = await db.collection('groups').get();
+  if (totalGroups.size >= 5) {
+    toast('❌ Máximo 5 grupos permitidos. Borra uno antes de crear otro.','error');
+    return;
+  }
   const btn = document.querySelector('#createGrpModal .btn-green');
   if (btn) btn.disabled = true;
   try {
@@ -2092,9 +2179,8 @@ async function createGroup() {
     $('grpName').value = '';
     // Mostrar código en toast largo
     toast(`✅ Grupo "${name}" creado · Código: ${code}`,'success');
-    // Guardar código en adminContent para que lo vea el admin
-    const ac = $('adminContent');
-    if (ac) ac.innerHTML = `<div class="alert alert-success" style="margin-top:10px;">🎉 Grupo creado: <strong>${name}</strong><br>🔐 Código: <strong style="font-size:1.4em;letter-spacing:3px;">${code}</strong><br><small>Comparte este código con tus jugadores</small></div>` + ac.innerHTML;
+    // Mostrar automáticamente la lista de grupos con códigos
+    adminShowGroups();
     loadGroups();
   } catch(e) {
     toast(`❌ Error creando grupo: ${e.message}`,'error');
@@ -2307,6 +2393,58 @@ function isLiveStatus(s) {
   return ['1h','2h','ht','et','p','in play','live','extra time','penalties'].includes(st);
 }
 
+async function adminShowGroups() {
+  const el = $('adminContent');
+  el.innerHTML = `<div class="empty"><span class="icon">⏳</span>Cargando grupos...</div>`;
+  try {
+    const snap = await db.collection('groups').get();
+    if (snap.empty) { el.innerHTML = `<div class="empty"><span class="icon">📭</span>No hay grupos creados aún</div>`; return; }
+
+    let html = `<p style="font-weight:900;font-size:0.9em;margin-bottom:12px;color:var(--accent2);">📋 GRUPOS ACTIVOS (${snap.size}/5)</p>`;
+
+    snap.docs.forEach((doc, i) => {
+      const g = doc.data();
+      const memberCount = g.members?.length || 0;
+      html += `
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <div style="font-weight:900;font-size:1em;">👥 ${g.name}</div>
+            <div style="font-size:0.75em;color:var(--muted);margin-top:2px;">${memberCount}/${g.maxMembers} jugadores</div>
+          </div>
+          <div style="text-align:center;background:var(--bg);border:2px solid var(--accent);border-radius:10px;padding:8px 14px;">
+            <div style="font-size:0.65em;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Código</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.8em;color:var(--accent2);letter-spacing:4px;">${g.code}</div>
+          </div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.8em;color:var(--muted);">
+          📲 Mensaje para compartir:<br>
+          <span style="color:var(--text);font-weight:700;">"Únete a ${g.name} en Quiniela Luan. Código: ${g.code}"</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="copyGroupCode('${g.code}','${g.name}')" style="flex:1;padding:8px;background:rgba(124,58,237,0.2);border:1px solid var(--accent);color:var(--accent2);border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📋 Copiar mensaje</button>
+          <button onclick="shareGroupWA('${g.code}','${g.name}')" style="flex:1;padding:8px;background:rgba(37,211,102,0.15);border:1px solid #25d366;color:#25d366;border-radius:8px;font-weight:700;font-size:0.78em;cursor:pointer;">📲 Compartir WA</button>
+        </div>
+      </div>`;
+    });
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><span class="icon">❌</span>${e.message}</div>`;
+  }
+}
+
+function copyGroupCode(code, name) {
+  const msg = `Únete a "${name}" en Quiniela Luan 🏆\nCódigo de acceso: ${code}\n\nDescarga la app y úsalo al registrarte en Grupos.`;
+  navigator.clipboard?.writeText(msg).then(() => toast('✅ Mensaje copiado','success'))
+    .catch(() => toast(`Código: ${code}`,'info'));
+}
+
+function shareGroupWA(code, name) {
+  const msg = encodeURIComponent(`Únete a "${name}" en Quiniela Luan 🏆\nCódigo de acceso: *${code}*\n\n⚽ Entra a la app y en Grupos → Unirse → escribe el código.`);
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
+}
+
 async function adminEval() {
   if (!confirm('¿Evaluar todos los partidos finalizados?')) return;
   alert_('⏳ Evaluando...','info');
@@ -2316,9 +2454,9 @@ async function adminEval() {
     if (!fsSnap.empty) allMatches = fsSnap.docs.map(d=>({id:d.id,...d.data()}));
   } catch(e) {}
   const fin = allMatches.filter(m => isFinishedStatus(m.status) && m.homeScore != null);
-  if (!fin.length) { 
-    alert_(`⚠️ Sin partidos finalizados en memoria (${allMatches.length} partidos cargados). Prueba 🔧 Evaluar Manual.`,'warning'); 
-    return; 
+  if (!fin.length) {
+    alert_(`⚠️ Sin partidos finalizados en memoria (${allMatches.length} cargados). Haz Sync primero.`,'warning');
+    return;
   }
   let total=0, pts=0;
   for (const match of fin) {
@@ -2334,16 +2472,11 @@ async function adminEval() {
       const predAway = +p.predictedAwayScore;
       const predResult = predHome === predAway ? 'empate' : predHome > predAway ? 'home' : 'away';
       if (predHome === realHome && predAway === realAway) {
-        points = 5;
-        await db.collection('users').doc(p.userId).update({exactPredictions:firebase.firestore.FieldValue.increment(1)});
+        points = 5; // Exacto
       } else if (predResult === realResult) {
-        points = 3;
-        await db.collection('users').doc(p.userId).update({correctResults:firebase.firestore.FieldValue.increment(1)});
+        points = 3; // Ganador correcto o empate sin exacto
       }
-      if (points > 0) {
-        await db.collection('users').doc(p.userId).update({points: firebase.firestore.FieldValue.increment(points)});
-        pts += points;
-      }
+      pts += points;
       await pd.ref.update({evaluated:true, pointsAwarded:points, realHome, realAway});
       total++;
     }
@@ -2504,3 +2637,4 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
