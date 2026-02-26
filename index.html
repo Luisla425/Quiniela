@@ -1474,78 +1474,63 @@ async function apiGet(endpoint) {
 
 async function syncAPI() {
   alert_('🔄 Sincronizando partidos...','info');
-  const found = [];
+  const found = new Map(); // id -> match
+
   try {
     for (const t of TOURNAMENTS) {
       if (!myTournaments.includes(t.id)) continue;
-
-      // Próximos partidos
+      // Próximos
       try {
-        const dataNext = await apiGet(`eventsnextleague.php?id=${t.lid}`);
-        (dataNext?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
-      } catch(e) { console.warn('Next:', t.name, e.message); }
-
-      // Partidos pasados — para resultados reales
-      try {
-        const dataPast = await apiGet(`eventspastleague.php?id=${t.lid}`);
-        (dataPast?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
-      } catch(e) { console.warn('Past:', t.name, e.message); }
-    }
-
-    if (found.length) {
-      // API devolvió partidos — mergear con lo que hay en Firestore
-      const unique = new Map();
-      // Primero cargar Firestore (base)
-      try {
-        const fsSnap = await db.collection('matches').get();
-        fsSnap.docs.forEach(d => unique.set(d.id, {id:d.id,...d.data()}));
+        const d = await apiGet(`eventsnextleague.php?id=${t.lid}`);
+        (d?.events||[]).forEach(ev => found.set(ev.idEvent, parseEvent(ev,t)));
       } catch(e) {}
-      // Luego sobreescribir con datos frescos de API
-      found.forEach(m => unique.set(m.id, m));
-      allMatches = Array.from(unique.values());
-      const b = db.batch();
-      found.forEach(m => b.set(db.collection('matches').doc(m.id), m, {merge:true}));
-      await b.commit();
-      loadDayMatches();
-      alert_(`✅ Partidos actualizados · ${found.length} de API + guardados`,'success');
-      // Auto-evaluar partidos finalizados
-      await autoEvalFinished();
-    } else {
-      // API no devolvió nada — cargar desde Firestore y actualizar marcadores individualmente
+      // Pasados (para los q ya empezaron hoy)
       try {
-        const snap = await db.collection('matches').get();
-        if (!snap.empty) {
-          allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
-          loadDayMatches();
-          alert_('📂 Cargando datos guardados · Actualizando marcadores...','info');
-          // Buscar marcador actual de cada partido por ID
-          await refreshLiveScores();
-        } else {
-          alert_('⚠️ Sin partidos. Selecciona torneos y sincroniza.','warning');
-        }
-      } catch(e2) {
-        alert_('❌ Sin conexión y sin datos guardados','error');
-      }
+        const d = await apiGet(`eventspastleague.php?id=${t.lid}`);
+        (d?.events||[]).forEach(ev => found.set(ev.idEvent, parseEvent(ev,t)));
+      } catch(e) {}
     }
-  } catch(e) {
-    alert_(`⚠️ Error API. Cargando datos guardados...`,'warning');
-    try {
-      const snap = await db.collection('matches').get();
-      allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
-      loadDayMatches();
-    } catch(e2) { console.error(e2); }
+  } catch(e) {}
+
+  // Siempre cargar Firestore como base
+  try {
+    const fsSnap = await db.collection('matches').get();
+    fsSnap.docs.forEach(d => {
+      if (!found.has(d.id)) found.set(d.id, {id:d.id,...d.data()});
+    });
+  } catch(e) {}
+
+  if (!found.size) {
+    alert_('⚠️ Sin partidos disponibles','warning'); return;
   }
+
+  allMatches = Array.from(found.values());
+
+  // Guardar en Firestore solo los que vinieron de API
+  try {
+    const b = db.batch();
+    Array.from(found.values()).forEach(m => {
+      b.set(db.collection('matches').doc(String(m.id)), m, {merge:true});
+    });
+    await b.commit();
+  } catch(e) {}
+
+  loadDayMatches();
+
+  // Ahora actualizar marcadores de partidos de HOY uno por uno
+  await refreshLiveScores();
+
+  alert_(`✅ ${allMatches.length} partidos · marcadores actualizados`,'success');
 }
 
 async function refreshLiveScores() {
-  // Obtener marcador actual de cada partido del día via lookupevent
   const nowVZ = new Date(Date.now() - 4*3600000);
   const today = nowVZ.toISOString().split('T')[0];
-  const todayMatches = allMatches.filter(m => m.date === today || m.date >= today);
+  const todayMatches = allMatches.filter(m => m.date === today);
   if (!todayMatches.length) return;
 
-  let updated = 0;
   const batch = db.batch();
+  let updated = 0;
 
   for (const m of todayMatches) {
     try {
@@ -1557,83 +1542,76 @@ async function refreshLiveScores() {
 
       const homeScore = ev.intHomeScore != null ? +ev.intHomeScore : null;
       const awayScore = ev.intAwayScore != null ? +ev.intAwayScore : null;
-      const status = ev.strStatus || (homeScore != null ? 'Match Finished' : 'Not Started');
-      const minute = ev.strProgress || ev.intProgress || null;
+      const status    = ev.strStatus || 'Not Started';
+      const minute    = ev.strProgress || ev.intProgress || null;
       const homeGoals = ev.strHomeGoalDetails || '';
       const awayGoals = ev.strAwayGoalDetails || '';
+      const statusLabel = getStatusLabel(status);
 
-      // Actualizar en memoria
-      const idx = allMatches.findIndex(x => x.id === m.id);
+      const idx = allMatches.findIndex(x => String(x.id) === String(m.id));
       if (idx !== -1) {
-        allMatches[idx] = { ...allMatches[idx], homeScore, awayScore, status, minute, homeGoals, awayGoals };
+        allMatches[idx] = {...allMatches[idx], homeScore, awayScore, status, statusLabel, minute, homeGoals, awayGoals};
         updated++;
       }
-
-      // Guardar en Firestore
-      batch.set(db.collection('matches').doc(m.id),
-        { homeScore, awayScore, status, minute, homeGoals, awayGoals },
-        { merge: true }
-      );
-    } catch(e) { console.warn('lookupevent fail:', m.id, e.message); }
+      batch.set(db.collection('matches').doc(String(m.id)),
+        {homeScore, awayScore, status, statusLabel, minute, homeGoals, awayGoals}, {merge:true});
+    } catch(e) { console.warn('lookup fail:', m.id); }
   }
 
   if (updated > 0) {
     try { await batch.commit(); } catch(e) {}
     loadDayMatches();
-    alert_(`✅ ${updated} marcadores actualizados`, 'success');
-    // Auto-evaluar partidos que terminaron
+    // Evaluar automáticamente los que terminaron
     await autoEvalFinished();
-  } else {
-    alert_('📂 Datos guardados cargados', 'info');
   }
 }
 
-// Evaluación automática — corre después de cada Sync
+function getStatusLabel(s) {
+  const m = {'1H':'⏱ 1er Tiempo','HT':'⏸ Medio Tiempo','2H':'⏱ 2do Tiempo',
+             'ET':'⏱ Tiempo Extra','P':'🥅 Penaltis','FT':'✅ Final',
+             'AET':'✅ Final (T.Extra)','AP':'✅ Final (Penaltis)',
+             'PEN':'✅ Final (Penaltis)','Match Finished':'✅ Final'};
+  return m[s] || s;
+}
+
 async function autoEvalFinished() {
   const finished = allMatches.filter(m => isFinishedStatus(m.status) && m.homeScore != null);
   if (!finished.length) return;
 
-  let total = 0, evaluated = 0;
+  let evaluated = 0;
   for (const match of finished) {
-    const realHome = +match.homeScore;
-    const realAway = +match.awayScore;
-    const realResult = realHome === realAway ? 'empate' : realHome > realAway ? 'home' : 'away';
+    const realHome   = +match.homeScore;
+    const realAway   = +match.awayScore;
+    const realResult = realHome===realAway?'empate':realHome>realAway?'home':'away';
 
-    // Buscar predicciones no evaluadas de este partido (cualquier grupo)
     try {
-      const pSnap = await db.collection('predictions')
-        .where('matchId', '==', String(match.id))
-        .where('evaluated', '==', false)
-        .get();
+      // Buscar con String Y número para cubrir ambos casos
+      const snaps = await Promise.all([
+        db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get(),
+        db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get()
+      ]);
+      // Unir sin duplicados
+      const seen = new Set();
+      const docs = [];
+      snaps.forEach(s => s.docs.forEach(d => { if(!seen.has(d.id)){seen.add(d.id);docs.push(d);} }));
 
-      for (const pd of pSnap.docs) {
+      for (const pd of docs) {
         const p = pd.data();
-        const predHome = +p.predictedHomeScore;
-        const predAway = +p.predictedAwayScore;
-        const predResult = predHome === predAway ? 'empate' : predHome > predAway ? 'home' : 'away';
+        const predHome   = +p.predictedHomeScore;
+        const predAway   = +p.predictedAwayScore;
+        const predResult = predHome===predAway?'empate':predHome>predAway?'home':'away';
         let points = 0;
-
-        if (predHome === realHome && predAway === realAway) {
-          points = 5; // Exacto
-        } else if (predResult === realResult) {
-          points = 3; // Ganador correcto
-        }
-
-        await pd.ref.update({
-          evaluated: true,
-          pointsAwarded: points,
-          realHome, realAway
-        });
+        if (predHome===realHome && predAway===realAway) points = 5;
+        else if (predResult===realResult) points = 3;
+        await pd.ref.update({evaluated:true, pointsAwarded:points, realHome, realAway});
         evaluated++;
       }
-      if (pSnap.size > 0) total += pSnap.size;
-    } catch(e) { console.warn('autoEval error:', match.id, e.message); }
+    } catch(e) { console.warn('autoEval:', match.id, e.message); }
   }
 
-  if (evaluated > 0) {
-    toast(`🏆 ${evaluated} predicciones evaluadas automáticamente`, 'success');
-  }
+  if (evaluated > 0) toast(`🏆 ${evaluated} predicciones evaluadas`, 'success');
 }
+
 
 function loadDayMatches() {
   // Gemini fix: fecha basada en hora Venezuela (UTC-4) para evitar error de medianoche
@@ -1686,10 +1664,11 @@ function buildMatchCard(m) {
   const isLive     = isLiveStatus(m.status);
   const isFinished = isFinishedStatus(m.status);
 
+  const statusLbl = m.statusLabel || getStatusLabel(m.status) || '';
   const badge = isLive
-    ? `<span class="badge badge-live">🔴 ${m.statusLabel||'En Vivo'}</span>`
+    ? `<span class="badge badge-live">🔴 ${statusLbl||'En Vivo'}</span>`
     : isFinished
-    ? `<span class="badge badge-done">${m.statusLabel||'✅ Final'}</span>`
+    ? `<span class="badge badge-done">${statusLbl||'✅ Final'}</span>`
     : `<span style="font-family:'Bebas Neue',sans-serif;font-size:1.1em;color:var(--accent2);">⏰ ${vzTime(m.time)}</span>`;
 
   // Minuto en vivo si existe
@@ -1726,13 +1705,13 @@ function buildMatchCard(m) {
       <div class="team-side">
         <span class="team-flag">${m.homeFlag}</span>
         <span class="team-name">${m.home}</span>
-        ${isLive||isFinished?`<span class="team-score-big" style="color:${isLive?'var(--red)':'var(--accent2)'};">${m.homeScore??0}</span>`:''}
+        ${isLive||isFinished?`<span class="team-score-big" style="color:${isLive?'var(--red)':'var(--accent2)'};">${m.homeScore!=null?m.homeScore:'?'}</span>`:''}
       </div>
       <div class="vs-divider">${isLive||isFinished?'—':'VS'}</div>
       <div class="team-side">
         <span class="team-flag">${m.awayFlag}</span>
         <span class="team-name">${m.away}</span>
-        ${isLive||isFinished?`<span class="team-score-big" style="color:${isLive?'var(--red)':'var(--accent2)'};">${m.awayScore??0}</span>`:''}
+        ${isLive||isFinished?`<span class="team-score-big" style="color:${isLive?'var(--red)':'var(--accent2)'};">${m.awayScore!=null?m.awayScore:'?'}</span>`:''}
       </div>
     </div>
     ${scoreArea}`;
@@ -2714,6 +2693,7 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
 
 
 
