@@ -2164,32 +2164,53 @@ async function viewGroup(gid) {
   memberIds.forEach(id => { pointsMap[id] = {pts:0, exact:0, correct:0}; });
 
   try {
-    const pSnap = await db.collection('predictions')
-      .where('groupId','==',gid)
-      .where('evaluated','==',true)
-      .get();
+    // Leer predicciones evaluadas — con groupId (nuevas) Y sin groupId (viejas)
+    // Para cada miembro, buscar sus predicciones evaluadas
+    for (const uid of memberIds) {
+      try {
+        const pSnap = await db.collection('predictions')
+          .where('userId','==', uid)
+          .where('evaluated','==', true)
+          .get();
+        pSnap.docs.forEach(d => {
+          const p = d.data();
+          // Incluir si: tiene el groupId de este grupo, O no tiene groupId (predicción vieja)
+          const belongsHere = !p.groupId || p.groupId === gid;
+          if (!belongsHere) return;
+          if (!pointsMap[uid]) pointsMap[uid] = {pts:0, exact:0, correct:0};
+          const pts = p.pointsAwarded || 0;
+          pointsMap[uid].pts += pts;
+          if (pts === 5) pointsMap[uid].exact++;
+          else if (pts === 3) pointsMap[uid].correct++;
+        });
+      } catch(e) { console.warn('preds error:', uid, e.message); }
+    }
 
-    pSnap.docs.forEach(d => {
-      const p = d.data();
-      if (!pointsMap[p.userId]) pointsMap[p.userId] = {pts:0,exact:0,correct:0};
-      const pts = p.pointsAwarded || 0;
-      pointsMap[p.userId].pts += pts;
-      if (pts === 5) pointsMap[p.userId].exact++;
-      else if (pts === 3) pointsMap[p.userId].correct++;
-    });
+    // Leer datos de usuarios — en chunks de 10 (límite Firestore)
+    const allUsers = [];
+    for (let i = 0; i < memberIds.length; i += 10) {
+      const chunk = memberIds.slice(i, i+10);
+      const uSnap = await db.collection('users')
+        .where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
+      uSnap.docs.forEach(d => allUsers.push({id:d.id,...d.data()}));
+    }
 
-    const uSnap = await db.collection('users')
-      .where(firebase.firestore.FieldPath.documentId(),'in',memberIds).get();
-    const users = uSnap.docs
-      .map(d=>({id:d.id,...d.data()}))
+    const users = allUsers
       .map(u=>({...u,
-        grpPts: pointsMap[u.id]?.pts||0,
-        grpExact: pointsMap[u.id]?.exact||0,
-        grpCorrect: pointsMap[u.id]?.correct||0
+        grpPts: pointsMap[u.id]?.pts || 0,
+        grpExact: pointsMap[u.id]?.exact || 0,
+        grpCorrect: pointsMap[u.id]?.correct || 0
       }))
-      .sort((a,b)=>b.grpPts-a.grpPts);
+      .sort((a,b) => b.grpPts - a.grpPts || b.grpExact - a.grpExact);
 
     el.innerHTML = '';
+
+    // Header con info del grupo
+    const header = document.createElement('div');
+    header.style.cssText = 'background:var(--card2);border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:0.8em;';
+    header.innerHTML = `<span style="color:var(--muted);">👥 ${memberIds.length} jugadores</span><span style="color:var(--accent2);font-weight:700;">🔐 ${g.code}</span>`;
+    el.appendChild(header);
+
     users.forEach((u,i) => {
       const isMe = u.id === me.uid;
       const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
@@ -2197,12 +2218,15 @@ async function viewGroup(gid) {
       div.className = 'rank-row'+(isMe?' me':'');
       div.innerHTML = `
         <div class="rank-pos" style="color:${i<3?'var(--yellow)':'var(--muted)'};">${medal}</div>
-        <div class="rank-name">${u.username}${isMe?' <span style="color:var(--accent2);font-size:0.75em;">(TÚ)</span>':''}</div>
-        <div class="rank-exact" style="font-size:0.8em;">⭐${u.grpExact} exactos</div>
-        <div class="rank-pts">${u.grpPts} pts</div>`;
+        <div class="rank-name">
+          ${u.username}${isMe?' <span style="color:var(--accent2);font-size:0.75em;">(TÚ)</span>':''}
+          <div style="font-size:0.7em;color:var(--muted);">⭐${u.grpExact} exactos · 🎯${u.grpCorrect} correctos</div>
+        </div>
+        <div class="rank-pts" style="font-size:1.3em;">${u.grpPts}</div>`;
       el.appendChild(div);
     });
-    if (!users.length) el.innerHTML = `<div class="empty"><span class="icon">📭</span>Sin jugadores</div>`;
+
+    if (!users.length) el.innerHTML += `<div class="empty"><span class="icon">📭</span>Sin jugadores en este grupo</div>`;
   } catch(e) {
     el.innerHTML = `<div class="empty"><span class="icon">❌</span>${e.message}</div>`;
   }
@@ -2690,5 +2714,6 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
 
 
