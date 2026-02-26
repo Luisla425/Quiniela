@@ -444,6 +444,41 @@ body {
 /* VZ TIME */
 .vz-time { font-family:'Bebas Neue',sans-serif; font-size:1.3em; color:var(--accent2); }
 
+/* COUNTRY SELECTOR */
+.phone-row { display:flex; gap:8px; align-items:stretch; }
+.country-btn {
+  display:flex; align-items:center; gap:6px;
+  padding:12px 10px;
+  background:var(--card2); border:1px solid var(--border);
+  border-radius:10px; color:var(--text);
+  font-weight:700; font-size:0.9em; cursor:pointer;
+  white-space:nowrap; min-width:90px;
+  transition:border-color 0.2s;
+}
+.country-btn:hover { border-color:var(--accent); }
+.country-dropdown {
+  position:absolute; z-index:9999;
+  background:var(--card); border:1px solid var(--border);
+  border-radius:12px; width:280px; max-height:320px;
+  overflow-y:auto; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  margin-top:4px;
+}
+.country-search {
+  padding:10px 14px; background:var(--card2);
+  border:none; border-bottom:1px solid var(--border);
+  color:var(--text); font-family:'Outfit',sans-serif;
+  font-weight:600; width:100%; font-size:0.9em;
+}
+.country-search:focus { outline:none; }
+.country-option {
+  padding:10px 14px; cursor:pointer;
+  font-size:0.88em; font-weight:600;
+  display:flex; align-items:center; gap:10px;
+  transition:background 0.15s;
+}
+.country-option:hover { background:var(--card2); }
+.country-option .code { color:var(--accent2); font-weight:700; min-width:45px; }
+
 @media(max-width:400px) {
   .score-box { width:56px; height:56px; font-size:1.7em; }
   .rank-row { grid-template-columns:32px 1fr auto auto; }
@@ -472,12 +507,11 @@ body {
   <!-- LOGIN -->
   <div id="loginTab" class="card">
     <div class="field">
-      <label>📱 Teléfono (+58)</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-weight:700;color:var(--accent2);white-space:nowrap;">+58</span>
+      <label>📱 Teléfono</label>
+      <div class="phone-row">
+        <button type="button" id="countryBtnLogin" class="country-btn" onclick="openCountryDropdown('login')">🇻🇪 +58 ▾</button>
         <input type="tel" id="loginPhone" placeholder="4141234567" autocomplete="tel" style="flex:1;" onkeydown="if(event.key==='Enter') doLogin()">
       </div>
-      <p style="font-size:0.72em;color:var(--muted);margin-top:4px;">Sin el 0 inicial. Ej: 4141234567</p>
     </div>
     <div class="field">
       <label>🔑 Contraseña</label>
@@ -496,12 +530,11 @@ body {
       <p style="font-size:0.75em;color:var(--muted);margin-top:4px;">Usa este código si eres el administrador. Otros necesitan código de invitación.</p>
     </div>
     <div class="field"><label>👤 Nombre</label><input type="text" id="regName" placeholder="Luis Lárez"></div>
-    <div class="field"><label>📱 Teléfono (+58)</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-weight:700;color:var(--muted);white-space:nowrap;">+58</span>
+    <div class="field"><label>📱 Teléfono</label>
+      <div class="phone-row">
+        <button type="button" id="countryBtnReg" class="country-btn" onclick="openCountryDropdown('reg')">🇻🇪 +58 ▾</button>
         <input type="tel" id="regPhone" placeholder="4141234567" autocomplete="tel" style="flex:1;">
       </div>
-      <p style="font-size:0.72em;color:var(--muted);margin-top:4px;">Sin el 0 inicial. Ej: 4141234567</p>
     </div>
     <div class="field"><label>🎮 Usuario (máx. 8 letras)</label><input type="text" id="regUser" placeholder="alias" autocomplete="username" oninput="this.value=this.value.toUpperCase().slice(0,8)" style="text-transform:uppercase;" maxlength="8"></div>
     <div class="field"><label>🔑 Contraseña</label><input type="password" id="regPass" placeholder="mínimo 6 caracteres" autocomplete="new-password"></div>
@@ -653,9 +686,9 @@ body {
   <div class="modal-box">
     <button class="modal-close" onclick="closeModal('resetPassModal')">✕</button>
     <h3 style="font-weight:900;margin-bottom:16px;">🔐 Recuperar Contraseña</h3>
-    <div class="field"><label>📱 Tu Teléfono (+58)</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-weight:700;color:var(--accent2);">+58</span>
+    <div class="field"><label>📱 Tu Teléfono</label>
+      <div class="phone-row">
+        <button type="button" id="countryBtnReset" class="country-btn" onclick="openCountryDropdown('reset')">🇻🇪 +58 ▾</button>
         <input type="tel" id="resetPhone" placeholder="4141234567" style="flex:1;">
       </div>
     </div>
@@ -882,6 +915,123 @@ function showTab(tabId, btnId) {
 }
 
 // ────────────────────────────────────────────
+// COUNTRY SELECTOR
+// ────────────────────────────────────────────
+const COUNTRIES = [
+  {flag:'🇻🇪',name:'Venezuela',code:'+58'},
+  {flag:'🇺🇸',name:'Estados Unidos',code:'+1'},
+  {flag:'🇲🇽',name:'México',code:'+52'},
+  {flag:'🇨🇴',name:'Colombia',code:'+57'},
+  {flag:'🇵🇪',name:'Perú',code:'+51'},
+  {flag:'🇦🇷',name:'Argentina',code:'+54'},
+  {flag:'🇨🇱',name:'Chile',code:'+56'},
+  {flag:'🇪🇨',name:'Ecuador',code:'+593'},
+  {flag:'🇧🇴',name:'Bolivia',code:'+591'},
+  {flag:'🇵🇾',name:'Paraguay',code:'+595'},
+  {flag:'🇺🇾',name:'Uruguay',code:'+598'},
+  {flag:'🇧🇷',name:'Brasil',code:'+55'},
+  {flag:'🇵🇦',name:'Panamá',code:'+507'},
+  {flag:'🇨🇷',name:'Costa Rica',code:'+506'},
+  {flag:'🇬🇹',name:'Guatemala',code:'+502'},
+  {flag:'🇭🇳',name:'Honduras',code:'+504'},
+  {flag:'🇸🇻',name:'El Salvador',code:'+503'},
+  {flag:'🇳🇮',name:'Nicaragua',code:'+505'},
+  {flag:'🇩🇴',name:'Rep. Dominicana',code:'+1809'},
+  {flag:'🇨🇺',name:'Cuba',code:'+53'},
+  {flag:'🇵🇷',name:'Puerto Rico',code:'+1787'},
+  {flag:'🇪🇸',name:'España',code:'+34'},
+  {flag:'🇵🇹',name:'Portugal',code:'+351'},
+  {flag:'🇬🇧',name:'Reino Unido',code:'+44'},
+  {flag:'🇩🇪',name:'Alemania',code:'+49'},
+  {flag:'🇫🇷',name:'Francia',code:'+33'},
+  {flag:'🇮🇹',name:'Italia',code:'+39'},
+  {flag:'🇳🇱',name:'Países Bajos',code:'+31'},
+  {flag:'🇧🇪',name:'Bélgica',code:'+32'},
+  {flag:'🇨🇭',name:'Suiza',code:'+41'},
+  {flag:'🇦🇹',name:'Austria',code:'+43'},
+  {flag:'🇸🇪',name:'Suecia',code:'+46'},
+  {flag:'🇳🇴',name:'Noruega',code:'+47'},
+  {flag:'🇩🇰',name:'Dinamarca',code:'+45'},
+  {flag:'🇫🇮',name:'Finlandia',code:'+358'},
+  {flag:'🇵🇱',name:'Polonia',code:'+48'},
+  {flag:'🇷🇺',name:'Rusia',code:'+7'},
+  {flag:'🇹🇷',name:'Turquía',code:'+90'},
+  {flag:'🇨🇦',name:'Canadá',code:'+1'},
+  {flag:'🇦🇺',name:'Australia',code:'+61'},
+  {flag:'🇯🇵',name:'Japón',code:'+81'},
+  {flag:'🇨🇳',name:'China',code:'+86'},
+  {flag:'🇮🇳',name:'India',code:'+91'},
+  {flag:'🇿🇦',name:'Sudáfrica',code:'+27'},
+  {flag:'🇲🇦',name:'Marruecos',code:'+212'},
+  {flag:'🇸🇦',name:'Arabia Saudita',code:'+966'},
+  {flag:'🇦🇪',name:'Emiratos Árabes',code:'+971'},
+];
+
+let selectedCountryReg = COUNTRIES[0]; // Venezuela por defecto
+let selectedCountryLogin = COUNTRIES[0];
+let countryDropdownTarget = null;
+
+function openCountryDropdown(target) {
+  // target: 'reg' or 'login'
+  countryDropdownTarget = target;
+  const existing = document.getElementById('countryDropdown');
+  if (existing) { existing.remove(); return; }
+
+  const dropdown = document.createElement('div');
+  dropdown.id = 'countryDropdown';
+  dropdown.className = 'country-dropdown';
+  dropdown.innerHTML = `<input class="country-search" id="countrySearch" placeholder="🔍 Buscar país..." oninput="filterCountries(this.value)">
+    <div id="countryList"></div>`;
+
+  const btn = document.getElementById(target === 'reg' ? 'countryBtnReg' : 'countryBtnLogin');
+  btn.parentElement.style.position = 'relative';
+  btn.parentElement.appendChild(dropdown);
+  setTimeout(() => document.getElementById('countrySearch')?.focus(), 50);
+  renderCountryList(COUNTRIES);
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function closeDD(e) {
+      if (!dropdown.contains(e.target) && e.target !== btn) {
+        dropdown.remove();
+        document.removeEventListener('click', closeDD);
+      }
+    });
+  }, 100);
+}
+
+function filterCountries(q) {
+  const filtered = COUNTRIES.filter(c =>
+    c.name.toLowerCase().includes(q.toLowerCase()) || c.code.includes(q)
+  );
+  renderCountryList(filtered);
+}
+
+function renderCountryList(list) {
+  const el = document.getElementById('countryList');
+  if (!el) return;
+  el.innerHTML = '';
+  list.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'country-option';
+    div.innerHTML = `<span>${c.flag}</span><span class="code">${c.code}</span><span>${c.name}</span>`;
+    div.onclick = () => {
+      if (countryDropdownTarget === 'reg') {
+        selectedCountryReg = c;
+        document.getElementById('countryBtnReg').innerHTML = `${c.flag} ${c.code} ▾`;
+      } else if (countryDropdownTarget === 'login') {
+        selectedCountryLogin = c;
+        document.getElementById('countryBtnLogin').innerHTML = `${c.flag} ${c.code} ▾`;
+      } else {
+        document.getElementById('countryBtnReset').innerHTML = `${c.flag} ${c.code} ▾`;
+      }
+      document.getElementById('countryDropdown')?.remove();
+    };
+    el.appendChild(div);
+  });
+}
+
+// ────────────────────────────────────────────
 // AUTH — REGISTER
 // ────────────────────────────────────────────
 async function doRegister() {
@@ -900,7 +1050,8 @@ async function doRegister() {
   if (pass.length < 6) { alert_('❌ Contraseña mínimo 6 caracteres','error','alertAuth'); return; }
   if (pass !== pass2)  { alert_('❌ Las contraseñas no coinciden','error','alertAuth'); return; }
 
-  const phone = '58' + rawPhone.replace(/^0/,'');
+  const countryCode = selectedCountryReg.code.replace('+','');
+  const phone = countryCode + rawPhone.replace(/^0/,'');
   const email = phone + '@quiniela.app';
 
   const isAdmin = (code === ADMIN_CODE);
@@ -966,7 +1117,7 @@ async function doRegister() {
     // Guardar en Firestore — con retry
     const invCode = randCode(6);
     const data = {
-      name, username: finalUsername, phone: '+' + phone, email,
+      name, username: finalUsername, phone: '+' + phone, phoneDisplay: selectedCountryReg.flag + ' ' + selectedCountryReg.code + ' ' + rawPhone, email,
       personalInviteCode: invCode,
       isAdmin,
       points: 0, exactPredictions: 0, correctResults: 0,
@@ -1011,7 +1162,8 @@ async function doLogin() {
 
   if (!rawPhone || !pass) { alert_('❌ Completa teléfono y contraseña','error','alertAuth'); return; }
   if (rawPhone.length < 10) { alert_('❌ Teléfono inválido','error','alertAuth'); return; }
-  const phone = '58' + rawPhone.replace(/^0/,'');
+  const countryCode = selectedCountryReg.code.replace('+','');
+  const phone = countryCode + rawPhone.replace(/^0/,'');
   const email = phone + '@quiniela.app';
 
   const btn = $('loginBtn');
@@ -1153,7 +1305,8 @@ function showResetPass() { openModal('resetPassModal'); }
 async function sendReset() {
   const rawPhone = $('resetPhone').value.trim().replace(/[^0-9]/g,'');
   if (!rawPhone || rawPhone.length < 10) { toast('❌ Teléfono inválido','error'); return; }
-  const phone = '58' + rawPhone.replace(/^0/,'');
+  const countryCode = selectedCountryReg.code.replace('+','');
+  const phone = countryCode + rawPhone.replace(/^0/,'');
   const email = phone + '@quiniela.app';
   try {
     await auth.sendPasswordResetEmail(email);
@@ -1869,7 +2022,7 @@ async function adminUsers() {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div>
           <div style="font-weight:700;font-size:0.9em;">${medal} ${u.username} ${u.isAdmin?'👑':''}</div>
-          <div style="font-size:0.72em;color:var(--muted);">${u.phone||u.email} · Inv: <strong>${u.personalInviteCode}</strong></div>
+          <div style="font-size:0.72em;color:var(--muted);">${u.phoneDisplay||u.phone||u.email} · Inv: <strong>${u.personalInviteCode}</strong></div>
         </div>
         <div style="text-align:right;">
           <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4em;color:var(--accent2);">${u.points||0}</div>
@@ -2129,3 +2282,4 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
