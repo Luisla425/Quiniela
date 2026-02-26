@@ -1722,10 +1722,17 @@ async function savePreds() {
 // MY PREDICTIONS
 // ────────────────────────────────────────────
 async function loadMyPreds() {
-  // Mostrar u ocultar búsqueda según si ya empezaron los partidos
-  const closed = bettingClosed();
-  if ($('searchLocked')) $('searchLocked').classList.toggle('hidden', closed);
-  if ($('searchUnlocked')) $('searchUnlocked').classList.toggle('hidden', !closed);
+  // Admin ve siempre · Jugadores solo cuando ya empezó el primer partido
+  const canSearch = me.isAdmin || bettingClosed();
+  if ($('searchLocked')) $('searchLocked').classList.toggle('hidden', canSearch);
+  if ($('searchUnlocked')) $('searchUnlocked').classList.toggle('hidden', !canSearch);
+  // Cambiar mensaje del lock si es jugador normal
+  if (!canSearch && $('searchLocked')) {
+    $('searchLocked').innerHTML = `
+      <div style="font-size:2em;margin-bottom:8px;">🔒</div>
+      <p style="font-weight:700;color:var(--yellow);font-size:0.9em;">Disponible cuando empiece el primer partido</p>
+      <p style="font-size:0.78em;color:var(--muted);margin-top:4px;">Las predicciones son visibles una vez iniciados los juegos</p>`;
+  }
 
   const el = $('myPredsList');
   el.innerHTML = `<div class="empty"><span class="icon">⏳</span>Cargando...</div>`;
@@ -2336,5 +2343,6 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
 
 
