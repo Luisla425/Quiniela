@@ -1408,6 +1408,23 @@ function parseEvent(ev, t) {
   };
 }
 
+// Headers para API v2
+function apiHeaders() {
+  return {
+    'X-API-KEY': API_KEY,
+    'Content-Type': 'application/json'
+  };
+}
+
+async function apiGet(endpoint) {
+  const res = await fetch(`https://www.thesportsdb.com/api/v2/json/${endpoint}`, {
+    method: 'GET',
+    headers: apiHeaders()
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  return res.json();
+}
+
 async function syncAPI() {
   alert_('🔄 Sincronizando partidos...','info');
   const found = [];
@@ -1416,26 +1433,22 @@ async function syncAPI() {
       if (!myTournaments.includes(t.id)) continue;
 
       // Próximos partidos
-      const resNext = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/eventsnextleague.php?id=${t.lid}`);
-      if (resNext.ok) {
-        const dataNext = await resNext.json();
+      try {
+        const dataNext = await apiGet(`eventsnextleague.php?id=${t.lid}`);
         (dataNext?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
-      }
+      } catch(e) { console.warn('Next league error:', t.name, e.message); }
 
-      // Partidos pasados — para tener resultados reales
-      const resPast = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/eventspastleague.php?id=${t.lid}`);
-      if (resPast.ok) {
-        const dataPast = await resPast.json();
+      // Partidos pasados — para resultados reales
+      try {
+        const dataPast = await apiGet(`eventspastleague.php?id=${t.lid}`);
         (dataPast?.events || []).forEach(ev => found.push(parseEvent(ev, t)));
-      }
+      } catch(e) { console.warn('Past league error:', t.name, e.message); }
     }
 
     if (found.length) {
-      // Eliminar duplicados — última versión gana
       const unique = new Map();
       found.forEach(m => unique.set(m.id, m));
       allMatches = Array.from(unique.values());
-
       const b = db.batch();
       allMatches.forEach(m => b.set(db.collection('matches').doc(m.id), m, {merge:true}));
       await b.commit();
@@ -1445,7 +1458,7 @@ async function syncAPI() {
       alert_('⚠️ Sin partidos disponibles. Prueba en otro momento.','warning');
     }
   } catch(e) {
-    alert_('⚠️ Error de red. Cargando datos guardados...','warning');
+    alert_(`⚠️ Error: ${e.message}. Cargando datos guardados...`,'warning');
     try {
       const snap = await db.collection('matches').get();
       allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1539,7 +1552,7 @@ async function openStats(matchId) {
   }
   $('statsContent').innerHTML = `<div class="empty"><span class="icon">⏳</span>Cargando estadísticas...</div>`;
   try {
-    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/${API_KEY}/lookupevent.php?id=${matchId}`);
+    const res = await fetch(`https://www.thesportsdb.com/api/v2/json/lookupevent.php?id=${matchId}`, { headers: apiHeaders() });
     const data = await res.json();
     const ev = data?.events?.[0];
     if (!ev) { $('statsContent').innerHTML = `<div class="empty"><span class="icon">📭</span>Sin estadísticas disponibles aún</div>`; return; }
@@ -2282,4 +2295,3 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
-
