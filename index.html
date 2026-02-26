@@ -1609,8 +1609,8 @@ function buildMatchCard(m) {
   const div = document.createElement('div');
   div.className = 'match-item' + (m.status==='In Play'?' live':m.status==='Match Finished'?' finished':'');
 
-  const isLive     = m.status === 'In Play';
-  const isFinished = m.status === 'Match Finished';
+  const isLive     = m.status === 'In Play' || m.status === 'HT';
+  const isFinished = isFinishedStatus(m.status);
 
   const badge = isLive
     ? `<span class="badge badge-live">🔴 En Vivo</span>`
@@ -2280,41 +2280,51 @@ function sendWhatsApp() {
   window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
 }
 
+function isFinishedStatus(s) {
+  if (!s) return false;
+  const st = s.toLowerCase();
+  return st === 'match finished' || st === 'ft' || st === 'finished' || 
+         st === 'aet' || st === 'pen' || st === 'complete' || st === 'final';
+}
+
 async function adminEval() {
   if (!confirm('¿Evaluar todos los partidos finalizados?')) return;
   alert_('⏳ Evaluando...','info');
-  const fin=allMatches.filter(m=>m.status==='Match Finished'&&m.homeScore!=null);
-  if (!fin.length) { alert_('⚠️ Sin partidos finalizados','warning'); return; }
+  // Primero refrescar desde Firestore para tener datos actuales
+  try {
+    const fsSnap = await db.collection('matches').get();
+    if (!fsSnap.empty) allMatches = fsSnap.docs.map(d=>({id:d.id,...d.data()}));
+  } catch(e) {}
+  const fin = allMatches.filter(m => isFinishedStatus(m.status) && m.homeScore != null);
+  if (!fin.length) { 
+    alert_(`⚠️ Sin partidos finalizados en memoria (${allMatches.length} partidos cargados). Prueba 🔧 Evaluar Manual.`,'warning'); 
+    return; 
+  }
   let total=0, pts=0;
   for (const match of fin) {
     const realHome = match.homeScore;
     const realAway = match.awayScore;
     const realResult = realHome === realAway ? 'empate' : realHome > realAway ? 'home' : 'away';
-    const psnap=await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
-    for (const pd of psnap.docs) {
+    const psnap=await db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get();
+    const psnap2=await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
+    const allPDocs=[...psnap.docs,...psnap2.docs.filter(d2=>!psnap.docs.find(d1=>d1.id===d2.id))];
+    for (const pd of allPDocs) {
       const p=pd.data(); let points=0;
-      const predHome = p.predictedHomeScore;
-      const predAway = p.predictedAwayScore;
+      const predHome = +p.predictedHomeScore;
+      const predAway = +p.predictedAwayScore;
       const predResult = predHome === predAway ? 'empate' : predHome > predAway ? 'home' : 'away';
-
       if (predHome === realHome && predAway === realAway) {
-        // Resultado exacto — 5 pts siempre (gana, empate o pierde exacto)
         points = 5;
         await db.collection('users').doc(p.userId).update({exactPredictions:firebase.firestore.FieldValue.increment(1)});
       } else if (predResult === realResult) {
-        // Acertó ganador o empate pero no exacto — 3 pts
         points = 3;
         await db.collection('users').doc(p.userId).update({correctResults:firebase.firestore.FieldValue.increment(1)});
-      } else {
-        // Falló — 0 pts
-        points = 0;
       }
-
       if (points > 0) {
         await db.collection('users').doc(p.userId).update({points: firebase.firestore.FieldValue.increment(points)});
         pts += points;
       }
-      await pd.ref.update({evaluated:true, pointsAwarded:points});
+      await pd.ref.update({evaluated:true, pointsAwarded:points, realHome, realAway});
       total++;
     }
   }
@@ -2352,13 +2362,20 @@ async function evalWithMatches(matches) {
   alert_('⏳ Evaluando...','info');
   let total=0, pts=0;
   for (const match of matches) {
-    const realHome = match.homeScore;
-    const realAway = match.awayScore;
+    const realHome = +match.homeScore;
+    const realAway = +match.awayScore;
     const realResult = realHome===realAway?'empate':realHome>realAway?'home':'away';
-    const psnap = await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
-    for (const pd of psnap.docs) {
+    // Buscar predicciones con matchId como string O número
+    const psnap = await db.collection('predictions')
+      .where('matchId','==',String(match.id))
+      .where('evaluated','==',false).get();
+    const psnap2 = await db.collection('predictions')
+      .where('matchId','==',match.id)
+      .where('evaluated','==',false).get();
+    const allDocs = [...psnap.docs, ...psnap2.docs.filter(d2=>!psnap.docs.find(d1=>d1.id===d2.id))];
+    for (const pd of allDocs) {
       const p=pd.data(); let points=0;
-      const predHome=p.predictedHomeScore, predAway=p.predictedAwayScore;
+      const predHome=+p.predictedHomeScore, predAway=+p.predictedAwayScore;
       const predResult=predHome===predAway?'empate':predHome>predAway?'home':'away';
       if (predHome===realHome && predAway===realAway) {
         points=5;
@@ -2368,13 +2385,12 @@ async function evalWithMatches(matches) {
         await db.collection('users').doc(p.userId).update({correctResults:firebase.firestore.FieldValue.increment(1)});
       }
       if (points>0) { await db.collection('users').doc(p.userId).update({points:firebase.firestore.FieldValue.increment(points)}); pts+=points; }
-      await pd.ref.update({evaluated:true,pointsAwarded:points});
+      await pd.ref.update({evaluated:true,pointsAwarded:points,realHome,realAway});
       total++;
     }
   }
   if (total===0) {
-    alert_('⚠️ No se encontraron predicciones sin evaluar. Prueba "Ingresar Resultados Manual".','warning');
-    await adminEvalInputManual();
+    alert_('⚠️ No hay predicciones sin evaluar para esos partidos.','warning');
     return;
   }
   alert_(`✅ ${total} predicciones evaluadas · ${pts} puntos distribuidos`,'success');
@@ -2467,7 +2483,8 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;font-size:16px;font-weight:bold;');
 </script>
 </body>
-</html>  
+</html>
+
 
 
 
