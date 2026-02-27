@@ -2081,29 +2081,31 @@ async function openGroupRanking(gid) {
   memberIds.forEach(id=>{ptMap[id]={pts:0,exact:0,correct:0};});
 
   try {
-    // New predictions with groupId
-    const pSnap=await db.collection('predictions').where('groupId','==',gid).where('evaluated','==',true).get();
+    // Get ALL predictions for this group (evaluated + live in progress)
+    const pSnap = await db.collection('predictions').where('groupId','==',gid).get();
     pSnap.docs.forEach(d=>{
-      const p=d.data();
-      if(!ptMap[p.userId]) ptMap[p.userId]={pts:0,exact:0,correct:0};
-      ptMap[p.userId].pts+=p.pointsAwarded||0;
-      if(p.pointsAwarded===5) ptMap[p.userId].exact++;
-      else if(p.pointsAwarded===3) ptMap[p.userId].correct++;
+      const p = d.data();
+      if(!ptMap[p.userId]) ptMap[p.userId]={pts:0,exact:0,correct:0,live:0};
+      // Use livePoints if available (in-progress), else pointsAwarded (final)
+      const pts = p.evaluated ? (p.pointsAwarded||0) : (p.livePoints!=null ? p.livePoints : 0);
+      const isLiveScore = !p.evaluated && p.livePoints != null;
+      ptMap[p.userId].pts += pts;
+      ptMap[p.userId].live += isLiveScore ? 1 : 0;
+      if(pts===5) ptMap[p.userId].exact++;
+      else if(pts===3) ptMap[p.userId].correct++;
     });
-    // Old predictions without groupId — single batch query, not per-user
-    // Only do this if there are members (max 10 per Firestore 'in' query)
-    if (memberIds.length <= 10) {
+    // Old predictions without groupId
+    if(memberIds.length <= 10) {
       const oldPreds = await db.collection('predictions')
-        .where('userId','in',memberIds)
-        .where('evaluated','==',true)
-        .get();
+        .where('userId','in',memberIds).get();
       oldPreds.docs.forEach(d=>{
         const p=d.data();
-        if(p.groupId) return; // Already counted above
-        if(!ptMap[p.userId]) ptMap[p.userId]={pts:0,exact:0,correct:0};
-        ptMap[p.userId].pts+=p.pointsAwarded||0;
-        if(p.pointsAwarded===5) ptMap[p.userId].exact++;
-        else if(p.pointsAwarded===3) ptMap[p.userId].correct++;
+        if(p.groupId) return;
+        if(!ptMap[p.userId]) ptMap[p.userId]={pts:0,exact:0,correct:0,live:0};
+        const pts = p.evaluated ? (p.pointsAwarded||0) : (p.livePoints!=null ? p.livePoints : 0);
+        ptMap[p.userId].pts += pts;
+        if(pts===5) ptMap[p.userId].exact++;
+        else if(pts===3) ptMap[p.userId].correct++;
       });
     }
 
@@ -2115,21 +2117,37 @@ async function openGroupRanking(gid) {
       us.docs.forEach(d=>allU.push({id:d.id,...d.data()}));
     }
 
-    const ranked=allU.map(u=>({...u,grpPts:ptMap[u.id]?.pts||0,grpExact:ptMap[u.id]?.exact||0,grpCorrect:ptMap[u.id]?.correct||0}))
-      .sort((a,b)=>b.grpPts-a.grpPts||b.grpExact-a.grpExact);
+    const ranked=allU.map(u=>({...u,
+        grpPts:ptMap[u.id]?.pts||0,
+        grpExact:ptMap[u.id]?.exact||0,
+        grpCorrect:ptMap[u.id]?.correct||0,
+        grpLive:ptMap[u.id]?.live||0
+      })).sort((a,b)=>b.grpPts-a.grpPts||b.grpExact-a.grpExact);
 
-    let html=`<div style="display:flex;justify-content:space-between;font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0 12px 8px;">
-      <span>Jugador</span><span>⭐Exactos</span><span>Pts</span></div>`;
+    const anyLive = allMatches.some(m=>isLive(m.status));
+    const nowStr = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+    let html = anyLive
+      ? `<div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:0.78em;display:flex;justify-content:space-between;">
+          <span style="color:var(--red);font-weight:800;">🔴 Puntos en vivo</span>
+          <span style="color:var(--muted2);">Actualizado: ${nowStr}</span>
+         </div>`
+      : `<div style="font-size:0.75em;color:var(--muted2);margin-bottom:12px;text-align:right;">Actualizado: ${nowStr}</div>`;
+    html += `<div style="display:flex;justify-content:space-between;font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:0 12px 8px;">
+      <span>Jugador</span><span>⭐ · 🎯</span><span>Pts</span></div>`;
     ranked.forEach((u,i)=>{
       const isMe=u.id===me.uid;
       const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+      const hasLiveGames = u.grpLive > 0;
       html+=`<div class="rank-row ${isMe?'me':''}">
         <span class="rank-pos">${medal}</span>
-        <div class="rank-name">${u.username}${isMe?' <span style="color:var(--primary2);font-size:0.75em;">(TÚ)</span>':''}
-          <div class="rank-sub">🎯 ${u.grpCorrect} correctos</div>
+        <div class="rank-name">
+          ${u.username}${isMe?' <span style="color:var(--primary2);font-size:0.75em;">(TÚ)</span>':''}
+          <div class="rank-sub">⭐${u.grpExact} exactos · 🎯${u.grpCorrect} correctos</div>
         </div>
-        <div style="text-align:center;min-width:50px;font-size:0.85em;color:var(--muted2);">${u.grpExact}</div>
-        <div class="rank-pts">${u.grpPts}</div>
+        <div class="rank-pts" style="display:flex;flex-direction:column;align-items:flex-end;">
+          <span>${u.grpPts}</span>
+          ${hasLiveGames?`<span style="font-size:0.6em;color:var(--red);animation:pulse 2s infinite;">🔴 VIVO</span>`:''}
+        </div>
       </div>`;
     });
     $('rankModalList').innerHTML=html||'<div class="empty"><span class="empty-text">Sin datos aún</span></div>';
@@ -2139,42 +2157,86 @@ async function openGroupRanking(gid) {
 }
 
 // ═══════════════════════════════════════════
-// AUTO EVALUATION
+// SCORING — LIVE + FINAL
+// Points are calculated from current score of ANY active/finished match
+// Updates every sync so leaderboard is always live
 // ═══════════════════════════════════════════
-async function autoEval() {
-  const finished = allMatches.filter(m=>isFinished(m.status)&&m.homeScore!=null);
-  if(!finished.length) return;
 
-  let evaluated=0;
-  for(const match of finished){
-    const rh=+match.homeScore, ra=+match.awayScore;
-    const rr=rh===ra?'empate':rh>ra?'home':'away';
+// Calculate points for a prediction vs current score
+function calcPoints(ph, pa, rh, ra) {
+  const pr = ph===pa?'empate':ph>pa?'home':'away';
+  const rr = rh===ra?'empate':rh>ra?'home':'away';
+  if(ph===rh && pa===ra) return 5;      // Exact score
+  if(pr===rr) return 3;                  // Correct result
+  return 0;
+}
+
+// Main eval — runs after every sync, handles live AND finished matches
+async function autoEval() {
+  // Include ALL matches that have started (live or finished)
+  const active = allMatches.filter(m =>
+    (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
+  );
+  if(!active.length) return;
+
+  let updated = 0;
+  for(const match of active) {
+    const rh = +match.homeScore;
+    const ra = +match.awayScore;
+    const isFinal = isFinished(match.status);
+
     try {
-      const snaps=await Promise.all([
-        db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get(),
-        db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get()
+      // Get ALL predictions for this match (both string and number matchId)
+      const snaps = await Promise.all([
+        db.collection('predictions').where('matchId','==',String(match.id)).get(),
+        db.collection('predictions').where('matchId','==',match.id).get()
       ]);
-      const seen=new Set(); const docs=[];
+      const seen = new Set(); const docs = [];
       snaps.forEach(s=>s.docs.forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);docs.push(d);}}));
-      for(const pd of docs){
-        const p=pd.data();
-        const ph=+p.predictedHomeScore, pa=+p.predictedAwayScore;
-        const pr=ph===pa?'empate':ph>pa?'home':'away';
-        let pts=0;
-        if(ph===rh&&pa===ra) pts=5;
-        else if(pr===rr) pts=3;
-        await pd.ref.update({evaluated:true,pointsAwarded:pts,realHome:rh,realAway:ra});
-        if(pts>0){
-          const upd={points:firebase.firestore.FieldValue.increment(pts)};
-          if(pts===5) upd.exactPredictions=firebase.firestore.FieldValue.increment(1);
-          if(pts===3) upd.correctResults=firebase.firestore.FieldValue.increment(1);
-          await db.collection('users').doc(p.userId).update(upd);
+
+      for(const pd of docs) {
+        const p = pd.data();
+        const ph = +p.predictedHomeScore;
+        const pa = +p.predictedAwayScore;
+        const pts = calcPoints(ph, pa, rh, ra);
+
+        // Always update livePoints (provisional)
+        // Only lock as evaluated=true when match is finished
+        const prevLive = p.livePoints;
+        const prevEval = p.evaluated;
+
+        // Skip if nothing changed
+        if(prevLive === pts && prevEval === isFinal) continue;
+
+        const upd = {
+          livePoints: pts,
+          liveHome: rh,
+          liveAway: ra,
+          liveStatus: match.status,
+        };
+
+        if(isFinal && !p.evaluated) {
+          // Final — lock it
+          upd.evaluated = true;
+          upd.pointsAwarded = pts;
+          upd.realHome = rh;
+          upd.realAway = ra;
+
+          // Update user totals (only once, when finalizing)
+          if(pts > 0) {
+            const userUpd = {points: firebase.firestore.FieldValue.increment(pts)};
+            if(pts===5) userUpd.exactPredictions = firebase.firestore.FieldValue.increment(1);
+            if(pts===3) userUpd.correctResults = firebase.firestore.FieldValue.increment(1);
+            await db.collection('users').doc(p.userId).update(userUpd);
+          }
         }
-        evaluated++;
+
+        await pd.ref.update(upd);
+        updated++;
       }
-    } catch(e){}
+    } catch(e){ console.warn('autoEval error:', match.id, e.message); }
   }
-  if(evaluated>0) toast(`🏆 ${evaluated} predicciones evaluadas`,'success');
+  if(updated > 0) console.log(`📊 ${updated} predicciones actualizadas`);
 }
 
 // ═══════════════════════════════════════════
