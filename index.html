@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0d0d14">
-<title>⚽ Quiniela Luan</title>
+<title>⚽ Quiniela LuAn</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -647,7 +647,7 @@ body::before {
 <div id="authScreen">
   <div class="auth-logo">
     <span class="auth-logo-icon">⚽</span>
-    <h1>QUINIELA LUAN</h1>
+    <h1>QUINIELA LuAn</h1>
     <p>La quiniela de los campeones</p>
   </div>
 
@@ -1004,24 +1004,16 @@ function statusLabel(s) {
 }
 
 function inviteToApp() {
-  const appUrl = window.location.href.split('?')[0]; // clean URL
+  const appUrl = window.location.href.split('?')[0];
   const code = me.personalInviteCode || '';
   const msg = encodeURIComponent(
-    `⚽ *¡Únete a Quiniela Luan!* ⚽
-
-` +
-    `La quiniela de los campeones 🏆
-
-` +
-    `Entra aquí:
-${appUrl}
-
-` +
-    `Al registrarte usa mi código de invitación:
-*${code}*
-
-` +
-    `¡Predice los partidos y gana! 🎯`
+    `⚽ *¡Únete a Quiniela LuAn!* ⚽\n\n` +
+    `La quiniela de los campeones 🏆\n` +
+    `Predice · Compite · Gana\n\n` +
+    `🔗 Entra aquí:\n${appUrl}\n\n` +
+    `📋 Código de invitación:\n*${code}*\n\n` +
+    `¡Predice los partidos y demuestra que sabes de fútbol! 🎯\n\n` +
+    `_Desarrollado desde ARICHUNA por: ING. LUIS LÁREZ_`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
@@ -1030,21 +1022,33 @@ function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Venezuela time
-function vzNow() { return new Date(Date.now() - 4*3600000); }
+// Venezuela time (UTC-4, fixed offset — no daylight saving)
+function vzNow() {
+  const now = new Date();
+  // Get UTC time then subtract 4 hours for Venezuela
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs - 4 * 3600000);
+}
 function vzDate() { return vzNow().toISOString().split('T')[0]; }
 function vzTime(t) {
+  // t is in UTC format from TheSportsDB (e.g. "20:00:00")
+  // Convert to Venezuela time (UTC-4)
   if (!t) return '--:--';
   const [h,m] = t.split(':');
-  const hv = (+h - 4 + 24) % 24;
-  return `${String(hv).padStart(2,'0')}:${m}`;
+  const utcH = +h;
+  const vzH = (utcH - 4 + 24) % 24;
+  const ampm = vzH >= 12 ? 'pm' : 'am';
+  const h12 = vzH % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
 }
 
 // Clock
 function startClock() {
   const tick = () => {
     const now = vzNow();
-    $('hdrClock').textContent = now.toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    $('hdrClock').textContent = now.toLocaleTimeString('es-VE',{
+      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true
+    });
   };
   tick(); setInterval(tick, 1000);
 }
@@ -1504,11 +1508,26 @@ function renderMatches() {
       <button class="btn btn-ghost btn-sm" onclick="doSync()">🔄 Sync</button>
     </div>`;
 
-  // Countdown banner
+  // Countdown banner with time remaining
   if (nextClose) {
+    const matchTimeStr = nextClose.time; // UTC time e.g. "20:00:00"
+    const [mh,mm] = matchTimeStr.split(':').map(Number);
+    const nowVZ = vzNow();
+    const matchVZ = new Date(nowVZ);
+    matchVZ.setHours((mh - 4 + 24) % 24, mm, 0, 0);
+    if (matchVZ < nowVZ) matchVZ.setDate(matchVZ.getDate() + 1);
+    const diffMs = matchVZ - nowVZ;
+    const diffH = Math.floor(diffMs / 3600000);
+    const diffM = Math.floor((diffMs % 3600000) / 60000);
+    const diffS = Math.floor((diffMs % 60000) / 1000);
+    const countdown = diffMs > 0
+      ? (diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m ${diffS}s`)
+      : 'AHORA';
     html += `<div class="countdown-banner">
-      <div><div class="countdown-label">⏰ Próximo cierre</div>
-      <div class="countdown-match" style="font-size:0.85em;">${nextClose.home} vs ${nextClose.away}</div></div>
+      <div>
+        <div class="countdown-label">⏰ Cierre en: <strong style="color:var(--red);">${countdown}</strong></div>
+        <div class="countdown-match" style="font-size:0.82em;margin-top:2px;">${nextClose.home} vs ${nextClose.away}</div>
+      </div>
       <div class="countdown-status">${vzTime(nextClose.time)}</div>
     </div>`;
   }
@@ -2021,7 +2040,12 @@ async function deleteGroup(gid, name) {
 }
 
 function shareGroup(code, name) {
-  const msg=encodeURIComponent(`¡Únete a "${name}" en Quiniela Luan! ⚽\nCódigo: *${code}*\n\nEntra a la app → Grupos → Unirse → escribe el código.`);
+  const msg=encodeURIComponent(
+    `¡Únete al Grupo: *"${name}"* en Quiniela LuAn! ⚽\n\n` +
+    `Código: *${code}*\n\n` +
+    `Entra a la app → Grupos → Unirse → escribe el código.\n\n` +
+    `_Desarrollado desde ARICHUNA por: ING. LUIS LÁREZ_`
+  );
   window.open(`https://wa.me/?text=${msg}`,'_blank');
 }
 
@@ -2186,7 +2210,7 @@ async function adminUsers() {
 function adminWA(username, phone) {
   if(!phone){toast('Sin teléfono registrado','error');return;}
   const num=phone.replace(/[^0-9]/g,'');
-  const msg=encodeURIComponent(`Hola ${username}! 👋 Te escribimos desde Quiniela Luan ⚽`);
+  const msg=encodeURIComponent(`Hola ${username}! 👋 Te escribimos desde Quiniela LuAn ⚽`);
   window.open(`https://wa.me/${num}?text=${msg}`,'_blank');
 }
 
@@ -2209,7 +2233,7 @@ async function adminResetUserPass(username, phone, uid) {
     // Send via WhatsApp
     const num = phone.replace(/[^0-9]/g,'');
     const msg = encodeURIComponent(
-      `🔑 Quiniela Luan — Reset de contraseña\n\n` +
+      `🔑 Quiniela LuAn — Reset de contraseña\n\n` +
       `Hola ${username}! Tu contraseña temporal es:\n\n` +
       `*${tempPass}*\n\n` +
       `Entra con esta clave y cámbiala desde el menú de tu perfil.`
@@ -2314,7 +2338,7 @@ async function adminShowGroups() {
 }
 
 function copyCode(code, name) {
-  const msg=`Únete a "${name}" en Quiniela Luan ⚽\nCódigo: ${code}`;
+  const msg=`Únete a "${name}" en Quiniela LuAn ⚽\nCódigo: ${code}`;
   navigator.clipboard?.writeText(msg).then(()=>toast('✅ Copiado','success')).catch(()=>toast(`Código: ${code}`,'info',6000));
 }
 
@@ -2352,10 +2376,9 @@ async function adminReset() {
 window.addEventListener('online',  ()=>toast('✅ Conexión restaurada','success'));
 window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 
-console.log('%c⚽ QUINIELA LUAN V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
+console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
 </html>
-
 
 
