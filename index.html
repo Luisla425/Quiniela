@@ -1006,8 +1006,9 @@ function statusLabel(s) {
 function inviteToApp() {
   const appUrl = 'https://luisla425.github.io/Quiniela/';
   const code = me.personalInviteCode || '';
+  const nombre = me.name || me.username || '';
   const msg = encodeURIComponent(
-    `⚽ ¡Únete a Quiniela LuAn! ⚽\n` +
+    `Hola, soy ${nombre} y te invito a Quiniela LuAn! ⚽\n` +
     `La quiniela de los campeones 🏆\n` +
     `Entra aquí:\n${appUrl}\n` +
     `Al registrarte usa mi código de invitación:\n` +
@@ -2040,8 +2041,9 @@ async function deleteGroup(gid, name) {
 }
 
 function shareGroup(code, name) {
+  const nombre = me.name || me.username || '';
   const msg = encodeURIComponent(
-    `¡Únete al Grupo: *"${name}"* en Quiniela LuAn! ⚽\n` +
+    `Hola, soy ${nombre} y te invito al Grupo: *"${name}"* en Quiniela LuAn! ⚽\n` +
     `Entra a la app → Grupos → Unirse → escribe el código\n` +
     `Código: _*${code}*_\n` +
     `_*Desarrollado desde Arichuna por luislárez*_`
@@ -2380,4 +2382,5 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
