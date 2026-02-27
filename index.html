@@ -1642,51 +1642,180 @@ function buildMatchCard(m, closed) {
 // ═══════════════════════════════════════════
 async function openStats(matchId) {
   openModal('statsModal');
-  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
+  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando estadísticas...</span></div>';
   try {
     const r = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
     const data = await r.json();
     const ev = data?.events?.[0];
     if (!ev) { $('statsContent').innerHTML='<div class="empty"><span class="empty-text">Sin datos disponibles</span></div>'; return; }
 
-    const hs = ev.intHomeScore??'?', as = ev.intAwayScore??'?';
+    const hs = ev.intHomeScore ?? '?';
+    const as = ev.intAwayScore ?? '?';
+    const live = isLive(ev.strStatus);
+    const scoreColor = live ? 'var(--red)' : 'var(--green)';
+
+    // ── HEADER ──────────────────────────────
     let html = `
-      <div style="text-align:center;margin-bottom:20px;">
-        <div style="font-size:0.75em;color:var(--muted2);margin-bottom:6px;">${ev.strLeague}</div>
-        <div style="font-family:var(--font-h);font-size:1.1em;margin-bottom:8px;">${ev.strHomeTeam}</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:8px;">
-          <span style="font-family:var(--font-h);font-size:3em;color:${isLive(ev.strStatus)?'var(--red)':'var(--green)'};">${hs}</span>
-          <span style="color:var(--muted);font-family:var(--font-h);font-size:1.5em;">—</span>
-          <span style="font-family:var(--font-h);font-size:3em;color:${isLive(ev.strStatus)?'var(--red)':'var(--green)'};">${as}</span>
+      <div style="text-align:center;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px;">
+        <div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">${ev.strLeague}</div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:10px;">
+          <div style="text-align:center;">
+            <div style="font-size:0.78em;font-weight:800;color:var(--text);">${ev.strHomeTeam}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:var(--font-h);font-size:2.8em;color:${scoreColor};">${hs}</span>
+            <span style="font-family:var(--font-h);font-size:1.4em;color:var(--muted);">—</span>
+            <span style="font-family:var(--font-h);font-size:2.8em;color:${scoreColor};">${as}</span>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:0.78em;font-weight:800;color:var(--text);">${ev.strAwayTeam}</div>
+          </div>
         </div>
-        <div style="font-family:var(--font-h);font-size:1.1em;margin-bottom:6px;">${ev.strAwayTeam}</div>
-        <span class="${isLive(ev.strStatus)?'badge-live':'badge-done'}">${statusLabel(ev.strStatus)}</span>
+        <span class="${live?'badge-live':'badge-done'}">${statusLabel(ev.strStatus)}</span>
+        ${ev.strProgress ? `<span style="color:var(--red);font-size:0.8em;font-weight:700;margin-left:8px;">⏱ ${ev.strProgress}'</span>` : ''}
+        ${ev.strVenue ? `<div style="font-size:0.7em;color:var(--muted2);margin-top:6px;">🏟️ ${ev.strVenue}</div>` : ''}
       </div>`;
 
-    // Goals
-    if (ev.strHomeGoalDetails||ev.strAwayGoalDetails) {
-      html += `<div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:8px;">⚽ Goles</div>`;
-      if (ev.strHomeGoalDetails) ev.strHomeGoalDetails.split(';').filter(Boolean).forEach(g=>{
-        html += `<div class="info-row"><span class="info-label">🏠 ${ev.strHomeTeam}</span><span class="info-val">${g.trim()}</span></div>`;
-      });
-      if (ev.strAwayGoalDetails) ev.strAwayGoalDetails.split(';').filter(Boolean).forEach(g=>{
-        html += `<div class="info-row"><span class="info-label">✈️ ${ev.strAwayTeam}</span><span class="info-val">${g.trim()}</span></div>`;
+    // Helper: parse semicolon-separated events
+    function parseEvents(str) {
+      if (!str) return [];
+      return str.split(';').map(s=>s.trim()).filter(Boolean);
+    }
+
+    // Helper: section title
+    function sectionTitle(icon, title) {
+      return `<div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.8em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:14px 0 8px;">
+        <span>${icon}</span><span>${title}</span>
+      </div>`;
+    }
+
+    // Helper: event row
+    function eventRow(minute, team, player, icon, color) {
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-family:var(--font-h);font-size:0.85em;color:var(--muted2);min-width:32px;">${minute ? minute+"'" : ''}</span>
+        <span style="font-size:1em;">${icon}</span>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:0.85em;color:${color};">${player}</div>
+          <div style="font-size:0.7em;color:var(--muted2);">${team}</div>
+        </div>
+      </div>`;
+    }
+
+    // ── GOLES ───────────────────────────────
+    const homeGoals = parseEvents(ev.strHomeGoalDetails);
+    const awayGoals = parseEvents(ev.strAwayGoalDetails);
+    if (homeGoals.length || awayGoals.length) {
+      html += sectionTitle('⚽', 'Goles');
+      // Parse format: "Player 23'" or "Player (23')"
+      [...homeGoals.map(g=>({g,team:ev.strHomeTeam,color:'var(--text)'})),
+       ...awayGoals.map(g=>({g,team:ev.strAwayTeam,color:'var(--blue)'}))].forEach(({g,team,color})=>{
+        const min = g.match(/(\d+)'/)?.[1] || '';
+        const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
+        html += eventRow(min, team, player, '⚽', color);
       });
     }
-    if (ev.strHomeRedCards||ev.strAwayRedCards) {
-      html += `<div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-top:12px;margin-bottom:8px;">🟥 Tarjetas Rojas</div>`;
-      if (ev.strHomeRedCards) html+=`<div class="info-row"><span class="info-label">${ev.strHomeTeam}</span><span class="info-val">${ev.strHomeRedCards}</span></div>`;
-      if (ev.strAwayRedCards) html+=`<div class="info-row"><span class="info-label">${ev.strAwayTeam}</span><span class="info-val">${ev.strAwayRedCards}</span></div>`;
+
+    // ── TARJETAS AMARILLAS ───────────────────
+    const homeYellow = parseEvents(ev.strHomeYellowCards);
+    const awayYellow = parseEvents(ev.strAwayYellowCards);
+    if (homeYellow.length || awayYellow.length) {
+      html += sectionTitle('🟨', 'Tarjetas Amarillas');
+      [...homeYellow.map(g=>({g,team:ev.strHomeTeam})),
+       ...awayYellow.map(g=>({g,team:ev.strAwayTeam}))].forEach(({g,team})=>{
+        const min = g.match(/(\d+)'/)?.[1] || '';
+        const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
+        html += eventRow(min, team, player, '🟨', 'var(--gold)');
+      });
     }
+
+    // ── TARJETAS ROJAS ───────────────────────
+    const homeRed = parseEvents(ev.strHomeRedCards);
+    const awayRed = parseEvents(ev.strAwayRedCards);
+    if (homeRed.length || awayRed.length) {
+      html += sectionTitle('🟥', 'Tarjetas Rojas');
+      [...homeRed.map(g=>({g,team:ev.strHomeTeam})),
+       ...awayRed.map(g=>({g,team:ev.strAwayTeam}))].forEach(({g,team})=>{
+        const min = g.match(/(\d+)'/)?.[1] || '';
+        const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
+        html += eventRow(min, team, player, '🟥', 'var(--red)');
+      });
+    }
+
+    // ── CAMBIOS ──────────────────────────────
+    const homeSubs = parseEvents(ev.strHomeLineupSubstitutes);
+    const awaySubs = parseEvents(ev.strAwayLineupSubstitutes);
+    // Also check strHomeSubstitutes format
+    const homeSubsAlt = parseEvents(ev.strHomeSubstitutes);
+    const awaySubsAlt = parseEvents(ev.strAwaySubstitutes);
+    const allHomeSubs = [...new Set([...homeSubs, ...homeSubsAlt])].filter(Boolean);
+    const allAwaySubs = [...new Set([...awaySubs, ...awaySubsAlt])].filter(Boolean);
+
+    if (allHomeSubs.length || allAwaySubs.length) {
+      html += sectionTitle('🔄', 'Cambios');
+      [...allHomeSubs.map(g=>({g,team:ev.strHomeTeam})),
+       ...allAwaySubs.map(g=>({g,team:ev.strAwayTeam}))].forEach(({g,team})=>{
+        const min = g.match(/(\d+)'/)?.[1] || '';
+        const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
+        html += eventRow(min, team, player, '🔄', 'var(--muted2)');
+      });
+    }
+
+    // ── ALINEACIONES ────────────────────────
+    const homeLineup = ev.strHomeLineupGoalkeeper ? [
+      ev.strHomeLineupGoalkeeper,
+      ev.strHomeLineupDefense,
+      ev.strHomeLineupMidfield,
+      ev.strHomeLineupForward
+    ].filter(Boolean) : [];
+    const awayLineup = ev.strAwayLineupGoalkeeper ? [
+      ev.strAwayLineupGoalkeeper,
+      ev.strAwayLineupDefense,
+      ev.strAwayLineupMidfield,
+      ev.strAwayLineupForward
+    ].filter(Boolean) : [];
+
+    if (homeLineup.length || awayLineup.length) {
+      html += sectionTitle('👕', 'Alineaciones');
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">`;
+
+      html += `<div>
+        <div style="font-size:0.72em;font-weight:800;color:var(--primary2);margin-bottom:6px;text-transform:uppercase;">${ev.strHomeTeam}</div>`;
+      const homeLabels = ['🧤','🛡️','⚙️','⚡'];
+      homeLineup.forEach((line,i)=>{
+        line.split(';').filter(Boolean).forEach(p=>{
+          html += `<div style="font-size:0.72em;padding:3px 0;border-bottom:1px solid var(--border);color:var(--text);">${homeLabels[i]||''} ${p.trim()}</div>`;
+        });
+      });
+      html += `</div>`;
+
+      html += `<div>
+        <div style="font-size:0.72em;font-weight:800;color:var(--blue);margin-bottom:6px;text-transform:uppercase;">${ev.strAwayTeam}</div>`;
+      const awayLabels = ['🧤','🛡️','⚙️','⚡'];
+      awayLineup.forEach((line,i)=>{
+        line.split(';').filter(Boolean).forEach(p=>{
+          html += `<div style="font-size:0.72em;padding:3px 0;border-bottom:1px solid var(--border);color:var(--text);">${awayLabels[i]||''} ${p.trim()}</div>`;
+        });
+      });
+      html += `</div></div>`;
+    }
+
+    // ── SI NO HAY NADA ───────────────────────
+    if (!homeGoals.length && !awayGoals.length && !homeYellow.length &&
+        !awayYellow.length && !homeRed.length && !awayRed.length &&
+        !allHomeSubs?.length && !allAwaySubs?.length) {
+      html += `<div class="empty" style="padding:20px 0;">
+        <span class="empty-icon">${live?'⏱':'📋'}</span>
+        <span class="empty-text">${live?'Partido en curso — datos llegando...':'Sin detalles disponibles para este partido'}</span>
+      </div>`;
+    }
+
     $('statsContent').innerHTML = html;
   } catch(e) {
-    $('statsContent').innerHTML=`<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+    $('statsContent').innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
 }
 
-// ═══════════════════════════════════════════
-// SAVE PREDICTIONS
-// ═══════════════════════════════════════════
+
 async function savePreds() {
   if (!me?.uid) return;
   if (bettingClosed()) { toast('⛔ Predicciones cerradas — ya inició un partido','error'); return; }
