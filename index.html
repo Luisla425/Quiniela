@@ -1004,16 +1004,16 @@ function statusLabel(s) {
 }
 
 function inviteToApp() {
-  const appUrl = window.location.href.split('?')[0];
+  const appUrl = 'https://luisla425.github.io/Quiniela/';
   const code = me.personalInviteCode || '';
   const msg = encodeURIComponent(
-    `⚽ *¡Únete a Quiniela LuAn!* ⚽\n\n` +
+    `⚽ ¡Únete a Quiniela LuAn! ⚽\n` +
     `La quiniela de los campeones 🏆\n` +
-    `Predice · Compite · Gana\n\n` +
-    `🔗 Entra aquí:\n${appUrl}\n\n` +
-    `📋 Código de invitación:\n*${code}*\n\n` +
-    `¡Predice los partidos y demuestra que sabes de fútbol! 🎯\n\n` +
-    `_Desarrollado desde ARICHUNA por: ING. LUIS LÁREZ_`
+    `Entra aquí:\n${appUrl}\n` +
+    `Al registrarte usa mi código de invitación:\n` +
+    `_*${code}*_\n` +
+    `¡Predice los partidos y gana! 🎯\n` +
+    `_*Desarrollado desde Arichuna por luislárez*_`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
@@ -2040,13 +2040,13 @@ async function deleteGroup(gid, name) {
 }
 
 function shareGroup(code, name) {
-  const msg=encodeURIComponent(
-    `¡Únete al Grupo: *"${name}"* en Quiniela LuAn! ⚽\n\n` +
-    `Código: *${code}*\n\n` +
-    `Entra a la app → Grupos → Unirse → escribe el código.\n\n` +
-    `_Desarrollado desde ARICHUNA por: ING. LUIS LÁREZ_`
+  const msg = encodeURIComponent(
+    `¡Únete al Grupo: *"${name}"* en Quiniela LuAn! ⚽\n` +
+    `Entra a la app → Grupos → Unirse → escribe el código\n` +
+    `Código: _*${code}*_\n` +
+    `_*Desarrollado desde Arichuna por luislárez*_`
   );
-  window.open(`https://wa.me/?text=${msg}`,'_blank');
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
 async function openGroupRanking(gid) {
@@ -2380,5 +2380,4 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-
 
