@@ -1082,11 +1082,22 @@ async function doLogin() {
   const pass  = $('loginPass').value;
   if (!phone) { toast('Ingresa tu teléfono','error'); return; }
   if (!pass)  { toast('Ingresa tu contraseña','error'); return; }
+
+  const btn = document.querySelector('#formLogin .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Entrando...'; }
+
   const email = phoneToEmail(phone, 'login');
   try {
     await auth.signInWithEmailAndPassword(email, pass);
+    // onAuthStateChanged handles the rest
   } catch(e) {
-    toast(e.code==='auth/wrong-password'?'Contraseña incorrecta':e.code==='auth/user-not-found'?'Teléfono no registrado':'Error al entrar','error');
+    const msg = e.code==='auth/wrong-password' ? '❌ Contraseña incorrecta'
+              : e.code==='auth/user-not-found'  ? '❌ Teléfono no registrado'
+              : e.code==='auth/too-many-requests'? '❌ Demasiados intentos. Espera unos minutos'
+              : e.code==='auth/network-request-failed' ? '❌ Sin conexión'
+              : '❌ Error: ' + e.message;
+    toast(msg,'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar →'; }
   }
 }
 
@@ -1103,36 +1114,53 @@ async function doRegister() {
   if (!phone)          { toast('Ingresa tu teléfono','error'); return; }
   if (pass.length < 6) { toast('Contraseña mínimo 6 caracteres','error'); return; }
 
-  // Check username unique
-  const uCheck = await db.collection('users').where('username','==',username).limit(1).get();
-  if (!uCheck.empty) { toast('Ese apodo ya está en uso','error'); return; }
-
-  const email = phoneToEmail(phone, 'reg');
-  const code  = selectedCountry.reg.d.replace('+','');
-  const fullPhone = '+' + code + phone.replace(/^0/,'').replace(/\D/g,'');
+  // Disable button to prevent double tap
+  const btn = document.querySelector('#formRegister .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrando...'; }
 
   try {
+    // Check username unique
+    const uCheck = await db.collection('users').where('username','==',username).limit(1).get();
+    if (!uCheck.empty) { toast('Ese apodo ya está en uso','error'); return; }
+
+    const email = phoneToEmail(phone, 'reg');
+    const countryCode = selectedCountry.reg.d.replace('+','');
+    const fullPhone = '+' + countryCode + phone.replace(/^0/,'').replace(/\D/g,'');
+
+    // Create auth user
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     const uid  = cred.user.uid;
 
     // Player number
     const allSnap = await db.collection('users').get();
     const playerNumber = allSnap.size + 1;
+    const isFirst = allSnap.empty;
 
-    await db.collection('users').doc(uid).set({
+    // Save to Firestore BEFORE onAuthStateChanged fires
+    const userData = {
       name, username,
       phone: fullPhone,
       phoneDisplay: `${selectedCountry.reg.f} ${selectedCountry.reg.d} ${phone.replace(/^0/,'')}`,
       personalInviteCode: randCode(),
-      isAdmin: allSnap.empty, // primer usuario = admin
+      isAdmin: isFirst,
       playerNumber,
       points: 0, exactPredictions: 0, correctResults: 0,
       invitedBy: invite || 'DIRECT',
       tournaments: ['ucl','uel'],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    };
+    await db.collection('users').doc(uid).set(userData);
+    toast('✅ Cuenta creada. Entrando...','success');
+    // onAuthStateChanged will fire and call enterApp() automatically
+
   } catch(e) {
-    toast(e.code==='auth/email-already-in-use'?'Ese teléfono ya está registrado':e.message,'error');
+    const msg = e.code==='auth/email-already-in-use' ? 'Ese teléfono ya está registrado'
+              : e.code==='auth/weak-password' ? 'Contraseña muy débil (mín. 6 caracteres)'
+              : e.code==='auth/network-request-failed' ? 'Sin conexión. Revisa tu internet'
+              : e.message;
+    toast('❌ '+msg,'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta →'; }
   }
 }
 
@@ -1180,14 +1208,27 @@ async function doChangePass() {
 // ═══════════════════════════════════════════
 auth.onAuthStateChanged(async user => {
   if (user) {
-    const doc = await db.collection('users').doc(user.uid).get();
-    if (!doc.exists) { await auth.signOut(); return; }
+    // Retry up to 5 times — doc may not be saved yet after registration
+    let doc = null;
+    for (let i = 0; i < 5; i++) {
+      doc = await db.collection('users').doc(user.uid).get();
+      if (doc.exists) break;
+      await new Promise(r => setTimeout(r, 600)); // wait 600ms and retry
+    }
+    if (!doc || !doc.exists) {
+      toast('❌ Error al cargar tu perfil. Intenta de nuevo.','error');
+      await auth.signOut();
+      return;
+    }
     me = { uid: user.uid, ...doc.data() };
     myTournaments = me.tournaments || ['ucl','uel'];
     enterApp();
   } else {
     $('authScreen').classList.remove('hidden');
     $('mainApp').classList.add('hidden');
+    // Reset login button
+    const btn = document.querySelector('#formLogin .btn-primary');
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar →'; }
   }
 });
 
@@ -2286,5 +2327,3 @@ console.log('%c⚽ QUINIELA LUAN V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-
-
