@@ -1008,13 +1008,21 @@ function inviteToApp() {
   const code = me.personalInviteCode || '';
   const nombre = me.name || me.username || '';
   const msg = encodeURIComponent(
-    `Hola, soy ${nombre} y te invito a Quiniela LuAn! ⚽\n` +
-    `La quiniela de los campeones 🏆\n` +
-    `Entra aquí:\n${appUrl}\n` +
-    `Al registrarte usa mi código de invitación:\n` +
-    `_*${code}*_\n` +
-    `¡Predice los partidos y gana! 🎯\n` +
-    `_*Desarrollado desde Arichuna por luislárez*_`
+    `⚽ QUINIELA LuAn ⚽\n\n` +
+    `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante:\n\n` +
+    `🏆 La quiniela de los campeones\n` +
+    `⚡ ¡Predice los partidos y gana! 🎯\n` +
+    `⚽ Demuestra que sabes de fútbol\n` +
+    `🎉 Participa y divierte con: familia, amigos, panas, compañeros de trabajo...\n\n` +
+    `🌐 ¿Cómo participar?\n\n` +
+    `1. Entra al enlace:\n` +
+    `      🔗 ${appUrl}\n` +
+    `2. Regístrate en la plataforma\n` +
+    `3. Usa mi código de invitación:\n` +
+    `      🔐 *CÓDIGO: ${code}*\n\n` +
+    `✅ ¡Listo! Ya estás compitiendo.\n\n` +
+    `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
+    `— luislárez`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
@@ -2043,10 +2051,18 @@ async function deleteGroup(gid, name) {
 function shareGroup(code, name) {
   const nombre = me.name || me.username || '';
   const msg = encodeURIComponent(
-    `Hola, soy ${nombre} y te invito al Grupo: *"${name}"* en Quiniela LuAn! ⚽\n` +
-    `Entra a la app → Grupos → Unirse → escribe el código\n` +
-    `Código: _*${code}*_\n` +
-    `_*Desarrollado desde Arichuna por luislárez*_`
+    `⚽ QUINIELA LuAn ⚽\n\n` +
+    `👋 ¡Hola! Soy ${nombre} y tengo una invitación imperdible para ti:\n\n` +
+    `🔥 AL GRUPO: *"${name}"*\n\n` +
+    `📲 ¿Cómo unirte?\n\n` +
+    `1. Abre la app Quiniela LuAn\n` +
+    `2. Ve a la sección Grupos\n` +
+    `3. Toca "Unirse"\n` +
+    `4. Ingresa el código:\n` +
+    `   🔐 *CÓDIGO: ${code}*\n\n` +
+    `✅ ¡Listo! Ya serás parte de la acción.\n\n` +
+    `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
+    `— luislárez`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
@@ -2382,5 +2398,4 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-
 
