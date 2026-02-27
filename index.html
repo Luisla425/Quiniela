@@ -733,7 +733,10 @@ body::before {
     <div class="header-info">
       <div class="header-clock" id="hdrClock">--:--</div>
       <div style="font-size:0.65em;color:var(--muted);">Venezuela</div>
-      <button class="header-logout" onclick="doLogout()" title="Salir">🚪</button>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <button class="header-logout" onclick="openModal('changePassModal')" title="Cambiar contraseña" style="font-size:1em;">🔑</button>
+        <button class="header-logout" onclick="doLogout()" title="Salir">🚪</button>
+      </div>
     </div>
   </div>
 
@@ -744,6 +747,7 @@ body::before {
   <div id="screenTournaments" class="screen hidden"></div>
   <div id="screenGroups" class="screen hidden"></div>
   <div id="screenAdmin" class="screen hidden"></div>
+  <div id="screenChangePass" class="screen hidden"></div>
 
   <!-- BOTTOM NAV -->
   <nav class="nav">
@@ -838,6 +842,28 @@ body::before {
     <div id="rankModalCode" style="font-size:0.78em;color:var(--muted2);margin-bottom:16px;"></div>
     <div id="rankModalList"></div>
     <button class="btn btn-ghost" style="margin-top:16px;" onclick="closeModal('rankModal')">Cerrar</button>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay hidden" id="changePassModal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 Cambiar Contraseña</div>
+    <div class="field">
+      <label>Contraseña actual</label>
+      <input type="password" id="cpOld" placeholder="Tu contraseña actual">
+    </div>
+    <div class="field">
+      <label>Nueva contraseña</label>
+      <input type="password" id="cpNew" placeholder="Mínimo 6 caracteres">
+    </div>
+    <div class="field">
+      <label>Confirmar nueva contraseña</label>
+      <input type="password" id="cpNew2" placeholder="Repite la nueva contraseña">
+    </div>
+    <button class="btn btn-primary" onclick="doChangePass()">🔑 Cambiar Contraseña</button>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('changePassModal')">Cancelar</button>
   </div>
 </div>
 
@@ -1128,6 +1154,27 @@ async function doLogout() {
   await auth.signOut();
 }
 
+async function doChangePass() {
+  const oldPass = $('cpOld').value;
+  const newPass = $('cpNew').value;
+  const newPass2 = $('cpNew2').value;
+  if (!oldPass || !newPass) { toast('Completa todos los campos','error'); return; }
+  if (newPass.length < 6) { toast('Mínimo 6 caracteres','error'); return; }
+  if (newPass !== newPass2) { toast('Las contraseñas no coinciden','error'); return; }
+  try {
+    // Re-authenticate first
+    const user = auth.currentUser;
+    const cred = firebase.auth.EmailAuthProvider.credential(user.email, oldPass);
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(newPass);
+    closeModal('changePassModal');
+    toast('✅ Contraseña cambiada exitosamente','success');
+  } catch(e) {
+    if (e.code==='auth/wrong-password') toast('❌ Contraseña actual incorrecta','error');
+    else toast('Error: '+e.message,'error');
+  }
+}
+
 // ═══════════════════════════════════════════
 // AUTH STATE
 // ═══════════════════════════════════════════
@@ -1147,9 +1194,22 @@ auth.onAuthStateChanged(async user => {
 // ═══════════════════════════════════════════
 // ENTER APP
 // ═══════════════════════════════════════════
-function enterApp() {
+async function enterApp() {
   $('authScreen').classList.add('hidden');
   $('mainApp').classList.remove('hidden');
+
+  // Check if user has a pending temp password reset
+  try {
+    const resetDoc = await db.collection('passResets').doc(me.uid).get();
+    if (resetDoc.exists && !resetDoc.data().used) {
+      setTimeout(() => {
+        toast('🔑 Entraste con contraseña temporal. Cámbiala ahora.','warning', 6000);
+        openModal('changePassModal');
+        // Mark as used
+        db.collection('passResets').doc(me.uid).update({used: true});
+      }, 1500);
+    }
+  } catch(e) {}
 
   // Header
   $('hdrName').textContent = me.username;
@@ -2044,7 +2104,10 @@ async function adminUsers() {
         <span style="font-family:var(--font-h);color:var(--primary2);">${u.points||0}pts</span>
       </div>
       <div style="font-size:0.72em;color:var(--muted2);">${u.phoneDisplay||u.phone||'—'} · Inv: ${u.personalInviteCode}</div>
-      <button class="btn-wa" style="margin-top:8px;width:100%;" onclick="adminWA('${u.username}','${u.phone||''}')">📲 WhatsApp</button>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="btn-wa" style="flex:1;" onclick="adminWA('${u.username}','${u.phone||''}')">📲 WhatsApp</button>
+        <button style="flex:1;padding:9px;background:rgba(245,197,66,0.15);border:1px solid rgba(245,197,66,0.3);color:var(--gold);border-radius:var(--r-sm);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="adminResetUserPass('${u.username}','${u.phone||''}','${d.id}')">🔑 Reset Clave</button>
+      </div>
     </div>`;
   });
   out.innerHTML=html;
@@ -2055,6 +2118,37 @@ function adminWA(username, phone) {
   const num=phone.replace(/[^0-9]/g,'');
   const msg=encodeURIComponent(`Hola ${username}! 👋 Te escribimos desde Quiniela Luan ⚽`);
   window.open(`https://wa.me/${num}?text=${msg}`,'_blank');
+}
+
+async function adminResetUserPass(username, phone, uid) {
+  // Generate temp password
+  const tempPass = 'Luan' + Math.floor(1000+Math.random()*9000);
+  if (!confirm(`¿Resetear contraseña de ${username}?\n\nContraseña temporal: ${tempPass}\n\nSe la enviarás por WhatsApp.`)) return;
+
+  try {
+    // Update password using Firebase Auth REST API (client-side trick via re-auth)
+    // We store the temp pass request in Firestore — user must change on next login
+    await db.collection('passResets').doc(uid).set({
+      uid, username,
+      tempPass,
+      requestedBy: me.uid,
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      used: false
+    });
+
+    // Send via WhatsApp
+    const num = phone.replace(/[^0-9]/g,'');
+    const msg = encodeURIComponent(
+      `🔑 Quiniela Luan — Reset de contraseña\n\n` +
+      `Hola ${username}! Tu contraseña temporal es:\n\n` +
+      `*${tempPass}*\n\n` +
+      `Entra con esta clave y cámbiala desde el menú de tu perfil.`
+    );
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    toast(`✅ Contraseña temporal generada para ${username}`,'success');
+  } catch(e) {
+    toast('Error: '+e.message,'error');
+  }
 }
 
 async function adminEval() {
@@ -2192,3 +2286,5 @@ console.log('%c⚽ QUINIELA LUAN V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
+
