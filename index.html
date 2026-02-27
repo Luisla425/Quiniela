@@ -1511,17 +1511,21 @@ async function syncAPI() {
 
   loadDayMatches();
 
-  // Ahora actualizar marcadores de partidos de HOY uno por uno
+  // Actualizar marcadores de partidos de HOY uno por uno via lookupevent
   await refreshLiveScores();
-
-  alert_(`✅ ${allMatches.length} partidos · marcadores actualizados`,'success');
 }
 
 async function refreshLiveScores() {
   const nowVZ = new Date(Date.now() - 4*3600000);
   const today = nowVZ.toISOString().split('T')[0];
-  const todayMatches = allMatches.filter(m => m.date === today);
-  if (!todayMatches.length) return;
+  // Incluir partidos de hoy Y de ayer (por si hay diferencia de zona horaria)
+  const yesterday = new Date(Date.now() - 4*3600000 - 86400000).toISOString().split('T')[0];
+  const todayMatches = allMatches.filter(m => m.date === today || m.date === yesterday);
+  if (!todayMatches.length) {
+    console.log('No matches for today:', today, 'allMatches dates:', [...new Set(allMatches.map(m=>m.date))]);
+    return;
+  }
+  console.log(`🔄 Updating ${todayMatches.length} matches via lookupevent...`);
 
   const batch = db.batch();
   let updated = 0;
@@ -1534,30 +1538,30 @@ async function refreshLiveScores() {
       const ev = data?.events?.[0];
       if (!ev) continue;
 
-      const homeScore = ev.intHomeScore != null ? +ev.intHomeScore : null;
-      const awayScore = ev.intAwayScore != null ? +ev.intAwayScore : null;
-      const status    = ev.strStatus || 'Not Started';
-      const minute    = ev.strProgress || ev.intProgress || null;
-      const homeGoals = ev.strHomeGoalDetails || '';
-      const awayGoals = ev.strAwayGoalDetails || '';
+      const homeScore   = ev.intHomeScore != null ? +ev.intHomeScore : null;
+      const awayScore   = ev.intAwayScore != null ? +ev.intAwayScore : null;
+      const status      = ev.strStatus || 'Not Started';
+      const minute      = ev.strProgress || ev.intProgress || null;
+      const homeGoals   = ev.strHomeGoalDetails || '';
+      const awayGoals   = ev.strAwayGoalDetails || '';
       const statusLabel = getStatusLabel(status);
+
+      console.log(`📊 ${ev.strHomeTeam} ${homeScore} - ${awayScore} ${ev.strAwayTeam} [${status}]`);
 
       const idx = allMatches.findIndex(x => String(x.id) === String(m.id));
       if (idx !== -1) {
         allMatches[idx] = {...allMatches[idx], homeScore, awayScore, status, statusLabel, minute, homeGoals, awayGoals};
-        updated++;
       }
+      updated++;
       batch.set(db.collection('matches').doc(String(m.id)),
         {homeScore, awayScore, status, statusLabel, minute, homeGoals, awayGoals}, {merge:true});
     } catch(e) { console.warn('lookup fail:', m.id); }
   }
 
-  if (updated > 0) {
-    try { await batch.commit(); } catch(e) {}
-    loadDayMatches();
-    // Evaluar automáticamente los que terminaron
-    await autoEvalFinished();
-  }
+  try { await batch.commit(); } catch(e) { console.warn('batch commit error:', e); }
+  loadDayMatches();
+  alert_(`✅ ${updated} partidos actualizados`, 'success');
+  if (updated > 0) await autoEvalFinished();
 }
 
 function getStatusLabel(s) {
@@ -2709,3 +2713,4 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
+
