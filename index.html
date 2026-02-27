@@ -1362,16 +1362,10 @@ function startVzTime() {
   updateCountdown();
   // FIX 2 & 4: Auto-sync cada 60 segundos durante partidos activos
   autoSyncInterval = setInterval(async () => {
-    // NO hacer sync si el usuario está escribiendo predicciones
     if (userEnteringPreds) return;
     const hasLive = dayMatches.some(m => isLiveStatus(m.status) || m.status === 'Not Started');
-    if (hasLive) {
-      await syncAPI();
-      const hasInPlay = dayMatches.some(m => m.status === 'In Play');
-      if (hasInPlay && $('rankingScreen') && !$('rankingScreen').classList.contains('hidden')) {
-        loadRanking();
-      }
-    }
+    if (hasLive) await syncAPI();
+    else await autoEvalFinished(); // Evaluar aunque no haya vivos por si quedaron sin evaluar
   }, 30000);
 }
 
@@ -1603,7 +1597,18 @@ async function autoEvalFinished() {
         let points = 0;
         if (predHome===realHome && predAway===realAway) points = 5;
         else if (predResult===realResult) points = 3;
+
+        // Actualizar predicción
         await pd.ref.update({evaluated:true, pointsAwarded:points, realHome, realAway});
+
+        // Actualizar puntos del usuario en su perfil
+        const userUpdate = {};
+        if (points > 0) userUpdate.points = firebase.firestore.FieldValue.increment(points);
+        if (points === 5) userUpdate.exactPredictions = firebase.firestore.FieldValue.increment(1);
+        if (points === 3) userUpdate.correctResults = firebase.firestore.FieldValue.increment(1);
+        if (Object.keys(userUpdate).length > 0) {
+          await db.collection('users').doc(p.userId).update(userUpdate);
+        }
         evaluated++;
       }
     } catch(e) { console.warn('autoEval:', match.id, e.message); }
@@ -1865,7 +1870,7 @@ async function doSavePreds(preds, jDate, group) {
       b.set(db.collection('predictions').doc(docId), {
         userId:me.uid, username:me.username,
         groupId:group.id, groupName:group.name,
-        matchId:p.matchId, predictedHomeScore:p.h, predictedAwayScore:p.a,
+        matchId:String(p.matchId), predictedHomeScore:p.h, predictedAwayScore:p.a,
         home:p.match.home, away:p.match.away,
         homeFlag:p.match.homeFlag, awayFlag:p.match.awayFlag,
         tournamentId:p.match.tournamentId, jornadaDate:jDate,
@@ -2143,26 +2148,37 @@ async function viewGroup(gid) {
   memberIds.forEach(id => { pointsMap[id] = {pts:0, exact:0, correct:0}; });
 
   try {
-    // Leer predicciones evaluadas — con groupId (nuevas) Y sin groupId (viejas)
-    // Para cada miembro, buscar sus predicciones evaluadas
+    // Query eficiente: predicciones evaluadas de este grupo
+    const pSnapGroup = await db.collection('predictions')
+      .where('groupId','==', gid)
+      .where('evaluated','==', true)
+      .get();
+    pSnapGroup.docs.forEach(d => {
+      const p = d.data();
+      if (!pointsMap[p.userId]) pointsMap[p.userId] = {pts:0,exact:0,correct:0};
+      const pts = p.pointsAwarded || 0;
+      pointsMap[p.userId].pts += pts;
+      if (pts===5) pointsMap[p.userId].exact++;
+      else if (pts===3) pointsMap[p.userId].correct++;
+    });
+
+    // También incluir predicciones viejas sin groupId (compatibilidad)
     for (const uid of memberIds) {
       try {
-        const pSnap = await db.collection('predictions')
+        const pOld = await db.collection('predictions')
           .where('userId','==', uid)
           .where('evaluated','==', true)
           .get();
-        pSnap.docs.forEach(d => {
+        pOld.docs.forEach(d => {
           const p = d.data();
-          // Incluir si: tiene el groupId de este grupo, O no tiene groupId (predicción vieja)
-          const belongsHere = !p.groupId || p.groupId === gid;
-          if (!belongsHere) return;
-          if (!pointsMap[uid]) pointsMap[uid] = {pts:0, exact:0, correct:0};
+          if (p.groupId) return; // Ya tiene grupo — no duplicar
+          if (!pointsMap[uid]) pointsMap[uid] = {pts:0,exact:0,correct:0};
           const pts = p.pointsAwarded || 0;
           pointsMap[uid].pts += pts;
-          if (pts === 5) pointsMap[uid].exact++;
-          else if (pts === 3) pointsMap[uid].correct++;
+          if (pts===5) pointsMap[uid].exact++;
+          else if (pts===3) pointsMap[uid].correct++;
         });
-      } catch(e) { console.warn('preds error:', uid, e.message); }
+      } catch(e) {}
     }
 
     // Leer datos de usuarios — en chunks de 10 (límite Firestore)
@@ -2693,7 +2709,3 @@ console.log('%c⚽ QUINIELA LUAN V2 — REESCRITURA COMPLETA','color:#a855f7;fon
 </script>
 </body>
 </html>
-
-
-
-
