@@ -734,6 +734,7 @@ body::before {
       <div class="header-clock" id="hdrClock">--:--</div>
       <div style="font-size:0.65em;color:var(--muted);">Venezuela</div>
       <div style="display:flex;gap:6px;align-items:center;">
+        <button class="header-logout" onclick="inviteToApp()" title="Invitar amigos" style="font-size:1em;">📲</button>
         <button class="header-logout" onclick="openModal('changePassModal')" title="Cambiar contraseña" style="font-size:1em;">🔑</button>
         <button class="header-logout" onclick="doLogout()" title="Salir">🚪</button>
       </div>
@@ -1000,6 +1001,29 @@ function statusLabel(s) {
                'AET':'✅ Final (TE)','AP':'✅ Final (Pen)','PEN':'✅ Final (Pen)',
                'Match Finished':'✅ Final','MATCH FINISHED':'✅ Final'};
   return map[s] || s;
+}
+
+function inviteToApp() {
+  const appUrl = window.location.href.split('?')[0]; // clean URL
+  const code = me.personalInviteCode || '';
+  const msg = encodeURIComponent(
+    `⚽ *¡Únete a Quiniela Luan!* ⚽
+
+` +
+    `La quiniela de los campeones 🏆
+
+` +
+    `Entra aquí:
+${appUrl}
+
+` +
+    `Al registrarte usa mi código de invitación:
+*${code}*
+
+` +
+    `¡Predice los partidos y gana! 🎯`
+  );
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
 function escapeHtml(s) {
@@ -2332,5 +2356,6 @@ console.log('%c⚽ QUINIELA LUAN V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
