@@ -1119,25 +1119,31 @@ async function doRegister() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Registrando...'; }
 
   try {
-    // Check username unique
-    const uCheck = await db.collection('users').where('username','==',username).limit(1).get();
-    if (!uCheck.empty) { toast('Ese apodo ya está en uso','error'); return; }
-
     const email = phoneToEmail(phone, 'reg');
     const countryCode = selectedCountry.reg.d.replace('+','');
     const fullPhone = '+' + countryCode + phone.replace(/^0/,'').replace(/\D/g,'');
 
-    // Create auth user
+    // Step 1: Create auth user first (no Firestore needed yet)
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     const uid  = cred.user.uid;
 
-    // Player number
+    // Step 2: Now authenticated — check username unique
+    const uCheck = await db.collection('users').where('username','==',username).limit(1).get();
+    if (!uCheck.empty) {
+      // Username taken — delete the auth user we just created and abort
+      await cred.user.delete();
+      toast('❌ Ese apodo ya está en uso','error');
+      if (btn) { btn.disabled=false; btn.textContent='Crear cuenta →'; }
+      return;
+    }
+
+    // Step 3: Get player number
     const allSnap = await db.collection('users').get();
     const playerNumber = allSnap.size + 1;
     const isFirst = allSnap.empty;
 
-    // Save to Firestore BEFORE onAuthStateChanged fires
-    const userData = {
+    // Step 4: Save profile to Firestore
+    await db.collection('users').doc(uid).set({
       name, username,
       phone: fullPhone,
       phoneDisplay: `${selectedCountry.reg.f} ${selectedCountry.reg.d} ${phone.replace(/^0/,'')}`,
@@ -1148,10 +1154,9 @@ async function doRegister() {
       invitedBy: invite || 'DIRECT',
       tournaments: ['ucl','uel'],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    await db.collection('users').doc(uid).set(userData);
+    });
     toast('✅ Cuenta creada. Entrando...','success');
-    // onAuthStateChanged will fire and call enterApp() automatically
+    // onAuthStateChanged fires automatically and calls enterApp()
 
   } catch(e) {
     const msg = e.code==='auth/email-already-in-use' ? 'Ese teléfono ya está registrado'
@@ -2327,3 +2332,4 @@ console.log('%c⚽ QUINIELA LUAN V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
