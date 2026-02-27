@@ -920,6 +920,30 @@ let chatUnsub = null;
 let currentCountryTarget = null;
 let selectedCountry = { login: COUNTRIES[0], reg: COUNTRIES[0], reset: COUNTRIES[0] };
 
+// ── CACHE ──────────────────────────────────
+// Saves Firestore reads by keeping data in memory + localStorage
+const CACHE_KEY_MATCHES  = 'ql_matches_v3';
+const CACHE_KEY_SYNC     = 'ql_last_sync';
+const CACHE_TTL_MATCHES  = 5 * 60 * 1000;   // 5 min between API syncs
+const CACHE_TTL_LIVE     = 30 * 1000;        // 30s when live games active
+const CHAT_PAGE_SIZE     = 40;               // Only load last 40 chat messages
+
+function cacheSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({t: Date.now(), d: data})); } catch(e) {}
+}
+function cacheGet(key, maxAge) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const {t, d} = JSON.parse(raw);
+    if (Date.now() - t > maxAge) return null;
+    return d;
+  } catch(e) { return null; }
+}
+function cacheInvalidate(key) {
+  try { localStorage.removeItem(key); } catch(e) {}
+}
+
 // ═══════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════
@@ -950,6 +974,10 @@ function statusLabel(s) {
                'AET':'✅ Final (TE)','AP':'✅ Final (Pen)','PEN':'✅ Final (Pen)',
                'Match Finished':'✅ Final','MATCH FINISHED':'✅ Final'};
   return map[s] || s;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // Venezuela time
@@ -1095,7 +1123,7 @@ async function doReset() {
 }
 
 async function doLogout() {
-  clearInterval(syncTimer);
+  clearTimeout(syncTimer);
   if (chatUnsub) chatUnsub();
   await auth.signOut();
 }
@@ -1136,13 +1164,23 @@ function enterApp() {
   showScreen('matches');
   loadMatches();
 
-  // Auto-sync every 30s
-  syncTimer = setInterval(() => {
-    if (userEnteringPreds) return;
-    const hasActive = dayMatches.some(m => isLive(m.status) || m.status === 'Not Started');
-    if (hasActive) doSync();
-    else autoEval();
-  }, 30000);
+  // Adaptive auto-sync:
+  // • Live games: every 45s
+  // • No live games today: every 5 minutes (saves reads)
+  // • User typing: skip
+  function scheduleNextSync() {
+    const hasLive = dayMatches.some(m => isLive(m.status));
+    const interval = hasLive ? 45000 : 300000;
+    syncTimer = setTimeout(async () => {
+      if (!userEnteringPreds) {
+        const hasTodayGames = dayMatches.length > 0;
+        if (hasTodayGames) await doSync();
+        else await autoEval();
+      }
+      scheduleNextSync();
+    }, interval);
+  }
+  scheduleNextSync();
 }
 
 // ═══════════════════════════════════════════
@@ -1167,16 +1205,19 @@ function showScreen(name) {
 // MATCHES — SYNC
 // ═══════════════════════════════════════════
 async function loadMatches() {
-  // Load from Firestore first
-  try {
-    const snap = await db.collection('matches').get();
-    if (!snap.empty) {
-      allMatches = snap.docs.map(d=>({id:d.id,...d.data()}));
-      setDayMatches();
-      renderMatches();
-    }
-  } catch(e) {}
-  // Then sync from API
+  // 1) Try memory cache first (zero Firestore reads)
+  const cached = cacheGet(CACHE_KEY_MATCHES, CACHE_TTL_MATCHES);
+  if (cached && cached.length) {
+    allMatches = cached;
+    setDayMatches();
+    renderMatches();
+    // Only sync if cache is old or there are live games
+    const hasLive = dayMatches.some(m => isLive(m.status));
+    const lastSync = +localStorage.getItem(CACHE_KEY_SYNC) || 0;
+    const sinceLast = Date.now() - lastSync;
+    if (sinceLast < CACHE_TTL_MATCHES && !hasLive) return; // Cache fresh, no sync needed
+  }
+  // 2) No cache or stale — sync from API + Firestore
   await doSync();
 }
 
@@ -1221,15 +1262,23 @@ async function doSync() {
 
   allMatches = Array.from(found.values());
 
-  // 4) lookupevent for today's matches
+  // 4) lookupevent ONLY for today's matches (not all matches)
   await refreshDayScores();
 
-  // 5) Save to Firestore
-  try {
-    const b = db.batch();
-    Array.from(found.values()).forEach(m=>b.set(db.collection('matches').doc(String(m.id)),m,{merge:true}));
-    await b.commit();
-  } catch(e) {}
+  // 5) Save to Firestore — only matches from today (reduce writes)
+  const today = vzDate();
+  const toWrite = Array.from(found.values()).filter(m => m.date === today);
+  if (toWrite.length) {
+    try {
+      const b = db.batch();
+      toWrite.forEach(m => b.set(db.collection('matches').doc(String(m.id)), m, {merge:true}));
+      await b.commit();
+    } catch(e) {}
+  }
+
+  // 6) Update cache
+  cacheSet(CACHE_KEY_MATCHES, allMatches);
+  localStorage.setItem(CACHE_KEY_SYNC, Date.now());
 
   setDayMatches();
   renderMatches();
@@ -1584,7 +1633,8 @@ async function renderPreds() {
   html += `<div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">📋 Tus Predicciones</div>`;
 
   try {
-    const snap = await db.collection('predictions').where('userId','==',me.uid).orderBy('timestamp','desc').limit(60).get();
+    // Limit to 30 most recent predictions (reduce reads)
+    const snap = await db.collection('predictions').where('userId','==',me.uid).orderBy('timestamp','desc').limit(30).get();
     if (snap.empty) {
       html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Aún no has predicho</span></div>`;
     } else {
@@ -1663,11 +1713,14 @@ function initChat() {
       <button class="chat-send" onclick="sendChat()">➤</button>
     </div>`;
 
+  // Use onSnapshot but limit to last 40 messages to reduce reads
   if (chatUnsub) chatUnsub();
-  chatUnsub = db.collection('chat').orderBy('ts').limitToLast(80)
-    .onSnapshot(snap=>{
+  chatUnsub = db.collection('chat').orderBy('ts').limitToLast(CHAT_PAGE_SIZE)
+    .onSnapshot({includeMetadataChanges: false}, snap=>{
       const el=$('chatMessages');
       if(!el) return;
+      // Only re-render on actual data changes (not metadata)
+      if (snap.metadata.fromCache && !snap.docChanges().length) return;
       el.innerHTML='';
       snap.docs.forEach(d=>{
         const c=d.data();
@@ -1679,7 +1732,7 @@ function initChat() {
         } else {
           el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}">
             ${!mine?`<span class="chat-name">${c.username}</span>`:''}
-            <div class="chat-bubble">${c.text}</div>
+            <div class="chat-bubble">${escapeHtml(c.text)}</div>
             <span class="chat-time">${hm}</span>
           </div>`;
         }
@@ -1865,16 +1918,20 @@ async function openGroupRanking(gid) {
       if(p.pointsAwarded===5) ptMap[p.userId].exact++;
       else if(p.pointsAwarded===3) ptMap[p.userId].correct++;
     });
-    // Old predictions without groupId
-    for(const uid of memberIds){
-      const old=await db.collection('predictions').where('userId','==',uid).where('evaluated','==',true).get();
-      old.docs.forEach(d=>{
+    // Old predictions without groupId — single batch query, not per-user
+    // Only do this if there are members (max 10 per Firestore 'in' query)
+    if (memberIds.length <= 10) {
+      const oldPreds = await db.collection('predictions')
+        .where('userId','in',memberIds)
+        .where('evaluated','==',true)
+        .get();
+      oldPreds.docs.forEach(d=>{
         const p=d.data();
-        if(p.groupId) return;
-        if(!ptMap[uid]) ptMap[uid]={pts:0,exact:0,correct:0};
-        ptMap[uid].pts+=p.pointsAwarded||0;
-        if(p.pointsAwarded===5) ptMap[uid].exact++;
-        else if(p.pointsAwarded===3) ptMap[uid].correct++;
+        if(p.groupId) return; // Already counted above
+        if(!ptMap[p.userId]) ptMap[p.userId]={pts:0,exact:0,correct:0};
+        ptMap[p.userId].pts+=p.pointsAwarded||0;
+        if(p.pointsAwarded===5) ptMap[p.userId].exact++;
+        else if(p.pointsAwarded===3) ptMap[p.userId].correct++;
       });
     }
 
