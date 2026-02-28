@@ -423,7 +423,7 @@ body::before {
   position:relative;
   background:var(--bg);
 }
-#screenChat:not(.hidden) {
+#screenChat {
   display:flex;
 }
 .chat-header {
@@ -975,7 +975,7 @@ const TOURNAMENTS = [
   { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
   { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
   { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
-  { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },d:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
+  { id:'premier',  name:'Premier League',   flag:'ENG🏴', lid:'4328' },d:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
 ];
 
 // ═══════════════════════════════════════════
@@ -1413,11 +1413,11 @@ async function enterApp() {
 function showScreen(name) {
   ['matches','preds','chat','tournaments','groups','admin','simulator'].forEach(s => {
     const scr = $(`screen${s.charAt(0).toUpperCase()+s.slice(1)}`);
-    if (scr) { scr.classList.add('hidden'); scr.style.display='none'; }
+    if (scr) scr.classList.add('hidden');
     $(`nav-${s}`)?.classList.remove('active');
   });
   const target = $(`screen${name.charAt(0).toUpperCase()+name.slice(1)}`);
-  if (target) { target.classList.remove('hidden'); target.style.display=''; }
+  if (target) target.classList.remove('hidden');
   $(`nav-${name}`)?.classList.add('active');
 
   // Unsubscribe chat listener when leaving chat
@@ -3012,6 +3012,7 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
 
