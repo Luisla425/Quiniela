@@ -420,12 +420,8 @@ body::before {
   padding-bottom:0 !important;
   display:flex !important;
   flex-direction:column !important;
-  position:fixed !important;
-  top:56px;
-  left:0; right:0; bottom:60px;
-  max-width:500px;
-  margin:0 auto;
-  z-index:50;
+  height:calc(100vh - 120px);
+  position:relative;
   background:var(--bg);
 }
 .chat-header {
@@ -462,14 +458,13 @@ body::before {
   background:var(--surface2); color:var(--text);
   border:1px solid var(--border2); border-bottom-left-radius:4px;
 }
-.chat-name { font-size:0.68em; font-weight:700; color:var(--primary2); margin-bottom:2px; padding-left:4px; }
+.chat-name { font-size:0.68em; font-weight:700; margin-bottom:2px; padding-left:4px; }
 .chat-time { font-size:0.65em; color:var(--muted); padding:0 4px; }
 .chat-input-bar {
   position:sticky;
-  bottom:0;
+  bottom:60px;
   width:100%;
   padding:10px 16px;
-  padding-bottom:env(safe-area-inset-bottom, 10px);
   background:rgba(13,13,20,0.97);
   backdrop-filter:blur(20px);
   border-top:1px solid var(--border);
@@ -647,6 +642,48 @@ body::before {
   padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85em;
 }
 .info-row:last-child { border:none; }
+
+/* ═══════════════════════════════════════════
+   SIMULATOR
+═══════════════════════════════════════════ */
+.sim-match-card {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--r); padding:14px; margin-bottom:10px;
+}
+.sim-score-row {
+  display:flex; align-items:center; justify-content:center; gap:12px; margin-top:10px;
+}
+.sim-input {
+  width:60px; height:60px; text-align:center;
+  background:rgba(108,71,255,0.15); border:2px solid var(--primary);
+  border-radius:12px; color:var(--primary2);
+  font-family:var(--font-h); font-size:1.8em; font-weight:800;
+  transition:all 0.2s;
+}
+.sim-input:focus { outline:none; border-color:var(--gold); color:var(--gold); box-shadow:0 0 0 3px rgba(245,197,66,0.2); }
+.scenario-chip {
+  display:inline-block; padding:6px 12px; border-radius:20px;
+  background:var(--surface2); border:1px solid var(--border2);
+  font-size:0.78em; font-weight:700; cursor:pointer; transition:all 0.2s;
+  color:var(--muted2);
+}
+.scenario-chip:hover { border-color:var(--primary2); color:var(--primary2); }
+.sim-result-row {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-radius:var(--r-sm); margin-bottom:6px;
+  background:var(--surface2); border:1px solid var(--border);
+}
+.sim-result-row.me { background:rgba(245,197,66,0.1); border-color:rgba(245,197,66,0.4); }
+.sim-result-row.leader { background:rgba(0,229,160,0.07); border-color:rgba(0,229,160,0.3); }
+.sim-pos { font-family:var(--font-h); font-size:1.2em; min-width:36px; text-align:center; }
+.sim-name { flex:1; font-weight:700; font-size:0.88em; }
+.sim-pts { font-family:var(--font-h); font-size:1.3em; color:var(--primary2); }
+.sim-gain { font-size:0.72em; color:var(--green); font-weight:700; }
+.sim-change { font-size:0.8em; font-weight:800; min-width:36px; text-align:center; }
+.sim-analysis {
+  background:rgba(108,71,255,0.08); border:1px solid rgba(108,71,255,0.25);
+  border-radius:var(--r); padding:16px; margin-top:14px;
+}
 .info-label { color:var(--muted2); font-weight:600; }
 .info-val { font-weight:700; }
 
@@ -770,6 +807,7 @@ body::before {
   <div id="screenChat" class="screen hidden" style="padding:0;padding-bottom:0;"></div>
   <div id="screenTournaments" class="screen hidden"></div>
   <div id="screenGroups" class="screen hidden"></div>
+  <div id="screenSimulator" class="screen hidden"></div>
   <div id="screenAdmin" class="screen hidden"></div>
   <div id="screenChangePass" class="screen hidden"></div>
 
@@ -789,6 +827,9 @@ body::before {
     </button>
     <button class="nav-item" id="nav-groups" onclick="showScreen('groups')">
       <span class="nav-icon">👥</span><span class="nav-label">Grupos</span>
+    </button>
+    <button class="nav-item" id="nav-simulator" onclick="showScreen('simulator')">
+      <span class="nav-icon">🎮</span><span class="nav-label">Simular</span>
     </button>
     <button class="nav-item hidden" id="nav-admin" onclick="showScreen('admin')">
       <span class="nav-icon">⚙️</span><span class="nav-label">Admin</span>
@@ -968,6 +1009,10 @@ let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
 let currentCountryTarget = null;
+let simPlayers = [];
+let simMatches = [];
+let simPredictions = {};
+let simGroup = null;
 let selectedCountry = { login: COUNTRIES[0], reg: COUNTRIES[0], reset: COUNTRIES[0] };
 
 // ── CACHE ──────────────────────────────────
@@ -1048,6 +1093,18 @@ function inviteToApp() {
     `— luislárez`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
+}
+
+// Generate unique color per user based on their username
+function userColor(username) {
+  const colors = [
+    '#f59e0b','#10b981','#3b9eff','#f472b6','#a78bfa',
+    '#34d399','#fb923c','#38bdf8','#e879f9','#4ade80',
+    '#facc15','#60a5fa','#f87171','#a3e635','#2dd4bf'
+  ];
+  let hash = 0;
+  for(let i=0;i<username.length;i++) hash = username.charCodeAt(i)+((hash<<5)-hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 function escapeHtml(s) {
@@ -1365,6 +1422,7 @@ function showScreen(name) {
   if (name==='tournaments')  renderTournaments();
   if (name==='groups')       renderGroups();
   if (name==='admin')        renderAdmin();
+  if (name==='simulator')    renderSimulator();
 }
 
 // ═══════════════════════════════════════════
@@ -2045,9 +2103,12 @@ function initChat() {
           el.innerHTML+=`<div class="chat-system">${c.text}</div>`;
         } else {
           const displayName = c.name || c.username || 'Anon';
+          const uColor = mine ? 'var(--primary2)' : userColor(c.username||'x');
+          // For theirs bubble: tint border with their color
+          const bubbleStyle = mine ? '' : `border-color:${uColor}33;`;
           el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}">
-            ${!mine?`<span class="chat-name">${escapeHtml(displayName)}</span>`:''}
-            <div class="chat-bubble">${escapeHtml(c.text)}</div>
+            ${!mine?`<span class="chat-name" style="color:${uColor};">${escapeHtml(displayName)}</span>`:''}
+            <div class="chat-bubble" style="${bubbleStyle}">${escapeHtml(c.text)}</div>
             <span class="chat-time">${hm}</span>
           </div>`;
         }
@@ -2612,6 +2673,330 @@ async function adminReset() {
 }
 
 // ═══════════════════════════════════════════
+// SIMULATOR
+// ═══════════════════════════════════════════
+
+function renderSimulator() {
+  const el = $('screenSimulator');
+  el.innerHTML = `
+    <div class="section-header">
+      <span class="section-title">🎮 Simulador</span>
+    </div>
+    <div class="card-glow" style="margin-bottom:14px;">
+      <p style="color:var(--muted2);font-size:0.82em;line-height:1.6;">
+        ¿Qué pasaría si...? Pon resultados ficticios y ve cómo quedaría la pizarra de tu grupo. <strong style="color:var(--gold);">No afecta los puntos reales.</strong>
+      </p>
+    </div>
+
+    <div class="field">
+      <label>👥 Grupo a simular</label>
+      <select id="simGroupSel" style="width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.95em;">
+        <option value="">Cargando grupos...</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>📅 Partidos a simular</label>
+      <select id="simMatchSel" style="width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.95em;">
+        <option value="pending">Solo pendientes (sin resultado)</option>
+        <option value="all">Todos los de hoy</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary" onclick="loadSimulation()">🔄 Cargar Simulación</button>
+
+    <div id="simSetup" class="hidden" style="margin-top:16px;">
+      <div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">⚡ Escenarios Rápidos</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+        <span class="scenario-chip" onclick="applyScenario('myExact')">🎯 Mi exacto</span>
+        <span class="scenario-chip" onclick="applyScenario('myResult')">✅ Mi resultado</span>
+        <span class="scenario-chip" onclick="applyScenario('leaderExact')">🥇 Exacto del líder</span>
+        <span class="scenario-chip" onclick="applyScenario('nobody')">❌ Nadie acierta</span>
+        <span class="scenario-chip" onclick="applyScenario('random')">🎲 Aleatorio</span>
+        <span class="scenario-chip" onclick="clearSimInputs()">🗑️ Limpiar</span>
+      </div>
+      <div id="simMatchesList"></div>
+      <button class="btn btn-green" onclick="runSimulation()" style="margin-top:8px;">🚀 Ejecutar Simulación</button>
+    </div>
+
+    <div id="simResults" class="hidden" style="margin-top:16px;">
+      <div id="simAnalysis" class="sim-analysis" style="margin-bottom:14px;"></div>
+      <div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">📊 Pizarra Ficticia</div>
+      <div id="simRanking"></div>
+      <button class="btn btn-ghost" onclick="resetSimulation()" style="margin-top:12px;">🔄 Nueva Simulación</button>
+    </div>`;
+
+  // Load groups into selector
+  loadSimGroups();
+}
+
+async function loadSimGroups() {
+  const sel = $('simGroupSel');
+  if (!sel) return;
+  try {
+    const snap = await db.collection('groups').get();
+    const myGroups = snap.docs.map(d=>({id:d.id,...d.data()}))
+      .filter(g => g.members?.some(m=>m.userId===me.uid) || me.isAdmin);
+    if (!myGroups.length) {
+      sel.innerHTML = '<option>No perteneces a ningún grupo</option>';
+      return;
+    }
+    sel.innerHTML = myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+  } catch(e) { sel.innerHTML = '<option>Error cargando grupos</option>'; }
+}
+
+async function loadSimulation() {
+  const gid = $('simGroupSel')?.value;
+  const matchFilter = $('simMatchSel')?.value;
+  if (!gid) { toast('Selecciona un grupo','error'); return; }
+
+  toast('⏳ Cargando...','info');
+
+  try {
+    // Load group members
+    const gdoc = await db.collection('groups').doc(gid).get();
+    simGroup = {id:gid,...gdoc.data()};
+    const memberIds = simGroup.members.map(m=>m.userId);
+
+    // Load players with their points
+    simPlayers = [];
+    for(let i=0;i<memberIds.length;i+=10){
+      const chunk=memberIds.slice(i,i+10);
+      const us=await db.collection('users').where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
+      us.docs.forEach((d,idx)=>simPlayers.push({id:d.id,...d.data(),originalRank:0}));
+    }
+
+    // Calculate current group points
+    const pSnap = await db.collection('predictions').where('groupId','==',gid).where('evaluated','==',true).get();
+    const ptMap = {};
+    pSnap.docs.forEach(d=>{
+      const p=d.data();
+      if(!ptMap[p.userId]) ptMap[p.userId]=0;
+      ptMap[p.userId]+=(p.pointsAwarded||0);
+    });
+    simPlayers = simPlayers.map(p=>({...p, groupPoints: ptMap[p.id]||0}))
+      .sort((a,b)=>b.groupPoints-a.groupPoints)
+      .map((p,i)=>({...p, originalRank:i+1}));
+
+    // Choose matches to simulate
+    const today = vzDate();
+    if (matchFilter==='pending') {
+      simMatches = dayMatches.filter(m=>!isFinished(m.status)&&!isLive(m.status));
+    } else {
+      simMatches = dayMatches;
+    }
+    if (!simMatches.length) {
+      // If no today matches, use upcoming
+      simMatches = allMatches.filter(m=>m.date>today).slice(0,6);
+    }
+    if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
+
+    // Load predictions for all players
+    simPredictions = {};
+    const matchIds = simMatches.map(m=>String(m.id));
+    for(const player of simPlayers){
+      const ps = await db.collection('predictions')
+        .where('userId','==',player.id)
+        .where('groupId','==',gid).get();
+      simPredictions[player.id] = ps.docs.map(d=>d.data())
+        .filter(p=>matchIds.includes(String(p.matchId)));
+    }
+
+    $('simSetup').classList.remove('hidden');
+    $('simResults').classList.add('hidden');
+    renderSimMatches();
+    toast(`✅ ${simMatches.length} partidos · ${simPlayers.length} jugadores`,'success');
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+function renderSimMatches() {
+  const el = $('simMatchesList');
+  if (!el) return;
+  el.innerHTML = simMatches.map(m=>`
+    <div class="sim-match-card">
+      <div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">
+        ${m.tournamentFlag||'🌍'} ${m.tournamentName}
+        ${isLive(m.status)?'<span class="badge-live" style="margin-left:6px;">🔴 VIVO</span>':''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
+        <div style="text-align:center;">
+          <span style="font-size:1.8em;">⚽</span>
+          <div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">${m.home}</div>
+        </div>
+        <div class="sim-score-row">
+          <input type="number" min="0" max="20" value="${m.homeScore!=null?m.homeScore:0}"
+            id="simH_${m.id}" class="sim-input">
+          <span style="font-family:var(--font-h);color:var(--muted);font-size:1.2em;">—</span>
+          <input type="number" min="0" max="20" value="${m.awayScore!=null?m.awayScore:0}"
+            id="simA_${m.id}" class="sim-input">
+        </div>
+        <div style="text-align:center;">
+          <span style="font-size:1.8em;">⚽</span>
+          <div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">${m.away}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function applyScenario(type) {
+  simMatches.forEach(m=>{
+    const hi=$(`simH_${m.id}`), ai=$(`simA_${m.id}`);
+    if(!hi||!ai) return;
+    switch(type){
+      case 'myExact': {
+        const p = simPredictions[me.uid]?.find(p=>String(p.matchId)===String(m.id));
+        if(p){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore; }
+        break;
+      }
+      case 'myResult': {
+        const p = simPredictions[me.uid]?.find(p=>String(p.matchId)===String(m.id));
+        if(p){
+          const d=p.predictedHomeScore-p.predictedAwayScore;
+          if(d>0){ hi.value=p.predictedHomeScore+1; ai.value=p.predictedAwayScore; }
+          else if(d<0){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore+1; }
+          else { hi.value=1; ai.value=1; }
+        }
+        break;
+      }
+      case 'leaderExact': {
+        const leader = simPlayers[0];
+        const p = leader && simPredictions[leader.id]?.find(p=>String(p.matchId)===String(m.id));
+        if(p){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore; }
+        break;
+      }
+      case 'nobody':
+        hi.value=7; ai.value=0; break;
+      case 'random':
+        hi.value=Math.floor(Math.random()*5);
+        ai.value=Math.floor(Math.random()*5);
+        break;
+    }
+  });
+  if(type!=='nobody'&&type!=='random') toast('✅ Escenario aplicado','success');
+}
+
+function clearSimInputs() {
+  simMatches.forEach(m=>{
+    const hi=$(`simH_${m.id}`), ai=$(`simA_${m.id}`);
+    if(hi) hi.value=0; if(ai) ai.value=0;
+  });
+}
+
+function runSimulation() {
+  // Collect fictional results
+  const fictResults = simMatches.map(m=>({
+    matchId:String(m.id),
+    homeScore:+($(`simH_${m.id}`)?.value||0),
+    awayScore:+($(`simA_${m.id}`)?.value||0),
+    home:m.home, away:m.away
+  }));
+
+  // Calculate new points for each player
+  const results = simPlayers.map(player=>{
+    let gained=0, exactGained=0, resultGained=0;
+    const preds = simPredictions[player.id]||[];
+    fictResults.forEach(fr=>{
+      const pred = preds.find(p=>String(p.matchId)===fr.matchId);
+      if(!pred) return;
+      const pts = calcPoints(+pred.predictedHomeScore, +pred.predictedAwayScore, fr.homeScore, fr.awayScore);
+      gained+=pts;
+      if(pts===5) exactGained++;
+      else if(pts===3) resultGained++;
+    });
+    return {
+      ...player,
+      fictPoints: player.groupPoints + gained,
+      gained, exactGained, resultGained
+    };
+  }).sort((a,b)=>b.fictPoints-a.fictPoints||b.exactGained-a.exactGained)
+    .map((p,i)=>({...p, newRank:i+1}));
+
+  displaySimResults(results, fictResults);
+  $('simResults').classList.remove('hidden');
+  $('simResults').scrollIntoView({behavior:'smooth'});
+}
+
+function displaySimResults(players, fictResults) {
+  const me_ = players.find(p=>p.id===me.uid);
+  const myNewRank = me_?.newRank||0;
+  const myOldRank = me_?.originalRank||0;
+  const rankChange = myOldRank - myNewRank;
+
+  // Analysis
+  let analysis = `<div style="font-family:var(--font-h);font-size:1em;color:var(--primary2);margin-bottom:10px;">🎮 RESULTADO SIMULADO</div>`;
+  if(me_){
+    analysis += `<div style="font-size:0.88em;line-height:1.8;">`;
+    analysis += `📍 Tu posición: <strong style="color:var(--gold);">${myOldRank}° → ${myNewRank}°</strong> `;
+    if(rankChange>0) analysis+=`<span style="color:var(--green);">▲ Subes ${rankChange}</span>`;
+    else if(rankChange<0) analysis+=`<span style="color:var(--red);">▼ Bajas ${Math.abs(rankChange)}</span>`;
+    else analysis+=`<span style="color:var(--muted2);">Sin cambios</span>`;
+    analysis += `<br>⭐ Exactos ficticios: <strong>${me_.exactGained}</strong>`;
+    analysis += `<br>🎯 Resultados ficticios: <strong>${me_.resultGained}</strong>`;
+    analysis += `<br>➕ Puntos ganados: <strong style="color:var(--green);">+${me_.gained}</strong>`;
+    analysis += `<br>🏆 Total ficticio: <strong style="color:var(--primary2);">${me_.fictPoints} pts</strong>`;
+
+    if(myNewRank===1) analysis+=`<br><br>🎉 <strong style="color:var(--gold);">¡Serías el líder!</strong>`;
+    else {
+      const leader = players[0];
+      const diff = leader.fictPoints - (me_?.fictPoints||0);
+      if(diff>0) analysis+=`<br>📏 A <strong>${diff} pts</strong> del líder (${leader.username})`;
+    }
+    analysis += `</div>`;
+  }
+  $('simAnalysis').innerHTML = analysis;
+
+  // Ranking
+  let html = `
+    <div style="display:grid;grid-template-columns:auto 1fr auto auto;gap:0;font-size:0.7em;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--muted);padding:0 12px 8px;">
+      <span>Pos</span><span style="padding-left:10px;">Jugador</span><span style="text-align:right;">+Pts</span><span style="text-align:right;padding-left:8px;">Total</span>
+    </div>`;
+
+  players.forEach((p,i)=>{
+    const isMe = p.id===me.uid;
+    const isLeader = i===0;
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    const chg = p.originalRank - p.newRank;
+    const chgHtml = chg>0
+      ? `<span style="color:var(--green);font-size:0.75em;">▲${chg}</span>`
+      : chg<0
+      ? `<span style="color:var(--red);font-size:0.75em;">▼${Math.abs(chg)}</span>`
+      : `<span style="color:var(--muted);font-size:0.75em;">—</span>`;
+
+    html+=`<div class="sim-result-row ${isMe?'me':''} ${isLeader&&!isMe?'leader':''}">
+      <span class="sim-pos">${medal}</span>
+      <div class="sim-name">
+        ${p.username}${isMe?' <span style="color:var(--gold);font-size:0.75em;">(TÚ)</span>':''}
+        <div style="font-size:0.7em;color:var(--muted2);">
+          Antes: ${p.groupPoints}pts ${chgHtml}
+        </div>
+      </div>
+      <span class="sim-gain">+${p.gained}</span>
+      <span class="sim-pts">${p.fictPoints}</span>
+    </div>`;
+  });
+
+  // Show fictional results used
+  html += `<div style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:var(--r-sm);font-size:0.78em;">
+    <div style="font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📋 Resultados ficticios usados</div>`;
+  fictResults.forEach(fr=>{
+    const rr = fr.homeScore===fr.awayScore?'empate':fr.homeScore>fr.awayScore?fr.home:fr.away;
+    html+=`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--muted2);">${fr.home} vs ${fr.away}</span>
+      <span style="font-family:var(--font-h);color:var(--primary2);">${fr.homeScore}—${fr.awayScore}</span>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  $('simRanking').innerHTML = html;
+}
+
+function resetSimulation() {
+  $('simSetup')?.classList.add('hidden');
+  $('simResults')?.classList.add('hidden');
+  simPlayers=[]; simMatches=[]; simPredictions={}; simGroup=null;
+}
+
+// ═══════════════════════════════════════════
 // ONLINE / OFFLINE
 // ═══════════════════════════════════════════
 window.addEventListener('online',  ()=>toast('✅ Conexión restaurada','success'));
@@ -2621,4 +3006,5 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
