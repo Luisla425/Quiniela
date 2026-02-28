@@ -1,8 +1,4 @@
-<!--
-  QUINIELA LuAn © 2026 · Arichuna, Venezuela
-  ING. LUIS LÁREZ · Todos los derechos reservados
-  Software protegido. Prohibida su reproducción sin autorización.
--->
+<!--QUINIELA LuAn © 2026 · ING. LUIS LÁREZ · Arichuna, Venezuela-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1035,9 +1031,10 @@ msg += `${'▬'.repeat(18)}\n`;
 ranked.forEach((p, i) => {
 const pos  = medals[i] || `  ${i+1}.`;
 const pts  = String(p.grpPts).padStart(3);
+const name = p.username.toLowerCase().padEnd(8);
 const ex   = p.grpExact   ? `⭐${p.grpExact}`  : '   ';
 const co   = p.grpCorrect ? `🎯${p.grpCorrect}` : '';
-msg += `${pos} ${p.username.padEnd(8)} ${pts}p ${ex}${co}\n`;
+msg += `${pos} ${name} ${pts}p ${ex}${co}\n`;
 });
 msg += `${'▬'.repeat(18)}\n`;
 msg += `_🔐 ${code} · luislárez · Arichuna_`;
@@ -2875,7 +2872,7 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-</html>
+  </html>
 
 
 
