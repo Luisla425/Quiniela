@@ -416,14 +416,12 @@ body::before {
    CHAT
 ═══════════════════════════════════════════ */
 #screenChat {
-  padding:0;
-  padding-bottom:0;
+  padding:0 !important;
+  padding-bottom:0 !important;
   flex-direction:column;
-  height:calc(100vh - 120px);
+  height:calc(100svh - 120px);
   position:relative;
   background:var(--bg);
-}
-#screenChat {
   display:flex;
 }
 .chat-header {
@@ -443,6 +441,7 @@ body::before {
   flex-direction:column;
   gap:8px;
   -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
 }
 .chat-msg { max-width:80%; display:flex; flex-direction:column; gap:3px; }
 .chat-msg.mine { align-self:flex-end; align-items:flex-end; }
@@ -908,7 +907,8 @@ body::before {
     <div id="rankModalTitle" class="modal-title"></div>
     <div id="rankModalCode" style="font-size:0.78em;color:var(--muted2);margin-bottom:16px;"></div>
     <div id="rankModalList"></div>
-    <button class="btn btn-ghost" style="margin-top:16px;" onclick="closeModal('rankModal')">Cerrar</button>
+    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">📲 Compartir Pizarra por WhatsApp</button>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('rankModal')">Cerrar</button>
   </div>
 </div>
 
@@ -931,6 +931,96 @@ body::before {
     </div>
     <button class="btn btn-primary" onclick="doChangePass()">🔑 Cambiar Contraseña</button>
     <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('changePassModal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Mundial Predictions Modal -->
+<div class="modal-overlay hidden" id="mundialModal">
+  <div class="modal-box" style="max-height:95vh;">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🌍🏆 Predicciones Mundial 2026</div>
+    <p style="color:var(--muted2);font-size:0.82em;margin-bottom:16px;line-height:1.6;">
+      Estas predicciones se hacen <strong style="color:var(--gold);">una sola vez</strong> y se bloquean al inicio del torneo.
+    </p>
+
+    <div id="mundialFormContent">
+      <!-- Puntos config (solo admin) -->
+      <div id="mundialAdminConfig" class="hidden">
+        <div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:12px;margin-bottom:14px;">
+          <div style="font-weight:800;font-size:0.82em;color:var(--primary2);margin-bottom:10px;">⚙️ CONFIGURAR PUNTOS (Admin)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="field" style="margin:0;">
+              <label>🥇 Campeón (pts)</label>
+              <select id="mPtsCampeon" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
+                <option value="5">5 pts</option><option value="6">6 pts</option>
+                <option value="7">7 pts</option><option value="8" selected>8 pts</option>
+                <option value="9">9 pts</option><option value="10">10 pts</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>🥈 Subcampeón (pts)</label>
+              <select id="mPtsSub" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
+                <option value="4">4 pts</option><option value="5">5 pts</option>
+                <option value="6" selected>6 pts</option><option value="7">7 pts</option>
+                <option value="8">8 pts</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>🥉 Tercer Lugar (pts)</label>
+              <select id="mPtsTercero" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
+                <option value="1">1 pt</option><option value="2">2 pts</option>
+                <option value="3" selected>3 pts</option><option value="4">4 pts</option>
+                <option value="5">5 pts</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0;">
+              <label>⚽ Goleador (pts)</label>
+              <select id="mPtsGoleador" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
+                <option value="1">1 pt</option><option value="3">3 pts</option>
+                <option value="5" selected>5 pts</option><option value="7">7 pts</option>
+                <option value="10">10 pts</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" style="margin-top:12px;" onclick="saveMundialConfig()">💾 Guardar Configuración</button>
+        </div>
+      </div>
+
+      <!-- Player predictions -->
+      <div id="mundialPredForm">
+        <div class="field">
+          <label>🥇 ¿Quién será el Campeón?</label>
+          <select id="mCampeon" style="width:100%;padding:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.9em;">
+            <option value="">Selecciona una selección...</option>
+          </select>
+          <div id="mPtsCampeonLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
+        </div>
+        <div class="field">
+          <label>🥈 ¿Quién será el Subcampeón?</label>
+          <select id="mSubcampeon" style="width:100%;padding:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.9em;">
+            <option value="">Selecciona una selección...</option>
+          </select>
+          <div id="mPtsSubLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
+        </div>
+        <div class="field">
+          <label>🥉 ¿Quién quedará Tercero?</label>
+          <select id="mTercero" style="width:100%;padding:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.9em;">
+            <option value="">Selecciona una selección...</option>
+          </select>
+          <div id="mPtsTerceroLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
+        </div>
+        <div class="field">
+          <label>⚽ ¿Quién será el Goleador del Torneo?</label>
+          <input type="text" id="mGoleador" placeholder="Ej: Kylian Mbappé" style="text-transform:capitalize;">
+          <div id="mPtsGoleadorLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
+        </div>
+        <div id="mundialSavedMsg" class="hidden" style="background:rgba(0,229,160,0.1);border:1px solid var(--green);border-radius:var(--r-sm);padding:12px;margin-bottom:12px;font-size:0.85em;color:var(--green);font-weight:700;">
+          ✅ Ya registraste tus predicciones mundiales. No pueden modificarse.
+        </div>
+        <button class="btn btn-primary" id="mundialSaveBtn" onclick="saveMundialPreds()">🌍 Confirmar Predicciones</button>
+      </div>
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('mundialModal')">Cerrar</button>
   </div>
 </div>
 
@@ -975,8 +1065,31 @@ const TOURNAMENTS = [
   { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
   { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
   { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
-  { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
+  { id:'premier',  name:'Premier League',   flag:'ENG🏴', lid:'4328' },
   { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
+  { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
+];
+
+// Mundial 2026 — 48 selecciones
+const MUNDIAL_TEAMS = [
+  // CONMEBOL
+  '🇦🇷 Argentina','🇧🇷 Brasil','🇺🇾 Uruguay','🇨🇴 Colombia','🇪🇨 Ecuador',
+  '🇵🇪 Perú','🇻🇪 Venezuela','🇵🇾 Paraguay','🇨🇱 Chile','🇧🇴 Bolivia',
+  // CONCACAF
+  '🇺🇸 Estados Unidos','🇲🇽 México','🇨🇦 Canadá','🇨🇷 Costa Rica','🇵🇦 Panamá',
+  '🇯🇲 Jamaica','🇭🇳 Honduras','🇸🇻 El Salvador','🇬🇹 Guatemala','🇹🇹 Trinidad y Tobago',
+  // UEFA
+  '🇩🇪 Alemania','🇫🇷 Francia','🇪🇸 España','🇵🇹 Portugal','🇬🇧 Inglaterra',
+  '🇳🇱 Países Bajos','🇮🇹 Italia','🇧🇪 Bélgica','🇭🇷 Croacia','🇵🇱 Polonia',
+  '🇷🇸 Serbia','🇦🇹 Austria','🇨🇭 Suiza','🇩🇰 Dinamarca','🇸🇪 Suecia','🇹🇷 Turquía',
+  // CAF
+  '🇲🇦 Marruecos','🇳🇬 Nigeria','🇸🇳 Senegal','🇪🇬 Egipto','🇨🇲 Camerún',
+  '🇿🇦 Sudáfrica','🇬🇭 Ghana','🇨🇮 Costa de Marfil','🇹🇳 Túnez',
+  // AFC
+  '🇯🇵 Japón','🇰🇷 Corea del Sur','🇮🇷 Irán','🇦🇺 Australia','🇸🇦 Arabia Saudita',
+  '🇶🇦 Qatar','🇺🇿 Uzbekistán','🇮🇶 Iraq',
+  // OFC
+  '🇳🇿 Nueva Zelanda',
 ];
 
 // ═══════════════════════════════════════════
@@ -1071,6 +1184,41 @@ function statusLabel(s) {
                'AET':'✅ Final (TE)','AP':'✅ Final (Pen)','PEN':'✅ Final (Pen)',
                'Match Finished':'✅ Final','MATCH FINISHED':'✅ Final'};
   return map[s] || s;
+}
+
+function sharePizarra() {
+  const { name, code, ranked } = _currentRankData;
+  if (!ranked || !ranked.length) { toast('Carga la pizarra primero','error'); return; }
+
+  const medals = ['🥇','🥈','🥉'];
+  const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+
+  let msg = `🏆 *PIZARRA — ${name}*
+`;
+  msg += `📅 ${vzDate()} · ${now}
+`;
+  msg += `${'─'.repeat(25)}
+
+`;
+
+  ranked.forEach((p, i) => {
+    const pos = medals[i] || `${i+1}.`;
+    msg += `${pos} *${p.username}* — ${p.grpPts} pts`;
+    if (p.grpExact)   msg += ` ⭐${p.grpExact}`;
+    if (p.grpCorrect) msg += ` 🎯${p.grpCorrect}`;
+    msg += `
+`;
+  });
+
+  msg += `
+${'─'.repeat(25)}
+`;
+  msg += `_Quiniela LuAn · Código: ${code}_
+`;
+  msg += `_*Desarrollado desde Arichuna por luislárez*_`;
+
+  // Open WhatsApp chooser (no specific number = user picks)
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function inviteToApp() {
@@ -1792,14 +1940,45 @@ async function openStats(matchId) {
     const homeGoals = parseEvents(ev.strHomeGoalDetails);
     const awayGoals = parseEvents(ev.strAwayGoalDetails);
     if (homeGoals.length || awayGoals.length) {
-      html += sectionTitle('⚽', 'Goles');
-      // Parse format: "Player 23'" or "Player (23')"
-      [...homeGoals.map(g=>({g,team:ev.strHomeTeam,color:'var(--text)'})),
-       ...awayGoals.map(g=>({g,team:ev.strAwayTeam,color:'var(--blue)'}))].forEach(({g,team,color})=>{
-        const min = g.match(/(\d+)'/)?.[1] || '';
-        const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
-        html += eventRow(min, team, player, '⚽', color);
+      html += sectionTitle('⚽', `Goles (${homeGoals.length + awayGoals.length})`);
+      // Merge and sort by minute
+      const allGoals = [
+        ...homeGoals.map(g=>({g, team:ev.strHomeTeam, color:'var(--text)', side:'home'})),
+        ...awayGoals.map(g=>({g, team:ev.strAwayTeam, color:'var(--blue)',  side:'away'}))
+      ];
+      // Sort by minute if possible
+      allGoals.sort((a,b)=>{
+        const ma = parseInt(a.g.match(/(\d+)'/)?.[1]||'0');
+        const mb = parseInt(b.g.match(/(\d+)'/)?.[1]||'0');
+        return ma - mb;
       });
+      allGoals.forEach(({g,team,color,side})=>{
+        // Parse "Player Name 23'" or "Player Name (23')" or "23' Player Name"
+        const minMatch = g.match(/(\d+)\+?(\d+)?'/);
+        const min = minMatch ? minMatch[0].replace("'","") + "'" : '';
+        let player = g.replace(/\(?\d+\+?\d*'\)?/g,'').trim();
+        if (!player) player = g;
+        // Detect own goal
+        const isOG = g.toLowerCase().includes('og') || g.toLowerCase().includes('propia');
+        const icon = isOG ? '🔴⚽' : '⚽';
+        const ogLabel = isOG ? ' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>' : '';
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
+          <span style="font-family:var(--font-h);font-size:0.9em;color:var(--gold);min-width:40px;font-weight:800;">${min||'?'}</span>
+          <span style="font-size:1.1em;">${icon}</span>
+          <div style="flex:1;">
+            <div style="font-weight:800;font-size:0.88em;color:${color};">${player}${ogLabel}</div>
+            <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">
+              ${side==='home'?'🏠':'✈️'} ${team}
+            </div>
+          </div>
+        </div>`;
+      });
+    } else if (live) {
+      html += sectionTitle('⚽', 'Goles');
+      html += `<div style="padding:12px 0;color:var(--muted2);font-size:0.82em;text-align:center;">
+        ⏳ Esperando datos de la API...
+        <div style="font-size:0.85em;margin-top:4px;">El marcador se actualiza en tiempo real</div>
+      </div>`;
     }
 
     // ── TARJETAS AMARILLAS ───────────────────
@@ -2074,23 +2253,30 @@ async function searchPreds() {
 // ═══════════════════════════════════════════
 function initChat() {
   const screen = $('screenChat');
-  // Always rebuild to ensure fresh state
   screen.innerHTML = `
     <div class="chat-header" style="flex-shrink:0;">
-      <div class="chat-online"></div>
-      <div class="chat-header-info">
-        <h3>💬 Chat LuAn</h3>
-        <p>Todos los grupos · En vivo</p>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="chat-online"></div>
+        <div class="chat-header-info">
+          <h3>💬 Chat LuAn</h3>
+          <p>Hola ${me?.username||''} · Escribe y envía</p>
+        </div>
       </div>
     </div>
     <div class="chat-messages" id="chatMessages">
       <div class="chat-system">Bienvenido al chat de Quiniela LuAn ⚽</div>
     </div>
-    <div class="chat-input-bar">
-      <textarea class="chat-input" id="chatInput" placeholder="Escribe algo..." rows="1"
-        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
-      <button class="chat-send" onclick="sendChat()">➤</button>
+    <div class="chat-input-bar" id="chatBar">
+      <input type="text" class="chat-input" id="chatInput"
+        placeholder="Escribe un mensaje..."
+        autocomplete="off" autocorrect="off"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();sendChat();}"
+      />
+      <button class="chat-send"
+        ontouchend="event.preventDefault();sendChat();"
+        onclick="sendChat();">➤</button>
     </div>`;
+
 
   // Use onSnapshot but limit to last 40 messages to reduce reads
   if (chatUnsub) chatUnsub();
@@ -2126,19 +2312,32 @@ function initChat() {
 
 async function sendChat() {
   const input = $('chatInput');
+  if (!input) { toast('Error: input no encontrado','error'); return; }
   const text = input.value.trim();
   if (!text) return;
+  if (!me?.uid) { toast('Debes estar autenticado','error'); return; }
+  
+  // Clear immediately for fast UX
   input.value = '';
-  input.style.height = 'auto';
+  input.focus();
+  
   try {
     await db.collection('chat').add({
       uid: me.uid,
       username: me.username,
       name: me.name || me.username,
-      text,
+      text: text,
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
-  } catch(e) { toast('Error al enviar: ' + e.message, 'error'); }
+  } catch(e) {
+    // Restore text if failed
+    input.value = text;
+    const msg = e.code === 'permission-denied'
+      ? '❌ Sin permiso para escribir. Verifica las reglas de Firestore.'
+      : '❌ Error: ' + e.message;
+    toast(msg, 'error');
+    console.error('Chat error:', e.code, e.message);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2147,6 +2346,22 @@ async function sendChat() {
 function renderTournaments() {
   const el = $('screenTournaments');
   let html = `<div class="section-header"><span class="section-title">🏆 Torneos</span></div>
+    <div class="card-glow" style="margin-bottom:14px;cursor:pointer;" onclick="openMundialModal()">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:2em;">🌍🏆</span>
+        <div style="flex:1;">
+          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
+          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">48 selecciones · 104 partidos · USA/MX/CA</div>
+        </div>
+        <span style="font-size:1.5em;">→</span>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">🥇 Campeón</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">🥈 Subcampeón</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">🥉 Tercer lugar</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">⚽ Goleador</span>
+      </div>
+    </div>
     <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">Selecciona las ligas para las que quieres predecir:</p>`;
   TOURNAMENTS.forEach(t=>{
     const sel = myTournaments.includes(t.id);
@@ -2296,6 +2511,8 @@ function shareGroup(code, name) {
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
+let _currentRankData = { name:'', ranked:[] };
+
 async function openGroupRanking(gid) {
   openModal('rankModal');
   $('rankModalList').innerHTML='<div class="empty"><span class="empty-icon">⏳</span></div>';
@@ -2379,6 +2596,8 @@ async function openGroupRanking(gid) {
         </div>
       </div>`;
     });
+    // Store for sharing
+    _currentRankData = { name: g.name, code: g.code, ranked };
     $('rankModalList').innerHTML=html||'<div class="empty"><span class="empty-text">Sin datos aún</span></div>';
   } catch(e){
     $('rankModalList').innerHTML=`<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
@@ -3035,6 +3254,156 @@ function resetSimulation() {
 }
 
 // ═══════════════════════════════════════════
+// MUNDIAL 2026
+// ═══════════════════════════════════════════
+
+let mundialConfig = { campeon:8, sub:6, tercero:3, goleador:5 };
+
+async function openMundialModal() {
+  openModal('mundialModal');
+  // Show admin config panel if admin
+  if (me.isAdmin) $('mundialAdminConfig').classList.remove('hidden');
+
+  // Load config from Firestore
+  try {
+    const cfg = await db.collection('system').doc('mundialConfig').get();
+    if (cfg.exists) {
+      mundialConfig = {...mundialConfig, ...cfg.data()};
+      $('mPtsCampeon').value    = mundialConfig.campeon;
+      $('mPtsSub').value        = mundialConfig.sub;
+      $('mPtsTercero').value    = mundialConfig.tercero;
+      $('mPtsGoleador').value   = mundialConfig.goleador;
+    }
+  } catch(e) {}
+
+  // Update labels
+  updateMundialLabels();
+
+  // Populate team selects
+  const selects = ['mCampeon','mSubcampeon','mTercero'];
+  selects.forEach(id => {
+    const sel = $(id);
+    sel.innerHTML = '<option value="">Selecciona...</option>';
+    MUNDIAL_TEAMS.forEach(t => sel.innerHTML += `<option value="${t}">${t}</option>`);
+  });
+
+  // Check if user already saved predictions (locked)
+  try {
+    const myPred = await db.collection('mundialPreds').doc(me.uid).get();
+    if (myPred.exists) {
+      const d = myPred.data();
+      $('mCampeon').value    = d.campeon    || '';
+      $('mSubcampeon').value = d.subcampeon || '';
+      $('mTercero').value    = d.tercero    || '';
+      $('mGoleador').value   = d.goleador   || '';
+      // Lock — can't change
+      $('mCampeon').disabled    = true;
+      $('mSubcampeon').disabled = true;
+      $('mTercero').disabled    = true;
+      $('mGoleador').disabled   = true;
+      $('mundialSaveBtn').classList.add('hidden');
+      $('mundialSavedMsg').classList.remove('hidden');
+    }
+  } catch(e) {}
+}
+
+function updateMundialLabels() {
+  $('mPtsCampeonLabel').textContent  = `Vale ${mundialConfig.campeon} pts si aciertas`;
+  $('mPtsSubLabel').textContent      = `Vale ${mundialConfig.sub} pts si aciertas`;
+  $('mPtsTerceroLabel').textContent  = `Vale ${mundialConfig.tercero} pts si aciertas`;
+  $('mPtsGoleadorLabel').textContent = `Vale ${mundialConfig.goleador} pts si aciertas`;
+}
+
+async function saveMundialConfig() {
+  if (!me.isAdmin) return;
+  mundialConfig = {
+    campeon:   +$('mPtsCampeon').value,
+    sub:       +$('mPtsSub').value,
+    tercero:   +$('mPtsTercero').value,
+    goleador:  +$('mPtsGoleador').value,
+    lockedAt:  firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    await db.collection('system').doc('mundialConfig').set(mundialConfig);
+    updateMundialLabels();
+    toast('✅ Configuración guardada y bloqueada','success');
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+async function saveMundialPreds() {
+  const campeon    = $('mCampeon').value;
+  const subcampeon = $('mSubcampeon').value;
+  const tercero    = $('mTercero').value;
+  const goleador   = $('mGoleador').value.trim();
+
+  if (!campeon)    { toast('Elige el Campeón','error'); return; }
+  if (!subcampeon) { toast('Elige el Subcampeón','error'); return; }
+  if (!tercero)    { toast('Elige el Tercer lugar','error'); return; }
+  if (!goleador)   { toast('Escribe el nombre del Goleador','error'); return; }
+  if (campeon === subcampeon || campeon === tercero || subcampeon === tercero) {
+    toast('No puedes repetir selecciones','error'); return;
+  }
+
+  if (!confirm('¿Confirmas tus predicciones? No podrás cambiarlas después.')) return;
+
+  try {
+    await db.collection('mundialPreds').doc(me.uid).set({
+      userId: me.uid, username: me.username,
+      campeon, subcampeon, tercero, goleador,
+      ptsConfig: {...mundialConfig},
+      evaluated: false,
+      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Lock UI
+    ['mCampeon','mSubcampeon','mTercero','mGoleador'].forEach(id => $(id).disabled = true);
+    $('mundialSaveBtn').classList.add('hidden');
+    $('mundialSavedMsg').classList.remove('hidden');
+    toast('✅ Predicciones mundiales guardadas','success');
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+// Admin evaluates Mundial results
+async function evalMundial() {
+  if (!me.isAdmin) return;
+  const campeon    = prompt('🥇 Campeón real:');    if (!campeon) return;
+  const subcampeon = prompt('🥈 Subcampeón real:'); if (!subcampeon) return;
+  const tercero    = prompt('🥉 Tercer lugar real:');if (!tercero) return;
+  const goleador   = prompt('⚽ Goleador real:');   if (!goleador) return;
+
+  if (!confirm(`¿Evaluar con:
+🥇 ${campeon}
+🥈 ${subcampeon}
+🥉 ${tercero}
+⚽ ${goleador}?`)) return;
+
+  try {
+    const snap = await db.collection('mundialPreds').where('evaluated','==',false).get();
+    let count = 0;
+    for (const doc of snap.docs) {
+      const p = doc.data();
+      const cfg = p.ptsConfig || mundialConfig;
+      let pts = 0;
+      if (p.campeon    === campeon)    pts += cfg.campeon;
+      if (p.subcampeon === subcampeon) pts += cfg.sub;
+      if (p.tercero    === tercero)    pts += cfg.tercero;
+      if (p.goleador?.toLowerCase() === goleador.toLowerCase()) pts += cfg.goleador;
+
+      await doc.ref.update({ evaluated:true, ptsAwarded:pts,
+        realCampeon:campeon, realSub:subcampeon,
+        realTercero:tercero, realGoleador:goleador });
+
+      if (pts > 0) {
+        await db.collection('users').doc(p.userId).update({
+          points: firebase.firestore.FieldValue.increment(pts)
+        });
+      }
+      count++;
+    }
+    toast(`✅ ${count} predicciones mundiales evaluadas`,'success');
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+// ═══════════════════════════════════════════
 // ONLINE / OFFLINE
 // ═══════════════════════════════════════════
 window.addEventListener('online',  ()=>toast('✅ Conexión restaurada','success'));
@@ -3044,6 +3413,7 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
 
