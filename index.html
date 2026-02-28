@@ -2493,10 +2493,38 @@ function renderAdmin() {
 async function adminUsers() {
   const out=$('adminOut');
   out.innerHTML='⏳ Cargando...';
-  const snap=await db.collection('users').orderBy('playerNumber').get();
+
+  // Load users
+  const snap = await db.collection('users').orderBy('playerNumber').get();
+
+  // Load ALL evaluated predictions to calculate real points per user
+  const predSnap = await db.collection('predictions').where('evaluated','==',true).get();
+  const realPts = {}; // uid -> {pts, exact, correct}
+  predSnap.docs.forEach(d=>{
+    const p = d.data();
+    if(!realPts[p.userId]) realPts[p.userId]={pts:0,exact:0,correct:0};
+    realPts[p.userId].pts += p.pointsAwarded||0;
+    if(p.pointsAwarded===5) realPts[p.userId].exact++;
+    else if(p.pointsAwarded===3) realPts[p.userId].correct++;
+  });
+
+  // Also include livePoints for active matches
+  const liveSnap = await db.collection('predictions').where('evaluated','==',false).get();
+  const livePts = {};
+  liveSnap.docs.forEach(d=>{
+    const p = d.data();
+    if(p.livePoints==null) return;
+    if(!livePts[p.userId]) livePts[p.userId]=0;
+    livePts[p.userId]+=p.livePoints;
+  });
+
   let html=`<div class="big-stat"><span class="big-stat-num">${snap.size}</span><span class="big-stat-label">Jugadores Registrados</span></div>`;
   snap.docs.forEach(d=>{
     const u=d.data();
+    const rp = realPts[d.id]||{pts:0,exact:0,correct:0};
+    const lp = livePts[d.id]||0;
+    const totalPts = rp.pts + lp;
+    const liveLabel = lp>0 ? `<span style="color:var(--red);font-size:0.7em;"> +${lp}🔴</span>` : '';
     html+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <div>
@@ -2504,7 +2532,10 @@ async function adminUsers() {
           <strong style="margin-left:6px;">${u.username}</strong>
           ${u.isAdmin?'👑':''}
         </div>
-        <span style="font-family:var(--font-h);color:var(--primary2);">${u.points||0}pts</span>
+        <div style="text-align:right;">
+          <span style="font-family:var(--font-h);color:var(--primary2);">${totalPts}pts</span>${liveLabel}
+          <div style="font-size:0.68em;color:var(--muted2);">⭐${rp.exact} exactos · 🎯${rp.correct} correctos</div>
+        </div>
       </div>
       <div style="font-size:0.72em;color:var(--muted2);">${u.phoneDisplay||u.phone||'—'} · Inv: ${u.personalInviteCode}</div>
       <div style="display:flex;gap:6px;margin-top:8px;">
@@ -3013,6 +3044,7 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
 
