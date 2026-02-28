@@ -543,6 +543,102 @@ display:flex; justify-content:space-between; align-items:center;
 padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85em;
 }
 .info-row:last-child { border:none; }
+.express-overlay {
+position:fixed; inset:0; background:rgba(0,0,0,0.85);
+backdrop-filter:blur(12px); z-index:2000;
+display:flex; flex-direction:column;
+align-items:center; justify-content:flex-end;
+padding-bottom:env(safe-area-inset-bottom,0);
+}
+.express-card {
+width:100%; max-width:480px;
+background:var(--surface); border-radius:24px 24px 0 0;
+padding:20px 20px 32px;
+animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes slideUp {
+from { transform:translateY(100%); opacity:0; }
+to   { transform:translateY(0);    opacity:1; }
+}
+.express-progress {
+display:flex; gap:4px; margin-bottom:16px; justify-content:center;
+}
+.express-dot {
+height:4px; border-radius:2px; background:var(--border2);
+flex:1; max-width:32px; transition:all 0.3s;
+}
+.express-dot.done  { background:var(--green); }
+.express-dot.active{ background:var(--primary2); }
+.express-match-title {
+font-size:0.7em; font-weight:800; color:var(--muted2);
+text-transform:uppercase; letter-spacing:1px;
+text-align:center; margin-bottom:12px;
+}
+.express-teams {
+display:grid; grid-template-columns:1fr auto 1fr;
+align-items:center; gap:8px; margin-bottom:20px;
+}
+.express-team-name {
+font-family:var(--font-h); font-size:0.95em;
+font-weight:800; text-align:center; color:var(--text);
+line-height:1.2;
+}
+.express-vs { color:var(--muted); font-size:0.8em; font-weight:700; }
+.express-winner-btns {
+display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;
+margin-bottom:8px;
+}
+.express-winner-btn {
+padding:14px 6px; border-radius:14px;
+border:2px solid var(--border2);
+background:var(--surface2); color:var(--text);
+font-family:var(--font-h); font-size:0.78em;
+font-weight:800; cursor:pointer; text-align:center;
+transition:all 0.15s; -webkit-tap-highlight-color:transparent;
+touch-action:manipulation;
+}
+.express-winner-btn:active { transform:scale(0.93); }
+.express-winner-btn.home   { border-color:var(--primary2); color:var(--primary2); }
+.express-winner-btn.draw   { border-color:var(--gold);     color:var(--gold);     }
+.express-winner-btn.away   { border-color:var(--green);    color:var(--green);    }
+.express-goal-title {
+font-size:0.85em; font-weight:800; color:var(--muted2);
+text-align:center; margin-bottom:14px;
+}
+.express-goal-team {
+font-family:var(--font-h); color:var(--primary2); font-size:1em;
+}
+.goal-picker {
+display:flex; justify-content:center; gap:10px;
+flex-wrap:wrap; margin-bottom:8px;
+}
+.goal-num {
+width:52px; height:52px; border-radius:14px;
+border:2px solid var(--border2); background:var(--surface2);
+color:var(--text); font-family:var(--font-h);
+font-size:1.3em; font-weight:800; cursor:pointer;
+display:flex; align-items:center; justify-content:center;
+transition:all 0.15s; -webkit-tap-highlight-color:transparent;
+touch-action:manipulation;
+}
+.goal-num:active { transform:scale(0.88); }
+.goal-num.selected {
+background:var(--primary); border-color:var(--primary2);
+color:#fff; transform:scale(1.1);
+box-shadow:0 4px 16px rgba(108,71,255,0.5);
+}
+.express-skip {
+width:100%; padding:10px; border-radius:12px;
+border:1px solid var(--border2); background:transparent;
+color:var(--muted2); font-size:0.8em; cursor:pointer;
+margin-top:8px; touch-action:manipulation;
+}
+.express-result-preview {
+text-align:center; padding:10px;
+font-family:var(--font-h); font-size:1.4em;
+color:var(--gold); letter-spacing:2px;
+margin-bottom:4px;
+}
 .sim-match-card {
 background:var(--surface2); border:1px solid var(--border);
 border-radius:var(--r); padding:14px; margin-bottom:10px;
@@ -1454,7 +1550,10 @@ if (!el) return;
 const saved = {};
 dayMatches.forEach(m=>{
 const hi=$(`hi_${m.id}`),ai=$(`ai_${m.id}`);
-if(hi&&ai&&(hi.value!=='0'||ai.value!=='0')) saved[m.id]={h:hi.value,a:ai.value};
+if(!hi||!ai) return;
+const hv = hi.tagName==='INPUT' ? hi.value : hi.textContent;
+const av = ai.tagName==='INPUT' ? ai.value : ai.textContent;
+if(hv!=='0'||av!=='0') saved[m.id]={h:hv,a:av};
 });
 const closed = bettingClosed();
 const nextClose = !closed ? dayMatches.find(m=>m.status==='Not Started') : null;
@@ -1541,10 +1640,11 @@ goalsHtml += `</div>`;
 }
 const statsBtn = showScore ? `<button class="stats-btn" onclick="openStats('${m.id}')">📊 Estadísticas & Goles</button>` : '';
 const predRow = (!showScore && !closed) ? `
-<div class="pred-row" style="margin-top:8px;">
-<input type="number" min="0" max="99" value="0" id="hi_${m.id}" class="pred-input" oninput="userEnteringPreds=true">
+<div class="pred-row" style="margin-top:8px;cursor:pointer;" onclick="openExpress(${JSON.stringify(m.id)})">
+<div class="pred-input-display" id="hi_${m.id}">0</div>
 <span class="pred-dash">—</span>
-<input type="number" min="0" max="99" value="0" id="ai_${m.id}" class="pred-input" oninput="userEnteringPreds=true">
+<div class="pred-input-display" id="ai_${m.id}">0</div>
+<span style="font-size:0.7em;color:var(--primary2);margin-left:8px;">✏️</span>
 </div>` : '';
 return `
 <div class="match-card ${cls}">
@@ -1750,7 +1850,11 @@ if (!jDate) { toast('Sin partidos disponibles','error'); return; }
 const preds = [];
 dayMatches.forEach(m=>{
 const hi=$(`hi_${m.id}`),ai=$(`ai_${m.id}`);
-if(hi&&ai) preds.push({matchId:String(m.id),h:+hi.value||0,a:+ai.value||0,match:m});
+if(hi&&ai){
+const hv = hi.tagName==='INPUT' ? +hi.value||0 : +hi.textContent||0;
+const av = ai.tagName==='INPUT' ? +ai.value||0 : +ai.textContent||0;
+preds.push({matchId:String(m.id),h:hv,a:av,match:m});
+}
 });
 if (!preds.length) { toast('Sin predicciones para guardar','error'); return; }
 const grpSnap = await db.collection('groups').get();
@@ -2867,12 +2971,211 @@ count++;
 toast(`✅ ${count} predicciones mundiales evaluadas`,'success');
 } catch(e) { toast('Error: '+e.message,'error'); }
 }
+let _expressMatches = [];
+let _expressIdx     = 0;
+let _expressPick    = {};
+let _expressStep    = 1;
+let _expressWinner  = '';
+let _expressTmpH    = 0;
+function openExpress(matchId) {
+const pending = dayMatches.filter(m => !isLive(m.status) && !isFinished(m.status));
+const idx = pending.findIndex(m => String(m.id) === String(matchId));
+_expressMatches = idx >= 0
+? [...pending.slice(idx), ...pending.slice(0, idx)]
+: pending;
+if (!_expressMatches.length) { toast('No hay partidos pendientes','info'); return; }
+_expressIdx  = 0;
+_expressPick = {};
+_showExpressMatch();
+}
+function _showExpressMatch() {
+const old = document.getElementById('expressOverlay');
+if (old) old.remove();
+if (_expressIdx >= _expressMatches.length) {
+_applyExpressPicks();
+return;
+}
+const m = _expressMatches[_expressIdx];
+_expressStep   = 1;
+_expressWinner = '';
+_expressTmpH   = 0;
+const overlay = document.createElement('div');
+overlay.className = 'express-overlay';
+overlay.id = 'expressOverlay';
+const total = _expressMatches.length;
+const dots  = _expressMatches.map((_, i) =>
+`<div class="express-dot ${i < _expressIdx ? 'done' : i === _expressIdx ? 'active' : ''}"></div>`
+).join('');
+overlay.innerHTML = `
+<div class="express-card" id="expressCard">
+<div class="express-progress">${dots}</div>
+<div class="express-match-title">
+${m.tournamentFlag||'🌍'} ${m.tournamentName} · Partido ${_expressIdx+1}/${total}
+</div>
+<div class="express-teams">
+<div class="express-team-name">${m.home}</div>
+<div class="express-vs">VS</div>
+<div class="express-team-name">${m.away}</div>
+</div>
+<div id="expressBody"></div>
+</div>`;
+document.body.appendChild(overlay);
+overlay.addEventListener('click', e => {
+if (e.target === overlay) _closeExpress();
+});
+_renderExpress_Step1(m);
+}
+function _renderExpress_Step1(m) {
+const body = $('expressBody');
+body.innerHTML = `
+<div style="font-size:0.78em;color:var(--muted2);text-align:center;margin-bottom:12px;font-weight:700;">
+¿Quién gana?
+</div>
+<div class="express-winner-btns">
+<button class="express-winner-btn home"
+ontouchend="event.preventDefault();_pickWinner('home')"
+onclick="_pickWinner('home')">
+🏠<br>${m.home.split(' ')[0]}
+</button>
+<button class="express-winner-btn draw"
+ontouchend="event.preventDefault();_pickWinner('draw')"
+onclick="_pickWinner('draw')">
+🤝<br>Empate
+</button>
+<button class="express-winner-btn away"
+ontouchend="event.preventDefault();_pickWinner('away')"
+onclick="_pickWinner('away')">
+✈️<br>${m.away.split(' ')[0]}
+</button>
+</div>
+<button class="express-skip" onclick="_skipMatch()">⏭ Saltar este partido</button>`;
+}
+function _pickWinner(side) {
+_expressWinner = side;
+const m = _expressMatches[_expressIdx];
+if (side === 'draw') {
+_renderExpress_GoalsDraw(m);
+} else {
+_renderExpress_GoalsWinner(m, side);
+}
+}
+function _renderExpress_GoalsDraw(m) {
+const body = $('expressBody');
+const nums = [0,1,2,3,4,5];
+body.innerHTML = `
+<div class="express-result-preview" id="exPreview">? — ?</div>
+<div style="font-size:0.78em;color:var(--muted2);text-align:center;margin-bottom:12px;font-weight:700;">
+🤝 ¿Cuántos goles cada uno?
+</div>
+<div class="goal-picker">
+${nums.map(n=>`
+<div class="goal-num"
+ontouchend="event.preventDefault();_pickDraw(${n})"
+onclick="_pickDraw(${n})">${n}</div>`).join('')}
+</div>
+<button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
+}
+function _pickDraw(n) {
+const m = _expressMatches[_expressIdx];
+_expressPick[String(m.id)] = { h: n, a: n };
+_applyPickToUI(m.id, n, n);
+_nextMatch();
+}
+function _renderExpress_GoalsWinner(m, side) {
+const winnerName = side === 'home' ? m.home : m.away;
+const loserName  = side === 'home' ? m.away : m.home;
+const body = $('expressBody');
+const nums = [1,2,3,4,5,6,7,8,9];
+body.innerHTML = `
+<div class="express-result-preview" id="exPreview">? — ?</div>
+<div class="express-goal-title">
+⚽ Goles de <span class="express-goal-team">${winnerName}</span>
+<div style="font-size:0.8em;color:var(--muted2);">(el ganador)</div>
+</div>
+<div class="goal-picker">
+${nums.map(n=>`
+<div class="goal-num"
+ontouchend="event.preventDefault();_pickWinnerGoals(${n})"
+onclick="_pickWinnerGoals(${n})">${n}</div>`).join('')}
+</div>
+<button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
+}
+function _pickWinnerGoals(n) {
+_expressTmpH = n;
+const m = _expressMatches[_expressIdx];
+const winnerName = _expressWinner === 'home' ? m.home : m.away;
+const loserName  = _expressWinner === 'home' ? m.away : m.home;
+const prev = $('exPreview');
+if(prev) prev.textContent = _expressWinner === 'home' ? `${n} — ?` : `? — ${n}`;
+const body = $('expressBody');
+const nums = [0,1,2,3,4,5,6,7,8];
+body.innerHTML = `
+<div class="express-result-preview" id="exPreview">
+${_expressWinner === 'home' ? `${n} — ?` : `? — ${n}`}
+</div>
+<div class="express-goal-title">
+⚽ Goles de <span class="express-goal-team" style="color:var(--muted2);">${loserName}</span>
+<div style="font-size:0.8em;color:var(--muted2);">(el perdedor)</div>
+</div>
+<div class="goal-picker">
+${nums.filter(x => x < n).map(x=>`
+<div class="goal-num"
+ontouchend="event.preventDefault();_pickLoserGoals(${x})"
+onclick="_pickLoserGoals(${x})">${x}</div>`).join('')}
+</div>
+<button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
+}
+function _pickLoserGoals(n) {
+const m = _expressMatches[_expressIdx];
+let h, a;
+if (_expressWinner === 'home') { h = _expressTmpH; a = n; }
+else                           { h = n; a = _expressTmpH; }
+_expressPick[String(m.id)] = { h, a };
+_applyPickToUI(m.id, h, a);
+_nextMatch();
+}
+function _applyPickToUI(matchId, h, a) {
+const hiEl = $(`hi_${matchId}`);
+const aiEl = $(`ai_${matchId}`);
+if (!hiEl || !aiEl) return;
+if (hiEl.tagName === 'INPUT') { hiEl.value = h; aiEl.value = a; }
+else { hiEl.textContent = h; aiEl.textContent = a; }
+hiEl.classList.add('set'); aiEl.classList.add('set');
+}
+function _nextMatch() {
+_expressIdx++;
+setTimeout(() => _showExpressMatch(), 250);
+}
+function _skipMatch() {
+_expressIdx++;
+_showExpressMatch();
+}
+function _closeExpress() {
+const old = document.getElementById('expressOverlay');
+if (old) old.remove();
+Object.entries(_expressPick).forEach(([mid, {h, a}]) => _applyPickToUI(mid, h, a));
+}
+function _applyExpressPicks() {
+const old = document.getElementById('expressOverlay');
+if (old) old.remove();
+Object.entries(_expressPick).forEach(([mid, {h, a}]) => _applyPickToUI(mid, h, a));
+const count = Object.keys(_expressPick).length;
+if (count > 0) {
+toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
+setTimeout(() => {
+const btn = document.querySelector('[onclick="savePreds()"]');
+if (btn) btn.scrollIntoView({ behavior: 'smooth' });
+}, 400);
+} else {
+toast('Sin predicciones guardadas', 'info');
+}
+}
 window.addEventListener('online',  ()=>toast('✅ Conexión restaurada','success'));
 window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-  </html>
+</html>
 
 
 
