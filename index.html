@@ -416,13 +416,15 @@ body::before {
    CHAT
 ═══════════════════════════════════════════ */
 #screenChat {
-  padding:0 !important;
-  padding-bottom:0 !important;
-  display:flex !important;
-  flex-direction:column !important;
+  padding:0;
+  padding-bottom:0;
+  flex-direction:column;
   height:calc(100vh - 120px);
   position:relative;
   background:var(--bg);
+}
+#screenChat:not(.hidden) {
+  display:flex;
 }
 .chat-header {
   padding:16px; border-bottom:1px solid var(--border);
@@ -1410,12 +1412,17 @@ async function enterApp() {
 // SCREEN NAVIGATION
 // ═══════════════════════════════════════════
 function showScreen(name) {
-  ['matches','preds','chat','tournaments','groups','admin'].forEach(s => {
-    $(`screen${s.charAt(0).toUpperCase()+s.slice(1)}`)?.classList.add('hidden');
+  ['matches','preds','chat','tournaments','groups','admin','simulator'].forEach(s => {
+    const scr = $(`screen${s.charAt(0).toUpperCase()+s.slice(1)}`);
+    if (scr) { scr.classList.add('hidden'); scr.style.display='none'; }
     $(`nav-${s}`)?.classList.remove('active');
   });
-  $(`screen${name.charAt(0).toUpperCase()+name.slice(1)}`).classList.remove('hidden');
+  const target = $(`screen${name.charAt(0).toUpperCase()+name.slice(1)}`);
+  if (target) { target.classList.remove('hidden'); target.style.display=''; }
   $(`nav-${name}`)?.classList.add('active');
+
+  // Unsubscribe chat listener when leaving chat
+  if (name !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
 
   if (name==='preds')        renderPreds();
   if (name==='chat')         initChat();
@@ -1689,9 +1696,9 @@ function buildMatchCard(m, closed) {
 
   const predRow = (!showScore && !closed) ? `
     <div class="pred-row" style="margin-top:8px;">
-      <input type="number" min="0" max="20" value="0" id="hi_${m.id}" class="pred-input" oninput="userEnteringPreds=true">
+      <input type="number" min="0" max="99" value="0" id="hi_${m.id}" class="pred-input" oninput="userEnteringPreds=true">
       <span class="pred-dash">—</span>
-      <input type="number" min="0" max="20" value="0" id="ai_${m.id}" class="pred-input" oninput="userEnteringPreds=true">
+      <input type="number" min="0" max="99" value="0" id="ai_${m.id}" class="pred-input" oninput="userEnteringPreds=true">
     </div>` : '';
 
   return `
@@ -2824,11 +2831,11 @@ function renderSimMatches() {
           <div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">${m.home}</div>
         </div>
         <div class="sim-score-row">
-          <input type="number" min="0" max="20" value="${m.homeScore!=null?m.homeScore:0}"
-            id="simH_${m.id}" class="sim-input">
+          <input type="number" min="0" max="99" value="${m.homeScore!=null?m.homeScore:0}"
+            id="simH_${m.id}" class="sim-input" inputmode="numeric">
           <span style="font-family:var(--font-h);color:var(--muted);font-size:1.2em;">—</span>
-          <input type="number" min="0" max="20" value="${m.awayScore!=null?m.awayScore:0}"
-            id="simA_${m.id}" class="sim-input">
+          <input type="number" min="0" max="99" value="${m.awayScore!=null?m.awayScore:0}"
+            id="simA_${m.id}" class="sim-input" inputmode="numeric">
         </div>
         <div style="text-align:center;">
           <span style="font-size:1.8em;">⚽</span>
@@ -3006,5 +3013,6 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
