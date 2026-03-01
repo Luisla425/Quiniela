@@ -906,6 +906,17 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('changePassModal')">Cancelar</button>
 </div>
 </div>
+<!-- Personal Stats Modal -->
+<div class="modal-overlay hidden" id="myStatsModal">
+<div class="modal-box" style="max-height:92vh;">
+<div class="modal-handle"></div>
+<div class="modal-title">📊 Mis Estadísticas</div>
+<div id="myStatsContent">
+<div class="empty"><span class="empty-icon">⏳</span></div>
+</div>
+<button class="btn btn-ghost" style="margin-top:12px;" onclick="closeModal('myStatsModal')">Cerrar</button>
+</div>
+</div>
 <!-- Mundial Predictions Modal -->
 <div class="modal-overlay hidden" id="mundialModal">
 <div class="modal-box" style="max-height:95vh;">
@@ -991,6 +1002,17 @@ Estas predicciones se hacen <strong style="color:var(--gold);">una sola vez</str
 </div>
 </div>
 <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('mundialModal')">Cerrar</button>
+</div>
+</div>
+<!-- Bet Stats Modal -->
+<div class="modal-overlay hidden" id="betStatsModal">
+<div class="modal-box">
+<div class="modal-handle"></div>
+<div class="modal-title" id="betStatsTitle">🎯 Apuestas del grupo</div>
+<div id="betStatsContent">
+<div class="empty"><span class="empty-icon">⏳</span></div>
+</div>
+<button class="btn btn-ghost" style="margin-top:12px;" onclick="closeModal('betStatsModal')">Cerrar</button>
 </div>
 </div>
 <!-- Stats Modal -->
@@ -1384,6 +1406,12 @@ db.collection('passResets').doc(me.uid).update({used: true});
 $('hdrName').textContent = me.username;
 $('hdrCode').textContent = me.personalInviteCode || '—';
 if (me.playerNumber) $('hdrPlayerNum').textContent = '#' + me.playerNumber;
+const statsHdrBtn = document.createElement('button');
+statsHdrBtn.className = 'btn btn-ghost btn-sm';
+statsHdrBtn.style.cssText = 'font-size:0.75em;padding:5px 10px;';
+statsHdrBtn.innerHTML = '📊 Mis Stats';
+statsHdrBtn.onclick = openMyStats;
+$('hdrAdminBadge')?.parentElement?.appendChild(statsHdrBtn);
 if (me.isAdmin) {
 $('hdrAdminBadge').classList.remove('hidden');
 $('nav-admin').classList.remove('hidden');
@@ -1482,6 +1510,7 @@ localStorage.setItem(CACHE_KEY_SYNC, Date.now());
 setDayMatches();
 renderMatches();
 await autoEval();
+await autoDefaultPreds();
 }
 async function refreshDayScores() {
 const today = vzDate();
@@ -1595,7 +1624,18 @@ html += `<div class="empty"><span class="empty-icon">📭</span><span class="emp
 } else {
 dayMatches.forEach(m => { html += buildMatchCard(m, closed); });
 if (!closed) {
-html += `<button class="btn btn-primary" style="margin-top:8px;" onclick="savePreds()">💾 Guardar Predicciones</button>`;
+html += `
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+<button class="btn btn-ghost" onclick="setDefaultPreds()" style="font-size:0.82em;">
+🔮 Poner 0-0 a todos
+</button>
+<button class="btn btn-primary" onclick="savePreds()">
+💾 Guardar
+</button>
+</div>
+<div style="font-size:0.7em;color:var(--muted2);text-align:center;margin-top:6px;">
+💡 Si no predices antes del inicio, se guarda 0-0 automáticamente
+</div>`;
 }
 }
 el.innerHTML = html;
@@ -1639,6 +1679,7 @@ goalsHtml += `<div class="goal-item goal-away">⚽ ${g.trim()}</div>`;
 goalsHtml += `</div>`;
 }
 const statsBtn = showScore ? `<button class="stats-btn" onclick="openStats('${m.id}')">📊 Estadísticas & Goles</button>` : '';
+const betStatsBtn = closed ? `<button class="stats-btn" style="background:rgba(108,71,255,0.15);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);" onclick="openBetStats('${m.id}','${m.home}','${m.away}')">🎯 Ver apuestas del grupo</button>` : '';
 const predRow = (!showScore && !closed) ? `
 <div style="margin-top:10px;">
 <div class="pred-row" style="margin-bottom:8px;">
@@ -1846,6 +1887,58 @@ html += `<div class="empty" style="padding:20px 0;">
 $('statsContent').innerHTML = html;
 } catch(e) {
 $('statsContent').innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+}
+}
+function setDefaultPreds() {
+let count = 0;
+dayMatches.forEach(m => {
+if (isLive(m.status) || isFinished(m.status)) return;
+const hi = $(`hi_${m.id}`), ai = $(`ai_${m.id}`);
+if (!hi || !ai) return;
+if (hi.tagName === 'INPUT') { hi.value = 0; ai.value = 0; }
+else { hi.textContent = 0; ai.textContent = 0; }
+hi.classList.add('set'); ai.classList.add('set');
+const card = hi.closest('.match-card');
+if (card) {
+const btn = card.querySelector('.btn-express-trigger');
+if (btn) {
+btn.innerHTML = `✅ 0 — 0 &nbsp;·&nbsp; <span style="font-size:0.85em;opacity:0.8;">Cambiar</span>`;
+btn.style.background = 'linear-gradient(135deg,#00b37a,var(--green))';
+}
+}
+count++;
+});
+toast(`🔮 ${count} partidos con 0-0 · Toca Guardar`, 'info');
+}
+async function autoDefaultPreds() {
+if (!me?.uid) return;
+const jDate = dayMatches[0]?.date;
+if (!jDate) return;
+const grpSnap = await db.collection('groups').get();
+const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()}))
+.filter(g => g.members?.some(m => m.userId === me.uid));
+if (!myGroups.length) return;
+const liveMtchs = dayMatches.filter(m => isLive(m.status));
+if (!liveMtchs.length) return;
+for (const group of myGroups) {
+for (const m of liveMtchs) {
+const existing = await db.collection('predictions')
+.where('userId','==',me.uid)
+.where('matchId','==',String(m.id))
+.where('groupId','==',group.id)
+.limit(1).get();
+if (!existing.empty) continue;
+await db.collection('predictions').add({
+userId: me.uid, username: me.username,
+groupId: group.id, groupName: group.name,
+matchId: String(m.id),
+predictedHomeScore: 0, predictedAwayScore: 0,
+home: m.home, away: m.away,
+tournamentId: m.tournamentId, jornadaDate: jDate,
+evaluated: false, isDefault: true,
+timestamp: firebase.firestore.FieldValue.serverTimestamp()
+});
+}
 }
 }
 async function savePreds() {
@@ -2856,7 +2949,209 @@ $('simSetup')?.classList.add('hidden');
 $('simResults')?.classList.add('hidden');
 simPlayers=[]; simMatches=[]; simPredictions={}; simGroup=null;
 }
+async function openMyStats() {
+openModal('myStatsModal');
+const el = $('myStatsContent');
+el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
+try {
+const snap = await db.collection('predictions')
+.where('userId','==', me.uid)
+.where('evaluated','==', true)
+.get();
+const preds = snap.docs.map(d => d.data());
+if (!preds.length) {
+el.innerHTML = '<div class="empty"><span class="empty-text">Aún no tienes predicciones evaluadas</span></div>';
+return;
+}
+const total    = preds.length;
+const exact    = preds.filter(p => p.pointsAwarded === 5).length;
+const correct  = preds.filter(p => p.pointsAwarded === 3).length;
+const wrong    = preds.filter(p => p.pointsAwarded === 0).length;
+const totalPts = preds.reduce((s,p) => s + (p.pointsAwarded||0), 0);
+const pct      = Math.round((exact + correct) / total * 100);
+const byTour = {};
+preds.forEach(p => {
+if (!byTour[p.tournamentId]) byTour[p.tournamentId] = {name:p.tournamentId, pts:0, total:0, exact:0};
+byTour[p.tournamentId].pts   += p.pointsAwarded||0;
+byTour[p.tournamentId].total += 1;
+if (p.pointsAwarded===5) byTour[p.tournamentId].exact++;
+});
+const tourList = Object.values(byTour).sort((a,b) => b.pts - a.pts);
+const byTeam = {};
+preds.forEach(p => {
+[p.home, p.away].forEach(t => {
+if (!byTeam[t]) byTeam[t] = {exact:0, total:0};
+byTeam[t].total++;
+if (p.pointsAwarded===5) byTeam[t].exact++;
+});
+});
+const bestTeam = Object.entries(byTeam)
+.filter(([,v]) => v.total >= 2)
+.sort((a,b) => b[1].exact - a[1].exact)[0];
+const sorted = preds.sort((a,b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
+let streak = 0, maxStreak = 0, cur = 0;
+sorted.forEach(p => {
+if (p.pointsAwarded > 0) { cur++; maxStreak = Math.max(maxStreak, cur); }
+else cur = 0;
+});
+for (const p of sorted) {
+if (p.pointsAwarded > 0) streak++;
+else break;
+}
+const defaults = preds.filter(p => p.isDefault).length;
+el.innerHTML = `
+<!-- Overview -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+<div class="big-stat">
+<span class="big-stat-num" style="color:var(--gold);">${totalPts}</span>
+<span class="big-stat-label">Puntos Totales</span>
+</div>
+<div class="big-stat">
+<span class="big-stat-num">${pct}%</span>
+<span class="big-stat-label">Efectividad</span>
+</div>
+</div>
+<!-- Detail grid -->
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px;">
+<div style="background:rgba(245,197,66,0.1);border:1px solid rgba(245,197,66,0.3);border-radius:var(--r-sm);padding:10px;text-align:center;">
+<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);">${exact}</div>
+<div style="font-size:0.65em;color:var(--muted2);font-weight:700;">⭐ EXACTOS</div>
+</div>
+<div style="background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:var(--r-sm);padding:10px;text-align:center;">
+<div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${correct}</div>
+<div style="font-size:0.65em;color:var(--muted2);font-weight:700;">🎯 CORRECTOS</div>
+</div>
+<div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:var(--r-sm);padding:10px;text-align:center;">
+<div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${wrong}</div>
+<div style="font-size:0.65em;color:var(--muted2);font-weight:700;">❌ FALLADOS</div>
+</div>
+</div>
+<!-- Streak -->
+${streak > 0 ? `
+<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+<span style="font-size:1.8em;">🔥</span>
+<div>
+<div style="font-family:var(--font-h);color:var(--primary2);font-size:1em;">Racha actual: ${streak}</div>
+<div style="font-size:0.72em;color:var(--muted2);">Mejor racha: ${maxStreak} predicciones seguidas</div>
+</div>
+</div>` : `
+<div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">
+<span style="font-size:1.8em;">💤</span>
+<div style="font-size:0.82em;color:var(--muted2);">Sin racha activa · Mejor: ${maxStreak}</div>
+</div>`}
+<!-- Best team -->
+${bestTeam ? `
+<div style="background:var(--surface2);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;">
+<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:4px;">⭐ Equipo que más aciertas</div>
+<div style="font-family:var(--font-h);color:var(--text);">${bestTeam[0]}</div>
+<div style="font-size:0.75em;color:var(--green);">${bestTeam[1].exact} exactos de ${bestTeam[1].total} partidos</div>
+</div>` : ''}
+<!-- By tournament -->
+<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">📋 Por Torneo</div>
+${tourList.map(t => `
+<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+<span style="font-size:0.85em;">${t.name}</span>
+<div style="text-align:right;">
+<span style="font-family:var(--font-h);color:var(--primary2);">${t.pts}pts</span>
+<span style="font-size:0.7em;color:var(--muted2);margin-left:6px;">⭐${t.exact}/${t.total}</span>
+</div>
+</div>`).join('')}
+${defaults > 0 ? `<div style="margin-top:10px;font-size:0.72em;color:var(--muted2);text-align:center;">
+🔮 ${defaults} predicciones por defecto (0-0) guardadas automáticamente
+</div>` : ''}`;
+} catch(e) {
+el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+}
+}
 let mundialConfig = { campeon:8, sub:6, tercero:3, goleador:5 };
+async function openBetStats(matchId, home, away) {
+openModal('betStatsModal');
+$('betStatsTitle').textContent = `🎯 ${home} vs ${away}`;
+const el = $('betStatsContent');
+el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
+try {
+const snap = await db.collection('predictions')
+.where('matchId','==', String(matchId))
+.get();
+const preds = snap.docs.map(d => d.data());
+const total = preds.length;
+if (!total) {
+el.innerHTML = '<div class="empty"><span class="empty-text">Sin predicciones aún</span></div>';
+return;
+}
+let homeWin = 0, draw = 0, awayWin = 0;
+const scoreCounts = {};
+preds.forEach(p => {
+const h = +p.predictedHomeScore, a = +p.predictedAwayScore;
+if (h > a)      homeWin++;
+else if (h < a) awayWin++;
+else            draw++;
+const key = `${h}-${a}`;
+scoreCounts[key] = (scoreCounts[key]||0) + 1;
+});
+const pct = n => Math.round(n/total*100);
+const bar = (pct, color) =>
+`<div style="height:8px;border-radius:4px;background:var(--border2);overflow:hidden;margin-top:4px;">
+<div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.5s;"></div>
+</div>`;
+const topScores = Object.entries(scoreCounts)
+.sort((a,b) => b[1]-a[1]).slice(0, 5);
+const myPred = preds.find(p => p.userId === me.uid);
+el.innerHTML = `
+<div style="text-align:center;font-size:0.72em;color:var(--muted2);margin-bottom:14px;">
+${total} predicciones en total
+</div>
+<!-- Outcome bars -->
+<div style="margin-bottom:16px;">
+<div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+<span style="font-size:0.82em;font-weight:800;">🏠 ${home.split(' ')[0]}</span>
+<span style="font-family:var(--font-h);color:var(--primary2);">${homeWin} · ${pct(homeWin)}%</span>
+</div>
+${bar(pct(homeWin), 'var(--primary2)')}
+<div style="display:flex;justify-content:space-between;margin-top:10px;margin-bottom:4px;">
+<span style="font-size:0.82em;font-weight:800;">🤝 Empate</span>
+<span style="font-family:var(--font-h);color:var(--gold);">${draw} · ${pct(draw)}%</span>
+</div>
+${bar(pct(draw), 'var(--gold)')}
+<div style="display:flex;justify-content:space-between;margin-top:10px;margin-bottom:4px;">
+<span style="font-size:0.82em;font-weight:800;">✈️ ${away.split(' ')[0]}</span>
+<span style="font-family:var(--font-h);color:var(--green);">${awayWin} · ${pct(awayWin)}%</span>
+</div>
+${bar(pct(awayWin), 'var(--green)')}
+</div>
+<!-- Top scores -->
+<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">
+🔢 Marcadores más apostados
+</div>
+${topScores.map(([score, count], i) => {
+const isMe = myPred && `${myPred.predictedHomeScore}-${myPred.predictedAwayScore}` === score;
+return `<div style="display:flex;justify-content:space-between;align-items:center;
+padding:8px 10px;border-radius:8px;margin-bottom:4px;
+background:${isMe ? 'rgba(245,197,66,0.15)' : 'var(--surface2)'};
+border:1px solid ${isMe ? 'rgba(245,197,66,0.4)' : 'var(--border)'};">
+<span style="font-family:var(--font-h);font-size:1em;color:${isMe?'var(--gold)':'var(--text)'};">
+${score} ${isMe ? '← tú' : ''}
+</span>
+<div style="text-align:right;">
+<span style="font-weight:800;">${count}</span>
+<span style="font-size:0.75em;color:var(--muted2);"> jugadores · ${pct(count)}%</span>
+</div>
+</div>`;
+}).join('')}
+${myPred ? `
+<div style="margin-top:10px;padding:10px;background:rgba(245,197,66,0.1);border-radius:var(--r-sm);
+border:1px solid rgba(245,197,66,0.3);font-size:0.82em;text-align:center;">
+⭐ Tu predicción: <strong style="color:var(--gold);">
+${myPred.predictedHomeScore} — ${myPred.predictedAwayScore}
+</strong>
+</div>` : `
+<div style="margin-top:10px;font-size:0.78em;color:var(--muted2);text-align:center;">
+No tienes predicción para este partido
+</div>`}`;
+} catch(e) {
+el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+}
+}
 async function openMundialModal() {
 openModal('mundialModal');
 if (me.isAdmin) $('mundialAdminConfig').classList.remove('hidden');
