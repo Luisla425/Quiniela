@@ -1640,11 +1640,17 @@ goalsHtml += `</div>`;
 }
 const statsBtn = showScore ? `<button class="stats-btn" onclick="openStats('${m.id}')">📊 Estadísticas & Goles</button>` : '';
 const predRow = (!showScore && !closed) ? `
-<div class="pred-row" style="margin-top:8px;cursor:pointer;" onclick="openExpress(${JSON.stringify(m.id)})">
-<div class="pred-input-display" id="hi_${m.id}">0</div>
+<div style="margin-top:10px;">
+<div class="pred-row" style="margin-bottom:8px;">
+<div class="pred-input-display" id="hi_${m.id}">–</div>
 <span class="pred-dash">—</span>
-<div class="pred-input-display" id="ai_${m.id}">0</div>
-<span style="font-size:0.7em;color:var(--primary2);margin-left:8px;">✏️</span>
+<div class="pred-input-display" id="ai_${m.id}">–</div>
+</div>
+<button class="btn-express-trigger"
+ontouchend="event.preventDefault();openExpress('${m.id}')"
+onclick="openExpress('${m.id}')">
+⚡ Predecir este partido
+</button>
 </div>` : '';
 return `
 <div class="match-card ${cls}">
@@ -3140,7 +3146,16 @@ const aiEl = $(`ai_${matchId}`);
 if (!hiEl || !aiEl) return;
 if (hiEl.tagName === 'INPUT') { hiEl.value = h; aiEl.value = a; }
 else { hiEl.textContent = h; aiEl.textContent = a; }
-hiEl.classList.add('set'); aiEl.classList.add('set');
+hiEl.classList.add('set');
+aiEl.classList.add('set');
+const card = hiEl.closest('.match-card');
+if (card) {
+const btn = card.querySelector('.btn-express-trigger');
+if (btn) {
+btn.innerHTML = `✅ ${h} — ${a} &nbsp;·&nbsp; <span style="font-size:0.85em;opacity:0.8;">Cambiar</span>`;
+btn.style.background = 'linear-gradient(135deg,#00b37a,var(--green))';
+}
+}
 }
 function _nextMatch() {
 _expressIdx++;
