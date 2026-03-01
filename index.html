@@ -1,4 +1,4 @@
-!--QUINIELA LuAn © 2026 · ING. LUIS LÁREZ · Arichuna, Venezuela-->
+<!--QUINIELA LuAn © 2026 · ING. LUIS LÁREZ · Arichuna, Venezuela-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -1637,7 +1637,10 @@ const nextClose = !closed ? dayMatches.find(m=>m.status==='Not Started') : null;
 let html = `
 <div class="section-header">
 <span class="section-title">⚽ Partidos</span>
+<div style="display:flex;gap:6px;">
+<button class="btn btn-ghost btn-sm" onclick="openStandings()" style="font-size:0.75em;">📊 Tablas</button>
 <button class="btn btn-ghost btn-sm" onclick="doSync()">🔄 Sync</button>
+</div>
 </div>`;
 if (nextClose) {
 const matchTimeStr = nextClose.time;
@@ -1726,8 +1729,13 @@ goalsHtml += `<div class="goal-item goal-away">⚽ ${g.trim()}</div>`;
 });
 goalsHtml += `</div>`;
 }
-const statsBtn = showScore ? `<button class="stats-btn" onclick="openStats('${m.id}')">📊 Estadísticas & Goles</button>` : '';
-const betStatsBtn = closed ? `<button class="stats-btn" style="background:rgba(108,71,255,0.15);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);" onclick="openBetStats('${m.id}','${m.home}','${m.away}')">🎯 Ver apuestas del grupo</button>` : '';
+const isMatchLive = isLive(m.status);
+const statsBtnLabel = isMatchLive ? '🔴 EN VIVO · Ver Goles y Tarjetas' : '📊 Estadísticas & Goles';
+const statsBtnStyle = isMatchLive
+? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
+: 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
+const statsBtn = showScore ? `<button onclick="openStats('${m.id}')" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>` : '';
+const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 Ver apuestas del grupo</button>` : '';
 const predRow = (!showScore && !closed) ? `
 <div style="margin-top:10px;">
 <div class="pred-row" style="margin-bottom:8px;">
@@ -3639,7 +3647,7 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-  </html> 
+  </html>
 
 
 
