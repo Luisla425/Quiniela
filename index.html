@@ -543,6 +543,26 @@ display:flex; justify-content:space-between; align-items:center;
 padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85em;
 }
 .info-row:last-child { border:none; }
+.standing-tab {
+padding:7px 12px; border-radius:20px; border:1px solid var(--border2);
+background:var(--surface2); color:var(--muted2); font-size:0.75em;
+font-weight:700; cursor:pointer; transition:all 0.2s;
+-webkit-tap-highlight-color:transparent;
+}
+.standing-tab.active {
+background:var(--primary); border-color:var(--primary);
+color:#fff;
+}
+.standing-row {
+display:grid; grid-template-columns:24px 1fr 28px 28px 28px 36px;
+gap:4px; align-items:center; padding:7px 4px;
+border-bottom:1px solid var(--border); font-size:0.78em;
+}
+.standing-row.highlight { background:rgba(108,71,255,0.12); border-radius:6px; }
+.standing-pos { color:var(--muted2); font-weight:700; text-align:center; }
+.standing-team { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.standing-num { text-align:center; color:var(--muted2); }
+.standing-pts { text-align:center; font-family:var(--font-h); color:var(--primary2); font-weight:800; }
 .express-overlay {
 position:fixed; inset:0; background:rgba(0,0,0,0.85);
 backdrop-filter:blur(12px); z-index:2000;
@@ -917,6 +937,25 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 <button class="btn btn-ghost" style="margin-top:12px;" onclick="closeModal('myStatsModal')">Cerrar</button>
 </div>
 </div>
+<!-- Standings Modal -->
+<div class="modal-overlay hidden" id="standingsModal">
+<div class="modal-box" style="max-height:93vh;">
+<div class="modal-handle"></div>
+<div class="modal-title">📊 Tablas de Posiciones</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="standingsTabs">
+<button class="standing-tab active" onclick="loadStandings('4480','ucl',this)">⭐ UCL</button>
+<button class="standing-tab" onclick="loadStandings('4328','premier',this)">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier</button>
+<button class="standing-tab" onclick="loadStandings('4335','laliga',this)">🇪🇸 LaLiga</button>
+<button class="standing-tab" onclick="loadStandings('4332','seriea',this)">🇮🇹 Serie A</button>
+<button class="standing-tab" onclick="loadStandings('4331','bundesliga',this)">🇩🇪 Bundesliga</button>
+<button class="standing-tab" onclick="loadStandings('4334','ligue1',this)">🇫🇷 Ligue 1</button>
+</div>
+<div id="standingsContent">
+<div class="empty"><span class="empty-icon">⏳</span></div>
+</div>
+<button class="btn btn-ghost" style="margin-top:12px;" onclick="closeModal('standingsModal')">Cerrar</button>
+</div>
+</div>
 <!-- Mundial Predictions Modal -->
 <div class="modal-overlay hidden" id="mundialModal">
 <div class="modal-box" style="max-height:95vh;">
@@ -1038,6 +1077,16 @@ const db   = firebase.firestore();
 const API_KEY = '333289';
 const API_V1  = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
 const API_V2  = `https://www.thesportsdb.com/api/v2/json`;
+async function fetchV2(endpoint) {
+const res = await fetch(`${API_V2}${endpoint}`, {
+headers: {
+'X-API-KEY': API_KEY,
+'Content-Type': 'application/json'
+}
+});
+if (!res.ok) throw new Error(`V2 HTTP ${res.status}`);
+return res.json();
+}
 const TOURNAMENTS = [
 { id:'ucl',      name:'Champions League', flag:'⭐', lid:'4480' },
 { id:'uel',      name:'Europa League',    flag:'🌍', lid:'4481' },
@@ -1466,9 +1515,8 @@ await doSync();
 async function doSync() {
 const found = new Map();
 try {
-const res = await fetch(`${API_V2}/livescore/soccer`);
-if (res.ok) {
-const data = await res.json();
+const data = await fetchV2('/livescore/soccer');
+if (data) {
 const lives = data?.livescore || data?.events || [];
 lives.forEach(ev => {
 const t = TOURNAMENTS.find(t => t.lid === ev.idLeague);
@@ -1719,170 +1767,203 @@ async function openStats(matchId) {
 openModal('statsModal');
 $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando estadísticas...</span></div>';
 try {
-const r = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
-const data = await r.json();
-const ev = data?.events?.[0];
-if (!ev) { $('statsContent').innerHTML='<div class="empty"><span class="empty-text">Sin datos disponibles</span></div>'; return; }
-const hs = ev.intHomeScore ?? '?';
-const as = ev.intAwayScore ?? '?';
-const live = isLive(ev.strStatus);
-const scoreColor = live ? 'var(--red)' : 'var(--green)';
-let html = `
-<div style="text-align:center;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px;">
-<div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">${ev.strLeague}</div>
-<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:10px;">
-<div style="text-align:center;">
-<div style="font-size:0.78em;font-weight:800;color:var(--text);">${ev.strHomeTeam}</div>
-</div>
-<div style="display:flex;align-items:center;gap:10px;">
-<span style="font-family:var(--font-h);font-size:2.8em;color:${scoreColor};">${hs}</span>
-<span style="font-family:var(--font-h);font-size:1.4em;color:var(--muted);">—</span>
-<span style="font-family:var(--font-h);font-size:2.8em;color:${scoreColor};">${as}</span>
-</div>
-<div style="text-align:center;">
-<div style="font-size:0.78em;font-weight:800;color:var(--text);">${ev.strAwayTeam}</div>
-</div>
-</div>
-<span class="${live?'badge-live':'badge-done'}">${statusLabel(ev.strStatus)}</span>
-${ev.strProgress ? `<span style="color:var(--red);font-size:0.8em;font-weight:700;margin-left:8px;">⏱ ${ev.strProgress}'</span>` : ''}
-${ev.strVenue ? `<div style="font-size:0.7em;color:var(--muted2);margin-top:6px;">🏟️ ${ev.strVenue}</div>` : ''}
-</div>`;
-function parseEvents(str) {
-if (!str) return [];
-return str.split(';').map(s=>s.trim()).filter(Boolean);
+const [evRes, timelineRes, statsRes, lineupRes] = await Promise.allSettled([
+fetchV2(`/lookup/event/${matchId}`),
+fetchV2(`/lookup/event_timeline/${matchId}`),
+fetchV2(`/lookup/event_stats/${matchId}`),
+fetchV2(`/lookup/event_lineup/${matchId}`)
+]);
+const ev       = evRes.value?.events?.[0] || evRes.value?.event || null;
+const timeline = timelineRes.value?.timeline || [];
+const stats    = statsRes.value?.eventstats || statsRes.value?.stats || [];
+const lineup   = lineupRes.value?.lineup || [];
+let evFinal = ev;
+if (!evFinal) {
+const v1 = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
+const v1d = await v1.json();
+evFinal = v1d?.events?.[0];
 }
-function sectionTitle(icon, title) {
-return `<div style="display:flex;align-items:center;gap:8px;font-weight:800;font-size:0.8em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin:14px 0 8px;">
-<span>${icon}</span><span>${title}</span>
-</div>`;
+if (!evFinal) {
+$('statsContent').innerHTML='<div class="empty"><span class="empty-text">Sin datos disponibles</span></div>';
+return;
 }
-function eventRow(minute, team, player, icon, color) {
-return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
-<span style="font-family:var(--font-h);font-size:0.85em;color:var(--muted2);min-width:32px;">${minute ? minute+"'" : ''}</span>
-<span style="font-size:1em;">${icon}</span>
+const home = evFinal.strHomeTeam || '';
+const away = evFinal.strAwayTeam || '';
+const scoreH = evFinal.intHomeScore ?? '–';
+const scoreA = evFinal.intAwayScore ?? '–';
+const live = isLive(evFinal.strStatus||evFinal.strProgress||'');
+const minute = evFinal.strProgress || evFinal.intProgress || '';
+let html = '';
+html += `
+<div style="text-align:center;margin-bottom:16px;">
+<div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">
+${evFinal.strLeague||''}
+${live ? '<span style="color:var(--red);margin-left:6px;">🔴 EN VIVO</span>' : ''}
+</div>
+<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;">
+<div style="text-align:right;font-weight:800;font-size:0.9em;">${home}</div>
+<div style="font-family:var(--font-h);font-size:2em;color:var(--primary2);padding:0 12px;">
+${scoreH} — ${scoreA}
+</div>
+<div style="text-align:left;font-weight:800;font-size:0.9em;">${away}</div>
+</div>
+${live && minute ? `<div style="color:var(--gold);font-size:0.85em;margin-top:6px;font-weight:700;">⏱ Min ${minute}</div>` : ''}
+${evFinal.strVenue ? `<div style="color:var(--muted2);font-size:0.72em;margin-top:4px;">🏟 ${evFinal.strVenue}</div>` : ''}
+</div>`;
+if (timeline.length > 0) {
+html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Cronología del Partido</div>`;
+const sorted = [...timeline].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
+sorted.forEach(t => {
+const min  = t.intTime ? `${t.intTime}'` : '?';
+const type = (t.strType||'').toLowerCase();
+const player = t.strPlayer || t.strPlayer1 || '';
+const player2 = t.strPlayer2 || '';
+const side = (t.strHome||'').toLowerCase() === 'home' ? home : away;
+const isHome = (t.strHome||'').toLowerCase() === 'home';
+let icon = '', color = 'var(--text)', detail = '';
+if (type.includes('goal') && !type.includes('miss')) {
+icon = type.includes('own') ? '⚽🔴' : '⚽';
+color = isHome ? 'var(--primary2)' : 'var(--green)';
+detail = type.includes('own') ? ' <span style="color:var(--red);font-size:0.8em;">(Autogol)</span>' : '';
+if (type.includes('penalty')) detail += ' <span style="color:var(--gold);font-size:0.8em;">(Penal)</span>';
+} else if (type.includes('yellow') && !type.includes('red')) {
+icon = '🟨'; color = 'var(--gold)';
+} else if (type.includes('red') || type.includes('yellowred')) {
+icon = type.includes('yellow') ? '🟨🟥' : '🟥'; color = 'var(--red)';
+} else if (type.includes('sub')) {
+icon = '🔄'; color = 'var(--muted2)';
+detail = player2 ? ` <span style="color:var(--red);font-size:0.8em;">▼${player2}</span>` : '';
+} else if (type.includes('var')) {
+icon = '📺'; color = 'var(--blue)';
+} else {
+icon = '📌';
+}
+html += `
+<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+<span style="font-family:var(--font-h);color:var(--gold);min-width:36px;font-size:0.85em;font-weight:800;padding-top:2px;">${min}</span>
+<span style="font-size:1.1em;flex-shrink:0;">${icon}</span>
 <div style="flex:1;">
-<div style="font-weight:700;font-size:0.85em;color:${color};">${player}</div>
-<div style="font-size:0.7em;color:var(--muted2);">${team}</div>
+<div style="font-weight:800;font-size:0.88em;color:${color};">${player}${detail}</div>
+<div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${isHome ? '🏠' : '✈️'} ${side}</div>
 </div>
 </div>`;
-}
-const homeGoals = parseEvents(ev.strHomeGoalDetails);
-const awayGoals = parseEvents(ev.strAwayGoalDetails);
-if (homeGoals.length || awayGoals.length) {
-html += sectionTitle('⚽', `Goles (${homeGoals.length + awayGoals.length})`);
-const allGoals = [
-...homeGoals.map(g=>({g, team:ev.strHomeTeam, color:'var(--text)', side:'home'})),
-...awayGoals.map(g=>({g, team:ev.strAwayTeam, color:'var(--blue)',  side:'away'}))
-];
-allGoals.sort((a,b)=>{
-const ma = parseInt(a.g.match(/(\d+)'/)?.[1]||'0');
-const mb = parseInt(b.g.match(/(\d+)'/)?.[1]||'0');
-return ma - mb;
 });
+} else {
+const parseEv = (str) => str ? str.split(';').map(s=>s.trim()).filter(Boolean) : [];
+const homeGoals  = parseEv(evFinal.strHomeGoalDetails);
+const awayGoals  = parseEv(evFinal.strAwayGoalDetails);
+const homeYellow = parseEv(evFinal.strHomeYellowCards);
+const awayYellow = parseEv(evFinal.strAwayYellowCards);
+const homeRed    = parseEv(evFinal.strHomeRedCards);
+const awayRed    = parseEv(evFinal.strAwayRedCards);
+const hasData = homeGoals.length||awayGoals.length||homeYellow.length||awayYellow.length||homeRed.length||awayRed.length;
+if (hasData) {
+const allGoals = [
+...homeGoals.map(g=>({g,team:home,color:'var(--primary2)',side:'home'})),
+...awayGoals.map(g=>({g,team:away,color:'var(--green)',side:'away'}))
+].sort((a,b)=>{
+const ma=parseInt(a.g.match(/(\d+)'/)?.[1]||'0');
+const mb=parseInt(b.g.match(/(\d+)'/)?.[1]||'0');
+return ma-mb;
+});
+if (allGoals.length) {
+html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px;">⚽ Goles (${allGoals.length})</div>`;
 allGoals.forEach(({g,team,color,side})=>{
 const minMatch = g.match(/(\d+)\+?(\d+)?'/);
-const min = minMatch ? minMatch[0].replace("'","") + "'" : '';
-let player = g.replace(/\(?\d+\+?\d*'\)?/g,'').trim();
-if (!player) player = g;
-const isOG = g.toLowerCase().includes('og') || g.toLowerCase().includes('propia');
-const icon = isOG ? '🔴⚽' : '⚽';
-const ogLabel = isOG ? ' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>' : '';
-html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
-<span style="font-family:var(--font-h);font-size:0.9em;color:var(--gold);min-width:40px;font-weight:800;">${min||'?'}</span>
-<span style="font-size:1.1em;">${icon}</span>
-<div style="flex:1;">
-<div style="font-weight:800;font-size:0.88em;color:${color};">${player}${ogLabel}</div>
-<div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">
-${side==='home'?'🏠':'✈️'} ${team}
-</div>
-</div>
+const min = minMatch ? minMatch[0] : '?'';
+const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').trim()||g;
+html += `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+<span style="font-family:var(--font-h);color:var(--gold);min-width:36px;font-size:0.85em;">${min}</span>
+<span>⚽</span>
+<div><div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>
+<div style="font-size:0.7em;color:var(--muted2);">${side==='home'?'🏠':'✈️'} ${team}</div></div>
 </div>`;
 });
-} else if (live) {
-html += sectionTitle('⚽', 'Goles');
-html += `<div style="padding:12px 0;color:var(--muted2);font-size:0.82em;text-align:center;">
-⏳ Esperando datos de la API...
-<div style="font-size:0.85em;margin-top:4px;">El marcador se actualiza en tiempo real</div>
+}
+const allCards = [
+...homeYellow.map(g=>({g,team:home,icon:'🟨',color:'var(--gold)'})),
+...awayYellow.map(g=>({g,team:away,icon:'🟨',color:'var(--gold)'})),
+...homeRed.map(g=>({g,team:home,icon:'🟥',color:'var(--red)'})),
+...awayRed.map(g=>({g,team:away,icon:'🟥',color:'var(--red)'}))
+];
+if (allCards.length) {
+html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px;">🃏 Tarjetas</div>`;
+allCards.forEach(({g,team,icon,color})=>{
+const min = g.match(/(\d+)'/)?.[0]||'?'';
+const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').trim()||g;
+html += `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+<span style="font-family:var(--font-h);color:var(--gold);min-width:36px;font-size:0.85em;">${min}</span>
+<span>${icon}</span>
+<div style="font-weight:800;font-size:0.88em;color:${color};">${player}
+<div style="font-size:0.7em;color:var(--muted2);">${team}</div></div>
 </div>`;
-}
-const homeYellow = parseEvents(ev.strHomeYellowCards);
-const awayYellow = parseEvents(ev.strAwayYellowCards);
-if (homeYellow.length || awayYellow.length) {
-html += sectionTitle('🟨', 'Tarjetas Amarillas');
-[...homeYellow.map(g=>({g,team:ev.strHomeTeam})),
-...awayYellow.map(g=>({g,team:ev.strAwayTeam}))].forEach(({g,team})=>{
-const min = g.match(/(\d+)'/)?.[1] || '';
-const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
-html += eventRow(min, team, player, '🟨', 'var(--gold)');
 });
 }
-const homeRed = parseEvents(ev.strHomeRedCards);
-const awayRed = parseEvents(ev.strAwayRedCards);
-if (homeRed.length || awayRed.length) {
-html += sectionTitle('🟥', 'Tarjetas Rojas');
-[...homeRed.map(g=>({g,team:ev.strHomeTeam})),
-...awayRed.map(g=>({g,team:ev.strAwayTeam}))].forEach(({g,team})=>{
-const min = g.match(/(\d+)'/)?.[1] || '';
-const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
-html += eventRow(min, team, player, '🟥', 'var(--red)');
-});
-}
-const homeSubs = parseEvents(ev.strHomeLineupSubstitutes);
-const awaySubs = parseEvents(ev.strAwayLineupSubstitutes);
-const homeSubsAlt = parseEvents(ev.strHomeSubstitutes);
-const awaySubsAlt = parseEvents(ev.strAwaySubstitutes);
-const allHomeSubs = [...new Set([...homeSubs, ...homeSubsAlt])].filter(Boolean);
-const allAwaySubs = [...new Set([...awaySubs, ...awaySubsAlt])].filter(Boolean);
-if (allHomeSubs.length || allAwaySubs.length) {
-html += sectionTitle('🔄', 'Cambios');
-[...allHomeSubs.map(g=>({g,team:ev.strHomeTeam})),
-...allAwaySubs.map(g=>({g,team:ev.strAwayTeam}))].forEach(({g,team})=>{
-const min = g.match(/(\d+)'/)?.[1] || '';
-const player = g.replace(/\(?\d+'\)?/,'').trim() || g;
-html += eventRow(min, team, player, '🔄', 'var(--muted2)');
-});
-}
-const homeLineup = ev.strHomeLineupGoalkeeper ? [
-ev.strHomeLineupGoalkeeper,
-ev.strHomeLineupDefense,
-ev.strHomeLineupMidfield,
-ev.strHomeLineupForward
-].filter(Boolean) : [];
-const awayLineup = ev.strAwayLineupGoalkeeper ? [
-ev.strAwayLineupGoalkeeper,
-ev.strAwayLineupDefense,
-ev.strAwayLineupMidfield,
-ev.strAwayLineupForward
-].filter(Boolean) : [];
-if (homeLineup.length || awayLineup.length) {
-html += sectionTitle('👕', 'Alineaciones');
-html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">`;
-html += `<div>
-<div style="font-size:0.72em;font-weight:800;color:var(--primary2);margin-bottom:6px;text-transform:uppercase;">${ev.strHomeTeam}</div>`;
-const homeLabels = ['🧤','🛡️','⚙️','⚡'];
-homeLineup.forEach((line,i)=>{
-line.split(';').filter(Boolean).forEach(p=>{
-html += `<div style="font-size:0.72em;padding:3px 0;border-bottom:1px solid var(--border);color:var(--text);">${homeLabels[i]||''} ${p.trim()}</div>`;
-});
-});
-html += `</div>`;
-html += `<div>
-<div style="font-size:0.72em;font-weight:800;color:var(--blue);margin-bottom:6px;text-transform:uppercase;">${ev.strAwayTeam}</div>`;
-const awayLabels = ['🧤','🛡️','⚙️','⚡'];
-awayLineup.forEach((line,i)=>{
-line.split(';').filter(Boolean).forEach(p=>{
-html += `<div style="font-size:0.72em;padding:3px 0;border-bottom:1px solid var(--border);color:var(--text);">${awayLabels[i]||''} ${p.trim()}</div>`;
-});
-});
-html += `</div></div>`;
-}
-if (!homeGoals.length && !awayGoals.length && !homeYellow.length &&
-!awayYellow.length && !homeRed.length && !awayRed.length &&
-!allHomeSubs?.length && !allAwaySubs?.length) {
+} else {
 html += `<div class="empty" style="padding:20px 0;">
 <span class="empty-icon">${live?'⏱':'📋'}</span>
-<span class="empty-text">${live?'Partido en curso — datos llegando...':'Sin detalles disponibles para este partido'}</span>
+<span class="empty-text">${live?'Partido en curso — datos llegando...':'Sin detalles disponibles'}</span>
 </div>`;
+}
+}
+if (stats.length > 0) {
+html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px;">📊 Estadísticas del Partido</div>`;
+stats.forEach(s => {
+const hVal = s.intHome ?? s.strHome ?? '–';
+const aVal = s.intAway ?? s.strAway ?? '–';
+const label = s.strStat || s.strType || '';
+const hNum = parseFloat(hVal)||0;
+const aNum = parseFloat(aVal)||0;
+const total = hNum + aNum;
+const hPct = total > 0 ? Math.round(hNum/total*100) : 50;
+html += `
+<div style="margin-bottom:10px;">
+<div style="display:flex;justify-content:space-between;font-size:0.8em;font-weight:700;margin-bottom:4px;">
+<span style="color:var(--primary2);">${hVal}</span>
+<span style="color:var(--muted2);font-size:0.85em;">${label}</span>
+<span style="color:var(--green);">${aVal}</span>
+</div>
+<div style="height:6px;border-radius:3px;background:var(--border2);overflow:hidden;">
+<div style="height:100%;width:${hPct}%;background:linear-gradient(90deg,var(--primary2),var(--green));border-radius:3px;"></div>
+</div>
+</div>`;
+});
+}
+if (lineup.length > 0) {
+const homeLineup = lineup.filter(p => (p.strHome||'').toLowerCase()==='home');
+const awayLineup = lineup.filter(p => (p.strHome||'').toLowerCase()==='away');
+if (homeLineup.length || awayLineup.length) {
+html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 10px;">👕 Alineaciones</div>`;
+html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
+const renderTeam = (players, teamName, color) => {
+const posOrder = {'goalkeeper':0,'goalie':0,'defender':1,'midfielder':2,'forward':3,'striker':3};
+const sorted = [...players].sort((a,b)=>{
+const pa = posOrder[(a.strPosition||'').toLowerCase()]??5;
+const pb = posOrder[(b.strPosition||'').toLowerCase()]??5;
+return pa-pb;
+});
+const posIcon = p => {
+const pos = (p.strPosition||'').toLowerCase();
+if(pos.includes('goal')||pos.includes('keeper')) return '🧤';
+if(pos.includes('def')) return '🛡';
+if(pos.includes('mid')) return '⚙️';
+if(pos.includes('for')||pos.includes('strik')) return '⚡';
+return '👤';
+};
+return `<div>
+<div style="font-size:0.75em;font-weight:800;color:${color};margin-bottom:6px;">${teamName}</div>
+${sorted.slice(0,11).map(p=>`
+<div style="font-size:0.72em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">
+<span>${posIcon(p)}</span>
+<span style="color:var(--gold);min-width:18px;font-weight:800;">${p.intJerseyNumber||''}</span>
+<span style="color:var(--text);">${p.strPlayer||''}</span>
+</div>`).join('')}
+</div>`;
+};
+html += renderTeam(homeLineup, home, 'var(--primary2)');
+html += renderTeam(awayLineup, away, 'var(--green)');
+html += `</div>`;
+}
 }
 $('statsContent').innerHTML = html;
 } catch(e) {
@@ -2065,7 +2146,7 @@ html += `<div class="empty"><span class="empty-text">Error: ${e.message}</span><
 el.innerHTML = html;
 }
 async function searchPreds() {
-const names = ['su1','su2','su3'].map(id=>$(id)?.value.trim().toUpperCase()).filter(Boolean);
+const names = ['su1','su2','su3','su4','su5'].map(id=>$(id)?.value.trim().toUpperCase()).filter(Boolean);
 if (!names.length) { toast('Escribe al menos un nombre','error'); return; }
 const res = $('searchRes');
 res.innerHTML = '<div style="color:var(--muted2);font-size:0.85em;">Buscando...</div>';
@@ -2169,6 +2250,9 @@ console.error('Chat error:', e.code, e.message);
 function renderTournaments() {
 const el = $('screenTournaments');
 let html = `<div class="section-header"><span class="section-title">🏆 Torneos</span></div>
+<button class="btn btn-ghost" style="width:100%;margin-bottom:12px;" onclick="openStandings()">
+📊 Ver Tablas de Posiciones
+</button>
 <div class="card-glow" style="margin-bottom:14px;cursor:pointer;" onclick="openMundialModal()">
 <div style="display:flex;align-items:center;gap:12px;">
 <span style="font-size:2em;">🌍🏆</span>
@@ -3151,6 +3235,76 @@ No tienes predicción para este partido
 } catch(e) {
 el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
 }
+}
+let _standingsCache = {};
+async function openStandings() {
+openModal('standingsModal');
+const firstTab = document.querySelector('.standing-tab');
+await loadStandings('4480', 'ucl', firstTab);
+}
+async function loadStandings(leagueId, leagueKey, tabEl) {
+document.querySelectorAll('.standing-tab').forEach(t => t.classList.remove('active'));
+if (tabEl) tabEl.classList.add('active');
+const el = $('standingsContent');
+el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
+if (_standingsCache[leagueKey]) {
+renderStandings(_standingsCache[leagueKey]);
+return;
+}
+try {
+const r = await fetch(`${API_V1}/lookuptable.php?l=${leagueId}`);
+const data = await r.json();
+const table = data?.table || [];
+if (!table.length) {
+el.innerHTML = '<div class="empty"><span class="empty-text">Tabla no disponible aún</span></div>';
+return;
+}
+_standingsCache[leagueKey] = table;
+renderStandings(table);
+} catch(e) {
+el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+}
+}
+function renderStandings(table) {
+const el = $('standingsContent');
+let html = `
+<div class="standing-row" style="border-bottom:2px solid var(--border2);padding-bottom:6px;margin-bottom:2px;">
+<div class="standing-pos">#</div>
+<div class="standing-team" style="color:var(--muted2);font-size:0.85em;">EQUIPO</div>
+<div class="standing-num" style="color:var(--muted2);">PJ</div>
+<div class="standing-num" style="color:var(--muted2);">GD</div>
+<div class="standing-num" style="color:var(--muted2);">GF</div>
+<div class="standing-pts" style="color:var(--muted2);">PTS</div>
+</div>`;
+table.forEach((team, i) => {
+const pos = i + 1;
+const name = team.strTeam || team.name || '?';
+const played = team.intPlayed ?? team.GP ?? '–';
+const gd = team.intGoalDifference ?? team.GD ?? '–';
+const gf = team.intGoalsFor ?? team.GF ?? '–';
+const pts = team.intPoints ?? team.PTS ?? '–';
+let rowStyle = '';
+if (pos <= 4)  rowStyle = 'background:rgba(0,229,160,0.08);';
+if (pos <= 1)  rowStyle = 'background:rgba(245,197,66,0.12);';
+if (pos >= table.length - 2) rowStyle = 'background:rgba(255,77,109,0.08);';
+const medal = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos;
+html += `
+<div class="standing-row" style="${rowStyle}">
+<div class="standing-pos">${medal}</div>
+<div class="standing-team">${name}</div>
+<div class="standing-num">${played}</div>
+<div class="standing-num">${gd>0?'+'+gd:gd}</div>
+<div class="standing-num">${gf}</div>
+<div class="standing-pts">${pts}</div>
+</div>`;
+});
+html += `
+<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+<div style="font-size:0.65em;color:var(--green);font-weight:700;">■ Zona Champions</div>
+<div style="font-size:0.65em;color:var(--gold);font-weight:700;">■ Líder</div>
+<div style="font-size:0.65em;color:var(--red);font-weight:700;">■ Descenso</div>
+</div>`;
+el.innerHTML = html;
 }
 async function openMundialModal() {
 openModal('mundialModal');
