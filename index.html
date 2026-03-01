@@ -2017,7 +2017,8 @@ const existing = await db.collection('predictions')
 .where('groupId','==',group.id)
 .limit(1).get();
 if (!existing.empty) continue;
-await db.collection('predictions').add({
+const docId = `${me.uid}_${group.id}_${m.id}`;
+await db.collection('predictions').doc(docId).set({
 userId: me.uid, username: me.username,
 groupId: group.id, groupName: group.name,
 matchId: String(m.id),
@@ -2026,7 +2027,7 @@ home: m.home, away: m.away,
 tournamentId: m.tournamentId, jornadaDate: jDate,
 evaluated: false, isDefault: true,
 timestamp: firebase.firestore.FieldValue.serverTimestamp()
-});
+}, { merge: false });
 }
 }
 }
@@ -2563,6 +2564,8 @@ el.innerHTML=`
 <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>Códigos Grupos</button>
 <button class="admin-btn full" onclick="adminSync()">🔄 Sincronizar Partidos Ahora</button>
 <button class="admin-btn full danger" onclick="adminReset()">🗑️ Borrar Datos</button>
+<button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">🧹 Limpiar Duplicados</button>
+<button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">🌍 Evaluar Mundial</button>
 </div>
 <div class="admin-output" id="adminOut"><span style="color:var(--muted2);">Selecciona una acción...</span></div>`;
 }
@@ -3398,6 +3401,48 @@ $('mundialSaveBtn').classList.add('hidden');
 $('mundialSavedMsg').classList.remove('hidden');
 toast('✅ Predicciones mundiales guardadas','success');
 } catch(e) { toast('Error: '+e.message,'error'); }
+}
+async function dedupPreds() {
+if (!me.isAdmin) return;
+if (!confirm('¿Eliminar predicciones duplicadas? Conserva solo la primera de cada jugador por partido/grupo.')) return;
+toast('🧹 Buscando duplicados...', 'info');
+try {
+const snap = await db.collection('predictions').get();
+const seen = new Set();
+const toDelete = [];
+const docs = snap.docs.sort((a,b) => {
+const ta = a.data().timestamp?.seconds || 0;
+const tb = b.data().timestamp?.seconds || 0;
+return ta - tb;
+});
+docs.forEach(doc => {
+const d = doc.data();
+const key = `${d.userId}_${d.groupId}_${d.matchId}`;
+if (seen.has(key)) {
+toDelete.push(doc.ref);
+} else {
+seen.add(key);
+}
+});
+if (!toDelete.length) {
+toast('✅ Sin duplicados encontrados', 'success');
+return;
+}
+let batch = db.batch();
+let count = 0;
+for (const ref of toDelete) {
+batch.delete(ref);
+count++;
+if (count % 500 === 0) {
+await batch.commit();
+batch = db.batch();
+}
+}
+await batch.commit();
+toast(`✅ ${toDelete.length} duplicados eliminados`, 'success');
+} catch(e) {
+toast('Error: ' + e.message, 'error');
+}
 }
 async function evalMundial() {
 if (!me.isAdmin) return;
