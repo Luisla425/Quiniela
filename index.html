@@ -1878,7 +1878,7 @@ if (allGoals.length) {
 html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px;">⚽ Goles (${allGoals.length})</div>`;
 allGoals.forEach(({g,team,color,side})=>{
 const minMatch = g.match(/(\d+)\+?(\d+)?'/);
-const min = minMatch ? minMatch[0] : '?'';
+const min = minMatch ? minMatch[0] : "?'";
 const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').trim()||g;
 html += `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
 <span style="font-family:var(--font-h);color:var(--gold);min-width:36px;font-size:0.85em;">${min}</span>
@@ -1897,7 +1897,7 @@ const allCards = [
 if (allCards.length) {
 html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:10px 0 8px;">🃏 Tarjetas</div>`;
 allCards.forEach(({g,team,icon,color})=>{
-const min = g.match(/(\d+)'/)?.[0]||'?'';
+const min = g.match(/(\d+)'/)?.[0]||"?'";
 const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').trim()||g;
 html += `<div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
 <span style="font-family:var(--font-h);color:var(--gold);min-width:36px;font-size:0.85em;">${min}</span>
