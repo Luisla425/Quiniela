@@ -1945,7 +1945,8 @@ html += `
 <div style="text-align:center;margin-bottom:18px;">
 <div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
 ${leagueName}
-${isMatchLive ? '<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>' : ''}
+${isMatchLive ? `<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>
+<button onclick="openStats(${matchId})" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>` : ''}
 </div>
 <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;">
 <div style="text-align:right;font-weight:800;font-size:0.88em;line-height:1.4;">${home}</div>
@@ -1956,9 +1957,6 @@ ${scoreH} — ${scoreA}
 </div>
 ${isMatchLive && minute ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ Minuto ${minute}</div>` : ''}
 ${venue ? `<div style="color:var(--muted2);font-size:0.7em;margin-top:4px;">🏟 ${venue}</div>` : ''}
-<div style="font-size:0.62em;color:var(--muted);margin-top:6px;padding:4px 8px;background:rgba(108,71,255,0.08);border-radius:20px;display:inline-block;">
-⚡ TheSportsDB V2 · key ${API_KEY}
-</div>
 </div>`;
 if (timeline.length > 0) {
 html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Cronología del Partido</div>`;
@@ -2002,6 +2000,40 @@ html += `
 </div>`;
 });
 } else {
+let v1TimelineEvents = [];
+try {
+const v1tl = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
+const v1tlText = await v1tl.text();
+if (v1tlText && !v1tlText.trim().startsWith('<')) {
+const v1tlData = JSON.parse(v1tlText);
+v1TimelineEvents = v1tlData?.timeline || v1tlData?.event || [];
+}
+} catch(e2) { console.warn('V1 timeline failed:', e2.message); }
+if (v1TimelineEvents.length > 0) {
+const sortedV1 = [...v1TimelineEvents].sort((a,b)=>(+a.intTime||0)-(+b.intTime||0));
+sortedV1.forEach(t => {
+const min   = t.intTime ? `${t.intTime}'` : "?'";
+const type  = (t.strType||'').toLowerCase();
+const player = t.strPlayer || t.strPlayer1 || '';
+const isHome = (t.strHome||'').toLowerCase() === 'home';
+const side   = isHome ? home : away;
+let icon='📌', color='var(--text)';
+if(type.includes('goal')&&!type.includes('miss')){icon='⚽';color=isHome?'var(--primary2)':'var(--green)';}
+else if(type.includes('yellow')&&!type.includes('red')){icon='🟨';color='var(--gold)';}
+else if(type.includes('red')&&!type.includes('yellow')){icon='🟥';color='var(--red)';}
+else if(type.includes('yellow')&&type.includes('red')){icon='🟨🟥';color='var(--red)';}
+else if(type.includes('sub')){icon='🔄';color='var(--muted2)';}
+else return;
+html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+<span style="font-family:var(--font-h);color:var(--gold);min-width:40px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
+<span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
+<div style="flex:1;min-width:0;">
+<div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>
+<div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${side}</div>
+</div>
+</div>`;
+});
+} else {
 const parseList = s => s ? s.split(';').map(x=>x.trim()).filter(Boolean) : [];
 const hGoals  = parseList(evFinal?.strHomeGoalDetails);
 const aGoals  = parseList(evFinal?.strAwayGoalDetails);
@@ -2040,8 +2072,9 @@ html += `
 } else {
 html += `<div class="empty" style="padding:16px 0;">
 <span class="empty-icon">${isMatchLive?'⏱':'📋'}</span>
-<span class="empty-text">${isMatchLive?'Partido en curso — datos llegando pronto':'Sin eventos detallados para este partido'}</span>
+<span class="empty-text">${isMatchLive?'Partido en curso — datos llegando...':'Sin eventos detallados para este partido'}</span>
 </div>`;
+}
 }
 }
 if (statsList.length > 0) {
