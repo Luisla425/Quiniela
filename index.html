@@ -544,14 +544,14 @@ padding:8px 0; border-bottom:1px solid var(--border); font-size:0.85em;
 }
 .info-row:last-child { border:none; }
 .standing-tab {
-padding:7px 12px; border-radius:20px; border:1px solid var(--border2);
-background:var(--surface2); color:var(--muted2); font-size:0.75em;
+padding:7px 12px; border-radius:20px; border:1px solid #c8c0f0;
+background:#ede9ff; color:#5550a0; font-size:0.75em;
 font-weight:700; cursor:pointer; transition:all 0.2s;
--webkit-tap-highlight-color:transparent;
+-webkit-tap-highlight-color:transparent; white-space:nowrap; flex-shrink:0;
 }
 .standing-tab.active {
 background:var(--primary); border-color:var(--primary);
-color:#fff;
+color:#fff; box-shadow:0 4px 12px rgba(108,71,255,0.4);
 }
 .standing-row {
 display:grid; grid-template-columns:24px 1fr 28px 28px 28px 36px;
@@ -940,9 +940,9 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 </div>
 <!-- Standings Modal -->
 <div class="modal-overlay hidden" id="standingsModal">
-<div class="modal-box" style="max-height:93vh;">
-<div class="modal-handle"></div>
-<div class="modal-title">📊 Tablas de Posiciones</div>
+<div class="modal-box" style="max-height:93vh;background:#f8f7ff;color:#1a1a2e;">
+<div class="modal-handle" style="background:#c8c0f0;"></div>
+<div class="modal-title" style="color:#2d2060;">📊 Tablas de Posiciones</div>
 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="standingsTabs">
 <button class="standing-tab active" onclick="loadStandings('4480','ucl',this)">⭐ UCL</button>
 <button class="standing-tab" onclick="loadStandings('4328','premier',this)">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier</button>
@@ -950,6 +950,7 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 <button class="standing-tab" onclick="loadStandings('4332','seriea',this)">🇮🇹 Serie A</button>
 <button class="standing-tab" onclick="loadStandings('4331','bundesliga',this)">🇩🇪 Bundesliga</button>
 <button class="standing-tab" onclick="loadStandings('4334','ligue1',this)">🇫🇷 Ligue 1</button>
+<button class="standing-tab" onclick="loadStandings('4346','mls',this)">🇺🇸 MLS</button>
 </div>
 <div id="standingsContent">
 <div class="empty"><span class="empty-icon">⏳</span></div>
@@ -2205,31 +2206,54 @@ openModal('grpPickModal');
 async function doSavePreds(preds, jDate, group) {
 try {
 const ex = await db.collection('predictions')
-.where('userId','==',me.uid).where('jornadaDate','==',jDate).where('groupId','==',group.id).limit(1).get();
-if (!ex.empty) { toast(`Ya predijiste para "${group.name}" hoy`,'error'); return; }
+.where('userId','==',me.uid)
+.where('jornadaDate','==',jDate)
+.where('groupId','==',group.id)
+.limit(1).get();
+if (!ex.empty) {
+if (!confirm(`Ya guardaste predicciones para "${group.name}" hoy.\n¿Quieres actualizarlas?`)) return;
+}
 } catch(e) {}
 const summary = preds.map(p=>`${p.match.home} ${p.h}—${p.a} ${p.match.away}`).join('\n');
-if (!confirm(`📋 GRUPO: ${group.name}\n\n${summary}\n\n¿Confirmar predicciones? No podrás cambiarlas.`)) return;
+if (!confirm(`📋 GRUPO: ${group.name}\n\n${summary}\n\n¿Confirmar predicciones?`)) return;
 try {
-const b = db.batch();
-preds.forEach(p=>{
+const batch = db.batch();
+for (const p of preds) {
 const docId = `${me.uid}_${group.id}_${p.matchId}`;
-b.set(db.collection('predictions').doc(docId),{
-userId:me.uid, username:me.username,
-groupId:group.id, groupName:group.name,
-matchId:String(p.matchId),
-predictedHomeScore:p.h, predictedAwayScore:p.a,
-home:p.match.home, away:p.match.away,
-tournamentId:p.match.tournamentId, jornadaDate:jDate,
-evaluated:false,
-timestamp:firebase.firestore.FieldValue.serverTimestamp()
+const ref   = db.collection('predictions').doc(docId);
+const snap  = await ref.get();
+if (snap.exists) {
+batch.update(ref, {
+predictedHomeScore: p.h,
+predictedAwayScore: p.a,
+evaluated: false,
+livePoints: null,
+pointsAwarded: null,
+timestamp: firebase.firestore.FieldValue.serverTimestamp()
 });
+} else {
+batch.set(ref, {
+userId:    me.uid,
+username:  me.username,
+groupId:   group.id,
+groupName: group.name,
+matchId:   String(p.matchId),
+predictedHomeScore: p.h,
+predictedAwayScore: p.a,
+home:          p.match.home,
+away:          p.match.away,
+tournamentId:  p.match.tournamentId,
+jornadaDate:   jDate,
+evaluated:     false,
+timestamp:     firebase.firestore.FieldValue.serverTimestamp()
 });
-await b.commit();
+}
+}
+await batch.commit();
 userEnteringPreds = false;
-toast(`✅ ${preds.length} predicciones guardadas para "${group.name}"!`,'success');
+toast(`✅ ${preds.length} predicciones guardadas en "${group.name}"`, 'success');
 } catch(e) {
-toast('Error al guardar: '+e.message,'error');
+toast('Error al guardar: ' + e.message, 'error');
 }
 }
 async function renderPreds() {
@@ -3562,42 +3586,60 @@ el.innerHTML = `<div class="empty"><span class="empty-icon">⚠️</span><span c
 function renderStandings(table) {
 const el = $('standingsContent');
 let html = `
-<div class="standing-row" style="border-bottom:2px solid var(--border2);padding-bottom:6px;margin-bottom:2px;">
+<div class="standing-row" style="border-bottom:2px solid #c8c0f0;padding-bottom:6px;margin-bottom:2px;font-weight:800;color:#5550a0;">
 <div class="standing-pos">#</div>
-<div class="standing-team" style="color:var(--muted2);font-size:0.85em;">EQUIPO</div>
-<div class="standing-num" style="color:var(--muted2);">PJ</div>
-<div class="standing-num" style="color:var(--muted2);">GD</div>
-<div class="standing-num" style="color:var(--muted2);">GF</div>
-<div class="standing-pts" style="color:var(--muted2);">PTS</div>
+<div class="standing-team" style="font-size:0.82em;">EQUIPO</div>
+<div class="standing-num">PJ</div>
+<div class="standing-num">GD</div>
+<div class="standing-num">GF</div>
+<div class="standing-pts">PTS</div>
 </div>`;
 table.forEach((team, i) => {
-const pos = i + 1;
-const name = team.strTeam || team.name || '?';
-const played = team.intPlayed ?? team.GP ?? '–';
-const gd = team.intGoalDifference ?? team.GD ?? '–';
-const gf = team.intGoalsFor ?? team.GF ?? '–';
-const pts = team.intPoints ?? team.PTS ?? '–';
-let rowStyle = '';
-if (pos <= 4)  rowStyle = 'background:rgba(0,229,160,0.08);';
-if (pos <= 1)  rowStyle = 'background:rgba(245,197,66,0.12);';
-if (pos >= table.length - 2) rowStyle = 'background:rgba(255,77,109,0.08);';
+const pos  = i + 1;
+const name = team.strTeam || '?';
+const played = team.intPlayed ?? '–';
+const gd   = team.intGoalDifference ?? '–';
+const gf   = team.intGoalsFor ?? '–';
+const pts  = team.intPoints ?? '–';
+let rowStyle = 'color:#1a1a2e;';
+let leftBorder = '';
+if (pos === 1) {
+rowStyle += 'background:#fff8dc;'; leftBorder = '3px solid #f5c542';
+} else if (pos <= 4) {
+rowStyle += 'background:#e8faf3;'; leftBorder = '3px solid #00b37a';
+} else if (pos >= table.length - 2) {
+rowStyle += 'background:#fff0f2;'; leftBorder = '3px solid #ff4d6d';
+} else {
+rowStyle += 'background:#fff;';
+}
 const medal = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':pos;
+const gdDisplay = typeof gd === 'number' ? (gd > 0 ? `+${gd}` : gd) : gd;
+const ptsColor = pos===1 ? '#b8860b' : pos<=4 ? '#007a50' : pos >= table.length-2 ? '#cc2244' : '#3b3b6e';
 html += `
-<div class="standing-row" style="${rowStyle}">
-<div class="standing-pos">${medal}</div>
-<div class="standing-team">${name}</div>
-<div class="standing-num">${played}</div>
-<div class="standing-num">${gd>0?'+'+gd:gd}</div>
-<div class="standing-num">${gf}</div>
-<div class="standing-pts">${pts}</div>
+<div class="standing-row" style="${rowStyle}border-bottom:1px solid #e0daf5;${leftBorder?'border-left:'+leftBorder+';padding-left:6px;':''}">
+<div class="standing-pos" style="color:#5550a0;font-weight:800;">${medal}</div>
+<div class="standing-team" style="font-weight:700;color:#1a1a2e;">${name}</div>
+<div class="standing-num" style="color:#5550a0;">${played}</div>
+<div class="standing-num" style="color:#5550a0;">${gdDisplay}</div>
+<div class="standing-num" style="color:#5550a0;">${gf}</div>
+<div class="standing-pts" style="font-family:var(--font-h);font-weight:800;color:${ptsColor};">${pts}</div>
 </div>`;
 });
 html += `
-<div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
-<div style="font-size:0.65em;color:var(--green);font-weight:700;">■ Zona Champions</div>
-<div style="font-size:0.65em;color:var(--gold);font-weight:700;">■ Líder</div>
-<div style="font-size:0.65em;color:var(--red);font-weight:700;">■ Descenso</div>
+<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+<div style="display:flex;align-items:center;gap:4px;font-size:0.68em;font-weight:700;color:#007a50;">
+<div style="width:10px;height:10px;background:#00b37a;border-radius:2px;"></div> Zona Champions
+</div>
+<div style="display:flex;align-items:center;gap:4px;font-size:0.68em;font-weight:700;color:#b8860b;">
+<div style="width:10px;height:10px;background:#f5c542;border-radius:2px;"></div> Líder
+</div>
+<div style="display:flex;align-items:center;gap:4px;font-size:0.68em;font-weight:700;color:#cc2244;">
+<div style="width:10px;height:10px;background:#ff4d6d;border-radius:2px;"></div> Descenso
+</div>
 </div>`;
+document.querySelectorAll('.standing-tab').forEach(t => {
+t.style.color = t.classList.contains('active') ? '#fff' : '#5550a0';
+});
 el.innerHTML = html;
 }
 async function openMundialModal() {
