@@ -1098,6 +1098,7 @@ const TOURNAMENTS = [
 { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
 { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
 { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
+{ id:'mls',      name:'MLS',               flag:'🇺🇸', lid:'4346' },
 ];
 const MUNDIAL_TEAMS = [
 '🇦🇷 Argentina','🇧🇷 Brasil','🇺🇾 Uruguay','🇨🇴 Colombia','🇪🇨 Ecuador',
@@ -3208,7 +3209,7 @@ if(p){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore; }
 break;
 }
 case 'nobody':
-hi.value=7; ai.value=0; break;
+hi.value=13; ai.value=0; break;
 case 'random':
 hi.value=Math.floor(Math.random()*5);
 ai.value=Math.floor(Math.random()*5);
@@ -3224,30 +3225,34 @@ if(hi) hi.value=0; if(ai) ai.value=0;
 });
 }
 function runSimulation() {
-const fictResults = simMatches.map(m=>({
-matchId:String(m.id),
-homeScore:+($(`simH_${m.id}`)?.value||0),
-awayScore:+($(`simA_${m.id}`)?.value||0),
-home:m.home, away:m.away
-}));
-const results = simPlayers.map(player=>{
-let gained=0, exactGained=0, resultGained=0;
-const preds = simPredictions[player.id]||[];
-fictResults.forEach(fr=>{
-const pred = preds.find(p=>String(p.matchId)===fr.matchId);
-if(!pred) return;
-const pts = calcPoints(+pred.predictedHomeScore, +pred.predictedAwayScore, fr.homeScore, fr.awayScore);
-gained+=pts;
-if(pts===5) exactGained++;
-else if(pts===3) resultGained++;
-});
+const fictResults = simMatches.map(m => {
+const hi = $(`simH_${m.id}`);
+const ai = $(`simA_${m.id}`);
+const hv = hi ? parseInt(hi.value) : 0;
+const av = ai ? parseInt(ai.value) : 0;
 return {
-...player,
-fictPoints: player.groupPoints + gained,
-gained, exactGained, resultGained
+matchId:   String(m.id),
+homeScore: isNaN(hv) ? 0 : hv,
+awayScore: isNaN(av) ? 0 : av,
+home: m.home,
+away: m.away
 };
-}).sort((a,b)=>b.fictPoints-a.fictPoints||b.exactGained-a.exactGained)
-.map((p,i)=>({...p, newRank:i+1}));
+});
+const results = simPlayers.map(player => {
+let gained=0, exactGained=0, resultGained=0;
+const preds = simPredictions[player.id] || [];
+fictResults.forEach(fr => {
+const pred = preds.find(p => String(p.matchId) === fr.matchId);
+if (!pred) return;
+const pts = calcPoints(+pred.predictedHomeScore, +pred.predictedAwayScore, fr.homeScore, fr.awayScore);
+gained += pts;
+if (pts===5) exactGained++;
+else if (pts===3) resultGained++;
+});
+return { ...player, fictPoints: player.groupPoints + gained, gained, exactGained, resultGained };
+})
+.sort((a,b) => b.fictPoints - a.fictPoints || b.exactGained - a.exactGained)
+.map((p,i) => ({...p, newRank: i+1}));
 displaySimResults(results, fictResults);
 $('simResults').classList.remove('hidden');
 $('simResults').scrollIntoView({behavior:'smooth'});
@@ -3534,22 +3539,24 @@ document.querySelectorAll('.standing-tab').forEach(t => t.classList.remove('acti
 if (tabEl) tabEl.classList.add('active');
 const el = $('standingsContent');
 el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
-if (_standingsCache[leagueKey]) {
-renderStandings(_standingsCache[leagueKey]);
-return;
-}
+if (_standingsCache[leagueKey]) { renderStandings(_standingsCache[leagueKey]); return; }
 try {
 const r = await fetch(`${API_V1}/lookuptable.php?l=${leagueId}`);
-const data = await r.json();
+const text = await r.text();
+if (!text || text.trim().startsWith('<')) {
+el.innerHTML = `<div class="empty"><span class="empty-icon">📊</span><span class="empty-text">Tabla no disponible aún para esta temporada</span></div>`;
+return;
+}
+const data = JSON.parse(text);
 const table = data?.table || [];
 if (!table.length) {
-el.innerHTML = '<div class="empty"><span class="empty-text">Tabla no disponible aún</span></div>';
+el.innerHTML = `<div class="empty"><span class="empty-icon">📊</span><span class="empty-text">La tabla se publicará cuando empiece la temporada</span></div>`;
 return;
 }
 _standingsCache[leagueKey] = table;
 renderStandings(table);
 } catch(e) {
-el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+el.innerHTML = `<div class="empty"><span class="empty-icon">⚠️</span><span class="empty-text">Error cargando tabla: ${e.message}</span></div>`;
 }
 }
 function renderStandings(table) {
