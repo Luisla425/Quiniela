@@ -1,3 +1,4 @@
+
 <!--QUINIELA LuAn © 2026 · ING. LUIS LÁREZ · Arichuna, Venezuela-->
 <!DOCTYPE html>
 <html lang="es">
@@ -904,6 +905,17 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">📲 Compartir Pizarra por WhatsApp</button>
 <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" onclick="openRankWAMenu()">💬 Mensajes al grupo</button>
 <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('rankModal')">Cerrar</button>
+</div>
+</div>
+<!-- My Predictions Modal -->
+<div id="myPredsModal" class="modal-overlay">
+<div class="modal-box" style="max-height:92vh;">
+<div class="modal-handle"></div>
+<div class="modal-title">📋 Mis Predicciones</div>
+<div id="myPredsContent">
+<div class="empty"><span class="empty-icon">⏳</span></div>
+</div>
+<button class="btn btn-ghost" style="margin-top:12px;" onclick="closeModal('myPredsModal')">Cerrar</button>
 </div>
 </div>
 <!-- Change Password Modal -->
@@ -2261,7 +2273,10 @@ const el = $('screenPreds');
 el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
 const closed = bettingClosed();
 const canSearch = me.isAdmin || closed;
-let html = `<div class="section-header"><span class="section-title">🎯 Mis Predicciones</span></div>`;
+let html = `<div class="section-header">
+<span class="section-title">🎯 Mis Predicciones</span>
+<button class="btn btn-ghost btn-sm" style="font-size:0.75em;padding:5px 10px;" onclick="openMyPredictions()">📋 Ver mis predicciones</button>
+</div>`;
 if (!canSearch) {
 html += `<div class="locked-box">
 <span class="lock-icon">🔒</span>
@@ -3132,51 +3147,64 @@ async function loadSimulation() {
 const gid = $('simGroupSel')?.value;
 const matchFilter = $('simMatchSel')?.value;
 if (!gid) { toast('Selecciona un grupo','error'); return; }
-toast('⏳ Cargando...','info');
+toast('⏳ Cargando simulación...','info');
 try {
 const gdoc = await db.collection('groups').doc(gid).get();
 simGroup = {id:gid,...gdoc.data()};
-const memberIds = simGroup.members.map(m=>m.userId);
+let memberIds = simGroup.members.map(m=>m.userId);
+if (!memberIds.includes(me.uid)) memberIds = [me.uid, ...memberIds];
 simPlayers = [];
 for(let i=0;i<memberIds.length;i+=10){
-const chunk=memberIds.slice(i,i+10);
-const us=await db.collection('users').where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
-us.docs.forEach((d,idx)=>simPlayers.push({id:d.id,...d.data(),originalRank:0}));
+const chunk = memberIds.slice(i,i+10);
+const us = await db.collection('users')
+.where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
+us.docs.forEach(d => simPlayers.push({id:d.id,...d.data()}));
 }
-const pSnap = await db.collection('predictions').where('groupId','==',gid).where('evaluated','==',true).get();
+const pSnap = await db.collection('predictions')
+.where('groupId','==',gid).where('evaluated','==',true).get();
 const ptMap = {};
 pSnap.docs.forEach(d=>{
 const p=d.data();
 if(!ptMap[p.userId]) ptMap[p.userId]=0;
 ptMap[p.userId]+=(p.pointsAwarded||0);
 });
-simPlayers = simPlayers.map(p=>({...p, groupPoints: ptMap[p.id]||0}))
+simPlayers = simPlayers
+.map(p=>({...p, groupPoints: ptMap[p.id]||0}))
 .sort((a,b)=>b.groupPoints-a.groupPoints)
 .map((p,i)=>({...p, originalRank:i+1}));
 const today = vzDate();
-if (matchFilter==='pending') {
-simMatches = dayMatches.filter(m=>!isFinished(m.status)&&!isLive(m.status));
-} else {
-simMatches = dayMatches;
-}
-if (!simMatches.length) {
-simMatches = allMatches.filter(m=>m.date>today).slice(0,6);
-}
+simMatches = matchFilter==='pending'
+? dayMatches.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+: dayMatches;
+if (!simMatches.length)
+simMatches = allMatches.filter(m=>m.date>=today).slice(0,8);
 if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
 simPredictions = {};
 const matchIds = simMatches.map(m=>String(m.id));
-for(const player of simPlayers){
-const ps = await db.collection('predictions')
+for (const player of simPlayers) {
+const q1 = await db.collection('predictions')
 .where('userId','==',player.id)
 .where('groupId','==',gid).get();
-simPredictions[player.id] = ps.docs.map(d=>d.data())
+const q2 = await db.collection('predictions')
+.where('userId','==',player.id).get();
+const allPreds = {};
+q2.docs.forEach(d=>{ const p=d.data(); allPreds[String(p.matchId)]=p; });
+q1.docs.forEach(d=>{ const p=d.data(); allPreds[String(p.matchId)]=p; });
+simPredictions[player.id] = Object.values(allPreds)
 .filter(p=>matchIds.includes(String(p.matchId)));
 }
+console.log('SimPredictions loaded:');
+simPlayers.forEach(p=>{
+console.log(`  ${p.username}: ${simPredictions[p.id]?.length||0} predicciones`);
+simPredictions[p.id]?.forEach(pr=>
+console.log(`    matchId=${pr.matchId} → ${pr.predictedHomeScore}-${pr.predictedAwayScore}`)
+);
+});
 $('simSetup').classList.remove('hidden');
 $('simResults').classList.add('hidden');
 renderSimMatches();
-toast(`✅ ${simMatches.length} partidos · ${simPlayers.length} jugadores`,'success');
-} catch(e) { toast('Error: '+e.message,'error'); }
+toast(`✅ ${simMatches.length} partidos · ${simPlayers.length} jugadores cargados`,'success');
+} catch(e) { toast('Error: '+e.message,'error'); console.error(e); }
 }
 function renderSimMatches() {
 const el = $('simMatchesList');
@@ -3207,40 +3235,59 @@ id="simA_${m.id}" class="sim-input" inputmode="numeric">
 </div>`).join('');
 }
 function applyScenario(type) {
-simMatches.forEach(m=>{
-const hi=$(`simH_${m.id}`), ai=$(`simA_${m.id}`);
-if(!hi||!ai) return;
-switch(type){
+let applied = 0;
+simMatches.forEach(m => {
+const hi = $(`simH_${m.id}`);
+const ai = $(`simA_${m.id}`);
+if (!hi || !ai) return;
+let h = null, a = null;
+switch(type) {
 case 'myExact': {
-const p = simPredictions[me.uid]?.find(p=>String(p.matchId)===String(m.id));
-if(p){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore; }
+const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
+if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
 break;
 }
 case 'myResult': {
-const p = simPredictions[me.uid]?.find(p=>String(p.matchId)===String(m.id));
-if(p){
-const d=p.predictedHomeScore-p.predictedAwayScore;
-if(d>0){ hi.value=p.predictedHomeScore+1; ai.value=p.predictedAwayScore; }
-else if(d<0){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore+1; }
-else { hi.value=1; ai.value=1; }
+const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
+if (p) {
+const ph = +p.predictedHomeScore, pa = +p.predictedAwayScore;
+if (ph > pa)       { h = ph+1; a = pa; }
+else if (ph < pa)  { h = ph;   a = pa+1; }
+else               { h = ph+1; a = pa+1; }
 }
 break;
 }
 case 'leaderExact': {
 const leader = simPlayers[0];
-const p = leader && simPredictions[leader.id]?.find(p=>String(p.matchId)===String(m.id));
-if(p){ hi.value=p.predictedHomeScore; ai.value=p.predictedAwayScore; }
+if (leader) {
+const p = simPredictions[leader.id]?.find(p => String(p.matchId)===String(m.id));
+if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
+}
 break;
 }
 case 'nobody':
-hi.value=13; ai.value=0; break;
+h = 13; a = 0;
+break;
 case 'random':
-hi.value=Math.floor(Math.random()*5);
-ai.value=Math.floor(Math.random()*5);
+h = Math.floor(Math.random()*5);
+a = Math.floor(Math.random()*5);
 break;
 }
+if (h !== null && a !== null) {
+hi.value = h;
+ai.value = a;
+hi.dispatchEvent(new Event('input'));
+ai.dispatchEvent(new Event('input'));
+applied++;
+}
 });
-if(type!=='nobody'&&type!=='random') toast('✅ Escenario aplicado','success');
+if (type==='myExact'||type==='myResult'||type==='leaderExact') {
+if (applied === 0) {
+toast('⚠️ Sin predicciones tuyas cargadas — asegúrate de haber predicho primero','warning',4000);
+} else {
+toast(`✅ ${applied} partidos actualizados con el escenario`,'success');
+}
+}
 }
 function clearSimInputs() {
 simMatches.forEach(m=>{
@@ -3252,8 +3299,8 @@ function runSimulation() {
 const fictResults = simMatches.map(m => {
 const hi = $(`simH_${m.id}`);
 const ai = $(`simA_${m.id}`);
-const hv = hi ? parseInt(hi.value) : 0;
-const av = ai ? parseInt(ai.value) : 0;
+const hv = parseInt(hi?.value ?? 0);
+const av = parseInt(ai?.value ?? 0);
 return {
 matchId:   String(m.id),
 homeScore: isNaN(hv) ? 0 : hv,
@@ -3263,17 +3310,36 @@ away: m.away
 };
 });
 const results = simPlayers.map(player => {
-let gained=0, exactGained=0, resultGained=0;
+let gained=0, exactGained=0, resultGained=0, missingPreds=0;
 const preds = simPredictions[player.id] || [];
 fictResults.forEach(fr => {
-const pred = preds.find(p => String(p.matchId) === fr.matchId);
-if (!pred) return;
-const pts = calcPoints(+pred.predictedHomeScore, +pred.predictedAwayScore, fr.homeScore, fr.awayScore);
+const pred = preds.find(p => String(p.matchId) === String(fr.matchId));
+if (!pred) {
+missingPreds++;
+const pts = calcPoints(0, 0, fr.homeScore, fr.awayScore);
 gained += pts;
 if (pts===5) exactGained++;
 else if (pts===3) resultGained++;
+} else {
+const pts = calcPoints(
++pred.predictedHomeScore,
++pred.predictedAwayScore,
+fr.homeScore,
+fr.awayScore
+);
+gained += pts;
+if (pts===5) exactGained++;
+else if (pts===3) resultGained++;
+}
 });
-return { ...player, fictPoints: player.groupPoints + gained, gained, exactGained, resultGained };
+return {
+...player,
+fictPoints:    player.groupPoints + gained,
+gained,
+exactGained,
+resultGained,
+missingPreds
+};
 })
 .sort((a,b) => b.fictPoints - a.fictPoints || b.exactGained - a.exactGained)
 .map((p,i) => ({...p, newRank: i+1}));
@@ -3326,6 +3392,7 @@ html+=`<div class="sim-result-row ${isMe?'me':''} ${isLeader&&!isMe?'leader':''}
 ${p.username}${isMe?' <span style="color:var(--gold);font-size:0.75em;">(TÚ)</span>':''}
 <div style="font-size:0.7em;color:var(--muted2);">
 Antes: ${p.groupPoints}pts ${chgHtml}
+${p.missingPreds>0?`<span style="color:var(--red);"> · ${p.missingPreds} sin predecir→0-0</span>`:''}
 </div>
 </div>
 <span class="sim-gain">+${p.gained}</span>
@@ -3461,6 +3528,70 @@ ${defaults > 0 ? `<div style="margin-top:10px;font-size:0.72em;color:var(--muted
 </div>` : ''}`;
 } catch(e) {
 el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+}
+}
+async function openMyPredictions() {
+openModal('myPredsModal');
+$('myPredsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
+try {
+const snap = await db.collection('predictions').where('userId','==',me.uid).get();
+const allPreds = snap.docs.map(d=>({id:d.id,...d.data()}));
+const today = vzDate();
+const byDate = {};
+allPreds.forEach(p=>{
+const d=p.jornadaDate||'Sin fecha';
+if(!byDate[d]) byDate[d]=[];
+byDate[d].push(p);
+});
+const sortedDates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+if(!sortedDates.length){
+$('myPredsContent').innerHTML='<div class="empty"><span class="empty-icon">🎯</span><span class="empty-text">Sin predicciones guardadas aún</span></div>';
+return;
+}
+let html='';
+sortedDates.slice(0,10).forEach(date=>{
+const preds=byDate[date];
+const isToday=date===today;
+html+=`<div style="margin-bottom:16px;">
+<div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+📅 ${date}${isToday?' <span style="color:var(--green);">HOY</span>':''}
+</div>`;
+preds.forEach(p=>{
+const ev=p.evaluated&&p.pointsAwarded!=null;
+let ptsColor='var(--muted2)',ptsLabel='⏳ Pendiente';
+if(ev){
+if(p.pointsAwarded===5){ptsColor='var(--gold)';ptsLabel='⭐ +5 EXACTO';}
+else if(p.pointsAwarded===3){ptsColor='var(--green)';ptsLabel='✅ +3 Resultado';}
+else if(p.pointsAwarded===1){ptsColor='var(--primary2)';ptsLabel='💙 +1';}
+else{ptsColor='var(--red)';ptsLabel='❌ +0 Falló';}
+}
+const matchObj=allMatches.find(m=>String(m.id)===String(p.matchId));
+const homeName=p.home||matchObj?.home||'?';
+const awayName=p.away||matchObj?.away||'?';
+const borderExtra=ev&&p.pointsAwarded===5?'border-color:rgba(245,197,66,0.4);':ev&&p.pointsAwarded===3?'border-color:rgba(0,229,160,0.3);':'';
+html+=`<div style="background:var(--surface2);border:1px solid var(--border);${borderExtra}border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
+<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin-bottom:8px;">
+<div style="text-align:right;font-size:0.82em;font-weight:700;">${homeName}</div>
+<div style="text-align:center;">
+<div style="font-family:var(--font-h);font-size:1.5em;color:var(--primary2);">${p.predictedHomeScore} — ${p.predictedAwayScore}</div>
+<div style="font-size:0.65em;color:var(--muted2);">Mi apuesta</div>
+</div>
+<div style="text-align:left;font-size:0.82em;font-weight:700;">${awayName}</div>
+</div>
+${ev
+?`<div style="display:flex;justify-content:space-between;align-items:center;">
+<div style="font-size:0.72em;color:var(--muted2);">Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>
+<div style="font-size:0.82em;font-weight:800;color:${ptsColor};">${ptsLabel}</div>
+</div>`
+:`<div style="font-size:0.72em;color:var(--muted2);">${p.groupName?'Grupo: '+p.groupName:''} · ⏳ Sin evaluar</div>`
+}
+</div>`;
+});
+html+='</div>';
+});
+$('myPredsContent').innerHTML=html;
+} catch(e){
+$('myPredsContent').innerHTML=`<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
 }
 }
 let mundialConfig = { campeon:8, sub:6, tercero:3, goleador:5 };
