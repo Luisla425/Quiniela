@@ -1104,7 +1104,6 @@ return res.json();
 const _afCache = {};
 const TOURNAMENTS = [
 { id:'ucl',      name:'Champions League', flag:'⭐', lid:'4480' },
-{ id:'uel',      name:'Europa League',    flag:'🌍', lid:'4481' },
 { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
 { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
 { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
@@ -1578,7 +1577,7 @@ await auth.signOut();
 return;
 }
 me = { uid: user.uid, ...doc.data() };
-myTournaments = me.tournaments || ['ucl','uel'];
+myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1'];
 enterApp();
 } else {
 $('authScreen').classList.remove('hidden');
@@ -2218,7 +2217,50 @@ preds.push({matchId:String(m.id),h:hv,a:av,match:m});
 if (!preds.length) { toast('Sin predicciones para guardar','error'); return; }
 const grpSnap = await db.collection('groups').get();
 const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()})).filter(g=>g.members?.some(m=>m.userId===me.uid));
-if (!myGroups.length) { toast('No perteneces a ningún grupo','error'); return; }
+if (!myGroups.length) {
+try {
+const allGroups = await db.collection('groups').get();
+const available = allGroups.docs.map(d=>({id:d.id,...d.data()}))
+.filter(g => g.isPublic !== false);
+if (!available.length) {
+toast('⚠️ No hay grupos disponibles. Pide al admin que te invite.','warning',5000);
+return;
+}
+const list = $('grpPickList');
+list.innerHTML = `
+<div style="color:var(--gold);font-size:0.82em;font-weight:700;margin-bottom:12px;padding:10px;
+background:rgba(245,197,66,0.1);border-radius:8px;border:1px solid rgba(245,197,66,0.3);">
+⚠️ No estás en ningún grupo. Para guardar predicciones debes unirte a uno:
+</div>`;
+available.forEach(g => {
+const btn = document.createElement('button');
+btn.className = 'btn btn-ghost';
+btn.style.marginBottom = '8px';
+btn.innerHTML = `👥 ${g.name} <span style="color:var(--muted2);font-size:0.8em;">· ${g.members?.length||0} jugadores</span>`;
+btn.onclick = async () => {
+closeModal('grpPickModal');
+try {
+await db.collection('groups').doc(g.id).update({
+members: firebase.firestore.FieldValue.arrayUnion({
+userId: me.uid,
+username: me.username,
+joinedAt: new Date().toISOString()
+})
+});
+toast(`✅ Te uniste a "${g.name}"`, 'success');
+await doSavePreds(preds, jDate, g);
+} catch(e) {
+toast('Error al unirse: ' + e.message, 'error');
+}
+};
+list.appendChild(btn);
+});
+openModal('grpPickModal');
+} catch(e) {
+toast('Error: ' + e.message, 'error');
+}
+return;
+}
 if (myGroups.length === 1) {
 await doSavePreds(preds, jDate, myGroups[0]);
 } else {
