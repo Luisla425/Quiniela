@@ -3356,6 +3356,8 @@ function renderAdmin() {
       <button class="admin-btn full danger" onclick="adminReset()">🗑️ Borrar Datos</button>
       <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">🧹 Limpiar Duplicados</button>
       <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">🌍 Evaluar Mundial</button>
+      <button class="admin-btn full warn" onclick="cleanOldPreds()">🗑️ Limpiar Predicciones Antiguas</button>
+      <button class="admin-btn full danger" onclick="nukeAllPreds()">💣 Borrar TODO (Disolver Grupo)</button>
     </div>
     <div class="admin-output" id="adminOut"><span style="color:var(--muted2);">Selecciona una acción...</span></div>`;
 }
@@ -5071,6 +5073,95 @@ function _applyExpressPicks() {
     }, 400);
   } else {
     toast('Sin predicciones guardadas', 'info');
+  }
+}
+
+// ═══════════════════════════════════════════
+// LIMPIEZA DE PREDICCIONES
+// ═══════════════════════════════════════════
+
+async function cleanOldPreds() {
+  const today = vzDate();
+  if (!confirm(`¿Borrar TODAS las predicciones que NO sean de hoy (${today})?\n\nLas predicciones de hoy se conservan.`)) return;
+
+  const out = $('adminOut');
+  out.innerHTML = '⏳ Analizando predicciones...';
+
+  try {
+    const snap = await db.collection('predictions').get();
+    const toDelete = snap.docs.filter(d => {
+      const p = d.data();
+      return p.jornadaDate !== today;
+    });
+
+    if (!toDelete.length) {
+      out.innerHTML = '✅ No hay predicciones antiguas. Todo está limpio.';
+      toast('✅ Nada que limpiar', 'success');
+      return;
+    }
+
+    if (!confirm(`Se encontraron ${toDelete.length} predicciones antiguas.\n¿Confirmas borrarlas?`)) {
+      out.innerHTML = 'Operación cancelada.';
+      return;
+    }
+
+    out.innerHTML = `⏳ Borrando ${toDelete.length} predicciones...`;
+
+    let batch = db.batch();
+    let count = 0;
+    for (const doc of toDelete) {
+      batch.delete(doc.ref);
+      count++;
+      if (count % 500 === 0) {
+        await batch.commit();
+        batch = db.batch();
+        out.innerHTML = `⏳ Borradas ${count}/${toDelete.length}...`;
+      }
+    }
+    await batch.commit();
+
+    out.innerHTML = `✅ ${toDelete.length} predicciones antiguas borradas. Las de hoy (${today}) se conservaron.`;
+    toast(`🗑️ ${toDelete.length} predicciones antiguas eliminadas`, 'success');
+  } catch(e) {
+    out.innerHTML = `❌ Error: ${e.message}`;
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function nukeAllPreds() {
+  const code = prompt('⚠️ OPERACIÓN IRREVERSIBLE\n\nEsto borrará TODAS las predicciones de todos los jugadores.\n\nEscribe DISOLVER para confirmar:');
+  if (code !== 'DISOLVER') { toast('Operación cancelada', 'info'); return; }
+
+  if (!confirm('¿Última confirmación? Se borran TODAS las predicciones y se resetean los puntos de todos los jugadores.')) return;
+
+  const out = $('adminOut');
+  out.innerHTML = '⏳ Borrando todo...';
+
+  try {
+    // 1) Borrar todas las predicciones
+    const snap = await db.collection('predictions').get();
+    let batch = db.batch();
+    let count = 0;
+    for (const doc of snap.docs) {
+      batch.delete(doc.ref);
+      count++;
+      if (count % 500 === 0) { await batch.commit(); batch = db.batch(); }
+    }
+    await batch.commit();
+
+    // 2) Resetear puntos de todos los usuarios
+    const users = await db.collection('users').get();
+    let batchU = db.batch();
+    users.docs.forEach(d => batchU.update(d.ref, {
+      points: 0, exactPredictions: 0, correctResults: 0
+    }));
+    await batchU.commit();
+
+    out.innerHTML = `✅ ${snap.size} predicciones borradas · ${users.size} jugadores reseteados.`;
+    toast('💣 Base limpia total', 'success');
+  } catch(e) {
+    out.innerHTML = `❌ Error: ${e.message}`;
+    toast('Error: ' + e.message, 'error');
   }
 }
 
