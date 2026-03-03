@@ -1188,18 +1188,28 @@ setTimeout(() => t.remove(), dur);
 function openModal(id) { $(id).classList.remove('hidden'); }
 function closeModal(id) { $(id).classList.add('hidden'); }
 function isLive(status) {
-return ['1H','2H','HT','ET','P','In Play','LIVE'].includes(status);
+const s = (status||'').toUpperCase();
+return ['1H','2H','HT','ET','P','BT','IN PLAY','LIVE'].includes(s);
 }
 function isFinished(status) {
 const s = (status||'').toUpperCase();
-return ['FT','AET','AP','PEN','MATCH FINISHED','FINISHED'].includes(s);
+return ['FT','AET','AP','PEN','ABD','AWD','WO','MATCH FINISHED','FINISHED'].includes(s);
 }
 function statusLabel(s) {
-const map = {'1H':'⏱ 1er Tiempo','HT':'⏸ Descanso','2H':'⏱ 2do Tiempo',
-'ET':'⏱ T. Extra','P':'🥅 Penaltis','FT':'✅ Final',
-'AET':'✅ Final (TE)','AP':'✅ Final (Pen)','PEN':'✅ Final (Pen)',
-'Match Finished':'✅ Final','MATCH FINISHED':'✅ Final'};
-return map[s] || s;
+const map = {
+'NS':'⏰ Próximo','TBD':'📅 Por definir',
+'1H':'🔴 1er Tiempo','HT':'⏸ Descanso',
+'2H':'🔴 2do Tiempo','ET':'🔴 Prórroga',
+'P':'🥅 Penales','BT':'⏸ Desc. Prórr.',
+'FT':'✅ Final','AET':'✅ Final (Prórr)',
+'AP':'✅ Final (Pen)','PEN':'✅ Final (Pen)',
+'SUSP':'⚠️ Suspendido','INT':'⚠️ Interrumpido',
+'PST':'📅 Pospuesto','CANC':'❌ Cancelado',
+'ABD':'❌ Abandonado','AWD':'🏳 D.Técnica','WO':'🏳 Walkover',
+'Match Finished':'✅ Final','MATCH FINISHED':'✅ Final',
+'IN PLAY':'🔴 En Juego','LIVE':'🔴 En Vivo'
+};
+return map[s] || map[(s||'').toUpperCase()] || s || '—';
 }
 function sharePizarra() {
 const { name, code, ranked } = _currentRankData;
@@ -1909,44 +1919,41 @@ ${statsBtn}
 }
 async function openStats(matchId) {
 openModal('statsModal');
-$('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando estadísticas...</span></div>';
+$('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
 try {
 const match = allMatches.find(m => String(m.id) === String(matchId));
 const home  = match?.home || '';
 const away  = match?.away || '';
-$('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Consultando TheSportsDB V2...</span></div>';
-const [evRes, timelineRes, statsRes, lineupRes] = await Promise.allSettled([
-fetchV2(`/lookup/event/${matchId}`),
-fetchV2(`/lookup/event_timeline/${matchId}`),
-fetchV2(`/lookup/event_stats/${matchId}`),
-fetchV2(`/lookup/event_lineup/${matchId}`)
-]);
-const ev       = evRes.value?.events?.[0]     || evRes.value?.event        || null;
-const timeline = timelineRes.value?.timeline   || [];
-const statsList= statsRes.value?.eventstats    || statsRes.value?.stats     || [];
-const lineup   = lineupRes.value?.lineup        || [];
-let evFinal = ev;
+let evFinal = null;
+try {
+const r2 = await fetchV2(`/lookup/event/${matchId}`);
+evFinal = r2?.events?.[0] || r2?.event || null;
+} catch(e) {}
 if (!evFinal) {
 try {
-const v1r = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
-const v1d = await v1r.json();
-evFinal = v1d?.events?.[0] || null;
+const r1 = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
+const d1 = await r1.json();
+evFinal = d1?.events?.[0] || null;
 } catch(e) {}
 }
-const scoreH    = evFinal?.intHomeScore  ?? match?.homeScore ?? '–';
-const scoreA    = evFinal?.intAwayScore  ?? match?.awayScore ?? '–';
-const statusStr = evFinal?.strStatus     || evFinal?.strProgress || match?.status || '';
-const minute    = evFinal?.strProgress   || evFinal?.intProgress || '';
-const venue     = evFinal?.strVenue      || '';
-const leagueName= evFinal?.strLeague     || match?.tournamentName || '';
+const scoreH     = evFinal?.intHomeScore ?? match?.homeScore ?? '–';
+const scoreA     = evFinal?.intAwayScore ?? match?.awayScore ?? '–';
+const statusStr  = evFinal?.strStatus || match?.status || '';
+const minuteRaw = evFinal?.strProgress || evFinal?.intProgress || '';
+const minuteDisplay = minuteRaw && !['FT','AET','PEN','HT'].includes(String(minuteRaw).toUpperCase())
+? minuteRaw : '';
+const venue      = evFinal?.strVenue || '';
+const leagueName = evFinal?.strLeague || match?.tournamentName || '';
 const isMatchLive = isLive(statusStr);
 let html = '';
 html += `
 <div style="text-align:center;margin-bottom:18px;">
 <div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
 ${leagueName}
-${isMatchLive ? `<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>
-<button onclick="openStats(${matchId})" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>` : ''}
+${isMatchLive
+? `<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>
+<button onclick="openStats(${matchId})" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>`
+: ''}
 </div>
 <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;">
 <div style="text-align:right;font-weight:800;font-size:0.88em;line-height:1.4;">${home}</div>
@@ -1955,40 +1962,54 @@ ${scoreH} — ${scoreA}
 </div>
 <div style="text-align:left;font-weight:800;font-size:0.88em;line-height:1.4;">${away}</div>
 </div>
-${isMatchLive && minute ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ Minuto ${minute}</div>` : ''}
+${isMatchLive && minuteDisplay ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ ${minuteDisplay}'</div>` : ''}
 ${venue ? `<div style="color:var(--muted2);font-size:0.7em;margin-top:4px;">🏟 ${venue}</div>` : ''}
 </div>`;
-if (timeline.length > 0) {
+let timelineEvents = [];
+let timelineSource = '';
+try {
+const r = await fetchV2(`/lookup/event_timeline/${matchId}`);
+const tl = r?.timeline || [];
+if (tl.length > 0) { timelineEvents = tl; timelineSource = 'V2'; }
+} catch(e) {}
+if (!timelineEvents.length) {
+try {
+const r = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
+const txt = await r.text();
+if (txt && !txt.trim().startsWith('<')) {
+const d = JSON.parse(txt);
+const tl = d?.timeline || d?.events || [];
+if (tl.length > 0) { timelineEvents = tl; timelineSource = 'V1-timeline'; }
+}
+} catch(e) {}
+}
+if (timelineEvents.length > 0) {
 html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Cronología del Partido</div>`;
-const sorted = [...timeline].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
+const sorted = [...timelineEvents].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
 sorted.forEach(t => {
-const min     = t.intTime    ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
-const type    = (t.strType   || '').toLowerCase();
-const player  = t.strPlayer  || t.strPlayer1 || '';
-const player2 = t.strPlayer2 || '';
-const isHome  = (t.strHome   || '').toLowerCase() === 'home';
+const min     = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
+const type    = (t.strType || t.strEvent || '').toLowerCase();
+const player  = t.strPlayer || t.strPlayer1 || '';
+const player2 = t.strPlayer2 || t.strAssist || '';
+const isHome  = (t.strHome || t.strSide || '').toLowerCase() === 'home';
 const side    = isHome ? home : away;
 let icon = '', color = 'var(--text)', extra = '';
 if (type.includes('goal')) {
-if (type.includes('own'))     { icon = '⚽🔴'; color = 'var(--red)';  extra = ' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>'; }
-else if (type.includes('pen')){ icon = '⚽⚡'; color = 'var(--gold)'; extra = ' <span style="color:var(--gold);font-size:0.75em;">(Penal)</span>'; }
-else if (type.includes('miss')){ icon = '❌'; color = 'var(--muted2)'; extra = ' <span style="color:var(--muted2);font-size:0.75em;">(Penal fallado)</span>'; }
-else { icon = '⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)'; }
+if (type.includes('own'))      { icon='⚽🔴'; color='var(--red)';   extra=' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>'; }
+else if (type.includes('pen') && !type.includes('miss')) { icon='⚽⚡'; color='var(--gold)'; extra=' <span style="color:var(--gold);font-size:0.75em;">(Penal)</span>'; }
+else if (type.includes('miss')){ icon='❌';   color='var(--muted2)'; extra=' <span style="color:var(--muted2);font-size:0.75em;">(Penal fallado)</span>'; }
+else { icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)'; }
 if (player2 && !type.includes('miss')) extra += ` <span style="color:var(--muted2);font-size:0.72em;">🅰 ${player2}</span>`;
-} else if (type.includes('yellow') && !type.includes('red')) {
-icon = '🟨'; color = 'var(--gold)';
-} else if (type.includes('yellow') && type.includes('red')) {
-icon = '🟨🟥'; color = 'var(--red)';
-} else if (type.includes('red')) {
-icon = '🟥'; color = 'var(--red)';
-} else if (type.includes('sub')) {
-icon = '🔄'; color = 'var(--muted2)';
-if (player2) extra = ` <span style="color:var(--red);font-size:0.75em;">▼ ${player2}</span>`;
-} else if (type.includes('var')) {
-icon = '📺'; color = 'var(--blue)';
-} else {
-return;
 }
+else if (type.includes('yellow') && type.includes('red')) { icon='🟨🟥'; color='var(--red)'; }
+else if (type.includes('yellow'))  { icon='🟨'; color='var(--gold)'; }
+else if (type.includes('red'))     { icon='🟥'; color='var(--red)'; }
+else if (type.includes('sub') || type.includes('substitut')) {
+icon='🔄'; color='var(--muted2)';
+if (player2) extra=` <span style="color:var(--red);font-size:0.75em;">▼ ${player2}</span>`;
+}
+else if (type.includes('var'))  { icon='📺'; color='var(--blue)'; }
+else { return; }
 html += `
 <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
 <span style="font-family:var(--font-h);color:var(--gold);min-width:40px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
@@ -1996,40 +2017,6 @@ html += `
 <div style="flex:1;min-width:0;">
 <div style="font-weight:800;font-size:0.88em;color:${color};">${player}${extra}</div>
 <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${isHome?'🏠':'✈️'} ${side}</div>
-</div>
-</div>`;
-});
-} else {
-let v1TimelineEvents = [];
-try {
-const v1tl = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
-const v1tlText = await v1tl.text();
-if (v1tlText && !v1tlText.trim().startsWith('<')) {
-const v1tlData = JSON.parse(v1tlText);
-v1TimelineEvents = v1tlData?.timeline || v1tlData?.event || [];
-}
-} catch(e2) { console.warn('V1 timeline failed:', e2.message); }
-if (v1TimelineEvents.length > 0) {
-const sortedV1 = [...v1TimelineEvents].sort((a,b)=>(+a.intTime||0)-(+b.intTime||0));
-sortedV1.forEach(t => {
-const min   = t.intTime ? `${t.intTime}'` : "?'";
-const type  = (t.strType||'').toLowerCase();
-const player = t.strPlayer || t.strPlayer1 || '';
-const isHome = (t.strHome||'').toLowerCase() === 'home';
-const side   = isHome ? home : away;
-let icon='📌', color='var(--text)';
-if(type.includes('goal')&&!type.includes('miss')){icon='⚽';color=isHome?'var(--primary2)':'var(--green)';}
-else if(type.includes('yellow')&&!type.includes('red')){icon='🟨';color='var(--gold)';}
-else if(type.includes('red')&&!type.includes('yellow')){icon='🟥';color='var(--red)';}
-else if(type.includes('yellow')&&type.includes('red')){icon='🟨🟥';color='var(--red)';}
-else if(type.includes('sub')){icon='🔄';color='var(--muted2)';}
-else return;
-html += `<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-<span style="font-family:var(--font-h);color:var(--gold);min-width:40px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
-<span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
-<div style="flex:1;min-width:0;">
-<div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>
-<div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${side}</div>
 </div>
 </div>`;
 });
@@ -2049,15 +2036,15 @@ const allEvents = [
 ...hRed   .map(g=>({g, icon:'🟥', color:'var(--red)',      side:home})),
 ...aRed   .map(g=>({g, icon:'🟥', color:'var(--red)',      side:away})),
 ].sort((a,b) => {
-const ma = parseInt(a.g.match(/(\d+)/)?.[1]||'0');
-const mb = parseInt(b.g.match(/(\d+)/)?.[1]||'0');
+const ma = parseInt((a.g.match(/(\d+)/)||['0'])[1]);
+const mb = parseInt((b.g.match(/(\d+)/)||['0'])[1]);
 return ma - mb;
 });
 if (allEvents.length) {
-html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Eventos (datos V1)</div>`;
+html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Eventos del Partido</div>`;
 allEvents.forEach(({g, icon, color, side}) => {
-const minM  = g.match(/(\d+)\+?(\d+)?'/);
-const min   = minM ? minM[0] : "?'";
+const minM   = g.match(/(\d+)\+?(\d+)?'/);
+const min    = minM ? minM[0] : "?'";
 const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').replace(/[()]/g,'').trim() || g;
 html += `
 <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
@@ -2072,11 +2059,13 @@ html += `
 } else {
 html += `<div class="empty" style="padding:16px 0;">
 <span class="empty-icon">${isMatchLive?'⏱':'📋'}</span>
-<span class="empty-text">${isMatchLive?'Partido en curso — datos llegando...':'Sin eventos detallados para este partido'}</span>
+<span class="empty-text">${isMatchLive?'Partido en curso — actualiza en un momento':'Sin eventos detallados para este partido'}</span>
 </div>`;
 }
 }
-}
+try {
+const sr = await fetchV2(`/lookup/event_stats/${matchId}`);
+const statsList = sr?.eventstats || sr?.stats || [];
 if (statsList.length > 0) {
 html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
 const labels = {
@@ -2086,15 +2075,15 @@ const labels = {
 'Corners':'Corners','Corner Kicks':'Corners',
 'Fouls':'Faltas','Yellow Cards':'Amarillas',
 'Red Cards':'Rojas','Offsides':'Fuera de juego',
-'Saves':'Atajadas','Passes':'Pases'
+'Saves':'Atajadas','Passes':'Pases','Passes Accurate':'Pases precisos'
 };
 statsList.forEach(s => {
-const hv = String(s.intHome ?? s.strHome ?? '–').replace('%','');
-const av = String(s.intAway ?? s.strAway ?? '–').replace('%','');
-const hn = parseFloat(hv) || 0;
-const an = parseFloat(av) || 0;
-const total = hn + an;
-const hPct  = total > 0 ? Math.round(hn/total*100) : 50;
+const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
+const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
+const hn    = parseFloat(hv)||0;
+const an    = parseFloat(av)||0;
+const total = hn+an;
+const hPct  = total>0 ? Math.round(hn/total*100) : 50;
 const label = labels[s.strStat||s.strType||''] || s.strStat || s.strType || '';
 if (!label) return;
 html += `
@@ -2110,45 +2099,43 @@ html += `
 </div>`;
 });
 }
+} catch(e) {}
+try {
+const lr = await fetchV2(`/lookup/event_lineup/${matchId}`);
+const lineup = lr?.lineup || [];
 if (lineup.length > 0) {
-const homeXI = lineup.filter(p => (p.strHome||'').toLowerCase()==='home');
-const awayXI = lineup.filter(p => (p.strHome||'').toLowerCase()==='away');
+const homeXI = lineup.filter(p=>(p.strHome||'').toLowerCase()==='home');
+const awayXI = lineup.filter(p=>(p.strHome||'').toLowerCase()==='away');
 if (homeXI.length || awayXI.length) {
 html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">👕 Alineaciones</div>`;
 html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
-[[homeXI, home, 'var(--primary2)'], [awayXI, away, 'var(--green)']].forEach(([players, tname, color]) => {
+[[homeXI,home,'var(--primary2)'],[awayXI,away,'var(--green)']].forEach(([players,tname,color])=>{
 const posOrder = {goalkeeper:0,goalie:0,defender:1,midfielder:2,forward:3,striker:3};
-const sorted = [...players].sort((a,b) => {
-return (posOrder[(a.strPosition||'').toLowerCase()]??5) -
-(posOrder[(b.strPosition||'').toLowerCase()]??5);
-});
+const sorted = [...players].sort((a,b)=>
+(posOrder[(a.strPosition||'').toLowerCase()]??5)-(posOrder[(b.strPosition||'').toLowerCase()]??5)
+);
 const posIcon = pos => {
-pos = (pos||'').toLowerCase();
-if(pos.includes('goal')||pos.includes('keeper')) return '🧤';
+pos=(pos||'').toLowerCase();
+if(pos.includes('goal')||pos.includes('keep')) return '🧤';
 if(pos.includes('def')) return '🛡';
 if(pos.includes('mid')) return '⚙️';
 if(pos.includes('for')||pos.includes('strik')) return '⚡';
 return '👤';
 };
 html += `<div>
-<div style="font-size:0.75em;font-weight:800;color:${color};margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tname}</div>
+<div style="font-size:0.75em;font-weight:800;color:${color};margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${tname}</div>
 ${sorted.slice(0,11).map(p=>`
 <div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">
 <span>${posIcon(p.strPosition)}</span>
-<span style="color:var(--gold);min-width:18px;font-weight:800;font-size:0.9em;">${p.strNumber||p.intJerseyNumber||''}</span>
-<span style="color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.strPlayer||''}</span>
+<span style="color:var(--gold);min-width:18px;font-weight:800;">${p.strNumber||''}</span>
+<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.strPlayer||''}</span>
 </div>`).join('')}
 </div>`;
 });
 html += `</div>`;
 }
 }
-if (!html.includes('Cronología') && !html.includes('Eventos') && !html.includes('empty')) {
-html += `<div class="empty" style="padding:16px 0;">
-<span class="empty-icon">📋</span>
-<span class="empty-text">Sin datos detallados disponibles aún</span>
-</div>`;
-}
+} catch(e) {}
 $('statsContent').innerHTML = html;
 } catch(e) {
 console.error('openStats error:', e);
@@ -2156,7 +2143,6 @@ $('statsContent').innerHTML = `
 <div class="empty">
 <span class="empty-icon">❌</span>
 <span class="empty-text" style="color:var(--red);">Error: ${e.message}</span>
-<span class="empty-text" style="font-size:0.72em;color:var(--muted2);margin-top:8px;">Verifica conexión e intenta de nuevo</span>
 </div>`;
 }
 }
@@ -4198,4 +4184,4 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-</html>
+  </html>
