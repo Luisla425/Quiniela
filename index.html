@@ -962,6 +962,7 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 <button class="standing-tab" onclick="loadStandings('4331','bundesliga',this)">🇩🇪 Bundesliga</button>
 <button class="standing-tab" onclick="loadStandings('4334','ligue1',this)">🇫🇷 Ligue 1</button>
 <button class="standing-tab" onclick="loadStandings('4346','mls',this)">🇺🇸 MLS</button>
+<button class="standing-tab" onclick="loadStandings('4344','copadelrey',this)">🏆🇪🇸 Copa Rey</button>
 </div>
 <div id="standingsContent">
 <div class="empty"><span class="empty-icon">⏳</span></div>
@@ -1109,6 +1110,7 @@ const TOURNAMENTS = [
 { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
 { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
 { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
+{ id:'copadelrey', name:'Copa del Rey',    flag:'🏆🇪🇸', lid:'4344' },
 { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
 { id:'mls',      name:'MLS',               flag:'🇺🇸', lid:'4346' },
 ];
@@ -4184,4 +4186,4 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-  </html>
+</html>
