@@ -1264,7 +1264,7 @@ const TOURNAMENTS = [
   { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
   { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
   { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
-  { id:'copadelrey', name:'Copa del Rey', flag:'🏆🇪🇸', lid:'4483', teamBlacklist:['port vale','bristol city','arsenal','chelsea','liverpool','manchester','tottenham','everton','newcastle','brighton','aston villa','wolverhampton','leicester','nottingham','brentford','fulham','crystal palace','bournemouth','burnley','luton','sheffield','leeds','sunderland','ipswich','oxford','plymouth','portsmouth','stoke','watford','west brom','coventry','hull','blackburn','swansea','cardiff','middlesbrough','norwich','millwall','derby','preston'] },
+  { id:'copadelrey', name:'Copa del Rey', flag:'🏆🇪🇸', lid:'4483', teamBlacklist:['port vale','bristol city','arsenal','chelsea','liverpool','manchester united','manchester city','tottenham','everton','newcastle','brighton','aston villa','wolverhampton','leicester','nottingham forest','brentford','fulham','crystal palace','bournemouth','burnley','west ham','southampton','luton','sheffield united','sheffield wednesday','leeds','sunderland','ipswich','oxford','plymouth','portsmouth','stoke','watford','west brom','coventry','hull','blackburn','swansea','cardiff','middlesbrough','norwich','millwall','derby','preston','blackpool','wigan','bolton','charlton','rotherham','birmingham','reading','huddersfield','peterborough','gillingham','fleetwood','stockport','wrexham','exeter','newport','grimsby','leyton orient','walsall','shrewsbury','northampton','mansfield','bradford','cambridge','swindon','crewe','rochdale','oldham','cheltenham'] },
   { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
   { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
 ];
@@ -1988,14 +1988,14 @@ async function doSync() {
     try {
       const r = await fetch(`${API_V1}/eventsnextleague.php?id=${t.lid}`);
       if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
-        if (t.teamBlacklist) { var h=(ev.strHomeTeam||'').toLowerCase(), a=(ev.strAwayTeam||'').toLowerCase(); if (t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
+        if (t.teamBlacklist) { const h=(ev.strHomeTeam||'').toLowerCase(),a=(ev.strAwayTeam||'').toLowerCase(); if(t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
     } catch(e) {}
     try {
       const r = await fetch(`${API_V1}/eventspastleague.php?id=${t.lid}`);
       if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
-        if (t.teamBlacklist) { var h=(ev.strHomeTeam||'').toLowerCase(), a=(ev.strAwayTeam||'').toLowerCase(); if (t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
+        if (t.teamBlacklist) { const h=(ev.strHomeTeam||'').toLowerCase(),a=(ev.strAwayTeam||'').toLowerCase(); if(t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
     } catch(e) {}
@@ -2100,7 +2100,19 @@ function setDayMatches() {
 }
 
 function bettingClosed() {
-  return dayMatches.some(m => isLive(m.status) || isFinished(m.status));
+  // Cerrado si algún partido está en vivo o terminado
+  if (dayMatches.some(m => isLive(m.status) || isFinished(m.status))) return true;
+  // También cerrado si faltan menos de 2 horas para el primer partido
+  const vzNow = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Caracas'}));
+  for (const m of dayMatches) {
+    if (!m.time) continue;
+    const [hh, mm] = m.time.split(':').map(Number);
+    const kick = new Date(vzNow);
+    kick.setHours(hh, mm, 0, 0);
+    const diffMs = kick - vzNow;
+    if (diffMs > 0 && diffMs < 2 * 60 * 60 * 1000) return true;
+  }
+  return false;
 }
 
 // ═══════════════════════════════════════════
@@ -3110,10 +3122,23 @@ async function doJoinGroup() {
 }
 
 async function deleteGroup(gid, name) {
-  if(!confirm(`¿Eliminar el grupo "${name}"? Esta acción no se puede deshacer.`)) return;
-  await db.collection('groups').doc(gid).delete();
-  toast('✅ Grupo eliminado','success');
-  renderGroups();
+  if(!confirm(`¿Eliminar el grupo "${name}"?\nSe borrarán TODAS las predicciones y datos. No se puede deshacer.`)) return;
+  try {
+    toast('🗑️ Eliminando grupo y datos...','info',3000);
+    // Borrar todas las predicciones del grupo
+    const preds = await db.collection('predictions').where('groupId','==',gid).get();
+    if (preds.docs.length) {
+      const b = db.batch();
+      preds.docs.forEach(d => b.delete(d.ref));
+      await b.commit();
+    }
+    // Borrar el grupo
+    await db.collection('groups').doc(gid).delete();
+    toast('✅ Grupo y predicciones eliminados','success');
+    renderGroups();
+  } catch(e) {
+    toast('Error: '+e.message,'error');
+  }
 }
 
 function shareGroup(code, name) {
@@ -5059,6 +5084,7 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
 
