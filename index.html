@@ -6,11 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0d0d14">
 <title>⚽ Quiniela LuAn</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<link rel="preconnect" href="https:
+<link href="https:
+<script src="https:
+<script src="https:
+<script src="https:
 <style>
 :root {
 --bg:       #0d0d14;
@@ -962,7 +962,6 @@ border:1px solid rgba(245,197,66,0.2); margin-bottom:14px;
 <button class="standing-tab" onclick="loadStandings('4331','bundesliga',this)">🇩🇪 Bundesliga</button>
 <button class="standing-tab" onclick="loadStandings('4334','ligue1',this)">🇫🇷 Ligue 1</button>
 <button class="standing-tab" onclick="loadStandings('4481','uel',this)">🌍 Europa League</button>
-<button class="standing-tab" onclick="loadStandings('4483','copadelrey',this)">🏆🇪🇸 Copa Rey</button>
 </div>
 <div id="standingsContent">
 <div class="empty"><span class="empty-icon">⏳</span></div>
@@ -1089,8 +1088,8 @@ firebase.initializeApp(fbConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
 const API_KEY = '333289';
-const API_V1  = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
-const API_V2  = `https://www.thesportsdb.com/api/v2/json`;
+const API_V1  = `https:
+const API_V2  = `https:
 async function fetchV2(endpoint) {
 const res = await fetch(`${API_V2}${endpoint}`, {
 headers: {
@@ -1109,7 +1108,7 @@ const TOURNAMENTS = [
 { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
 { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
 { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
-{ id:'copadelrey', name:'Copa del Rey',    flag:'🏆🇪🇸', lid:'4483' },
+{ id:'copadelrey', name:'Copa del Rey',      flag:'🏆🇪🇸', lid:'4483', countryFilter:'Spain' },
 { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
 { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
 ];
@@ -1231,7 +1230,7 @@ msg += `${pos} ${name} ${pts}p ${ex}${co}\n`;
 });
 msg += `${'▬'.repeat(18)}\n`;
 msg += `_🔐 ${code} · luislárez · Arichuna_`;
-window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+window.open(`https:
 }
 function openRankWAMenu() {
 const { name, code, ranked } = _currentRankData;
@@ -1295,7 +1294,7 @@ text: `📣 *¡Se viene la próxima jornada!* ⚽
 Hola a todos en *"${gname}"* 👋
 Recuerden predecir los marcadores *antes del inicio del primer partido*.
 ⚠️ El que no predice antes del pitazo inicial recibe 0-0 en todos los partidos automáticamente.
-📲 Entra ya: https://luislarezquiniela.github.io
+📲 Entra ya: https:
 ¡Que empiece el show! 🏆
 _— Luis Lárez_`
 },
@@ -1349,13 +1348,13 @@ navigator.clipboard?.writeText(msg.text.replace(/\*/g,''))
 .then(()=>toast('✅ Mensaje copiado — pégalo en tu grupo de WhatsApp','success',4000))
 .catch(()=>toast('Copia el mensaje manualmente','info',4000));
 } else {
-window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg.text)}`, '_blank');
+window.open(`https:
 }
 const modal = document.getElementById('rankWAModal');
 if (modal) modal.remove();
 }
 function inviteToApp() {
-const appUrl = 'https://luisla425.github.io/Quiniela/';
+const appUrl = 'https:
 const code = me.personalInviteCode || '';
 const nombre = me.name || me.username || '';
 const msg = encodeURIComponent(
@@ -1375,7 +1374,7 @@ const msg = encodeURIComponent(
 `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
 `— luislárez`
 );
-window.open(`https://wa.me/?text=${msg}`, '_blank');
+window.open(`https:
 }
 function userColor(username) {
 const colors = [
@@ -1675,11 +1674,17 @@ for (const t of TOURNAMENTS) {
 if (!myTournaments.includes(t.id)) continue;
 try {
 const r = await fetch(`${API_V1}/eventsnextleague.php?id=${t.lid}`);
-if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>found.set(ev.idEvent,parseEvent(ev,t))); }
+if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
+if (t.countryFilter && ev.strCountry && !ev.strCountry.toLowerCase().includes(t.countryFilter.toLowerCase())) return;
+found.set(ev.idEvent,parseEvent(ev,t));
+}); }
 } catch(e) {}
 try {
 const r = await fetch(`${API_V1}/eventspastleague.php?id=${t.lid}`);
-if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>found.set(ev.idEvent,parseEvent(ev,t))); }
+if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
+if (t.countryFilter && ev.strCountry && !ev.strCountry.toLowerCase().includes(t.countryFilter.toLowerCase())) return;
+found.set(ev.idEvent,parseEvent(ev,t));
+}); }
 } catch(e) {}
 }
 try {
@@ -2650,7 +2655,7 @@ const msg = encodeURIComponent(
 `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
 `— luislárez`
 );
-window.open(`https://wa.me/?text=${msg}`, '_blank');
+window.open(`https:
 }
 let _currentRankData = { name:'', ranked:[] };
 async function openGroupRanking(gid) {
@@ -2906,7 +2911,7 @@ _— Luis Lárez_`
 : `⏰ *Quiniela LuAn* — Recordatorio
 Hola ${nombre}! 👋 Aún no has predicho la jornada de hoy.
 ⚠️ *Si no predices antes del inicio del primer partido, el sistema te pondrá automáticamente 0-0 en todos los partidos.*
-📲 Entra ya y predice: https://luislarezquiniela.github.io
+📲 Entra ya y predice: https:
 _— Luis Lárez_`
 },
 {
@@ -2915,7 +2920,7 @@ icon: '🎊',
 text: `🎊 *¡Bienvenido a Quiniela LuAn!* 🎊
 Hola ${nombre}! 👋 Qué bueno tenerte con nosotros.
 ⚽ Aquí predecimos los marcadores de las mejores ligas del mundo y competimos por ser el campeón del grupo.
-📲 La app: https://luislarezquiniela.github.io
+📲 La app: https:
 *¿Cómo jugar?*
 1. Entra a la app y predice los marcadores antes del inicio de cada partido
 2. ⭐ 5 pts si aciertas el marcador exacto
@@ -2929,7 +2934,7 @@ icon: '🔥',
 text: `🔥 *¡Hay jornada hoy!* — Quiniela LuAn
 Hola ${nombre}! Hoy hay partidos 🎯
 Recuerda predecir tus marcadores *antes del inicio del primer partido*.
-👉 https://luislarezquiniela.github.io
+👉 https:
 El que no predice, se lleva un 0-0 en todos los partidos automáticamente 😅
 ¡Suerte a todos! ⚽🏆
 _— Luis Lárez_`
@@ -2940,7 +2945,7 @@ icon: '📊',
 text: `📊 *Resultados Quiniela LuAn*
 Hola ${nombre}! Ya se procesaron los puntos de la jornada.
 🏆 Revisa cómo quedaste en la clasificación del grupo:
-👉 https://luislarezquiniela.github.io
+👉 https:
 ¡Hasta la próxima jornada! ⚽
 _— Luis Lárez_`
 },
@@ -2995,9 +3000,9 @@ const msg = window._waMenuMsgs[idx];
 if (msg.label.includes('personalizado')) {
 const custom = prompt('Escribe tu mensaje personalizado:');
 if (!custom) return;
-window.open(`https://wa.me/${num}?text=${encodeURIComponent(custom)}`, '_blank');
+window.open(`https:
 } else {
-window.open(`https://wa.me/${num}?text=${encodedText}`, '_blank');
+window.open(`https:
 }
 const modal = document.getElementById('waMenuModal');
 if (modal) modal.remove();
@@ -3020,7 +3025,7 @@ const msg = encodeURIComponent(
 `*${tempPass}*\n\n` +
 `Entra con esta clave y cámbiala desde el menú de tu perfil.`
 );
-window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+window.open(`https:
 toast(`✅ Contraseña temporal generada para ${username}`,'success');
 } catch(e) {
 toast('Error: '+e.message,'error');
