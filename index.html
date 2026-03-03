@@ -1264,7 +1264,7 @@ const TOURNAMENTS = [
   { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
   { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
   { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
-  { id:'copadelrey', name:'Copa del Rey',      flag:'🏆🇪🇸', lid:'4483', countryFilter:'Spain' },
+  { id:'copadelrey', name:'Copa del Rey',      flag:'🏆🇪🇸', lid:'4483', leagueFilter:'copa del rey' },
   { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
   { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
 ];
@@ -1988,14 +1988,14 @@ async function doSync() {
     try {
       const r = await fetch(`${API_V1}/eventsnextleague.php?id=${t.lid}`);
       if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
-        if (t.countryFilter && ev.strCountry && !ev.strCountry.toLowerCase().includes(t.countryFilter.toLowerCase())) return;
+        if (t.leagueFilter && !(ev.strLeague||'').toLowerCase().includes(t.leagueFilter)) return;
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
     } catch(e) {}
     try {
       const r = await fetch(`${API_V1}/eventspastleague.php?id=${t.lid}`);
       if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
-        if (t.countryFilter && ev.strCountry && !ev.strCountry.toLowerCase().includes(t.countryFilter.toLowerCase())) return;
+        if (t.leagueFilter && !(ev.strLeague||'').toLowerCase().includes(t.leagueFilter)) return;
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
     } catch(e) {}
@@ -5059,4 +5059,5 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
