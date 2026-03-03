@@ -5088,19 +5088,21 @@ async function cleanOldPreds() {
   out.innerHTML = '⏳ Analizando predicciones...';
 
   try {
-    const snap = await db.collection('predictions').get();
-    const toDelete = snap.docs.filter(d => {
-      const p = d.data();
-      return p.jornadaDate !== today;
-    });
+    // Firestore no soporta != en versiones compat, usamos dos queries: antes y después de hoy
+    const [snapBefore, snapAfter] = await Promise.all([
+      db.collection('predictions').where('jornadaDate', '<', today).get(),
+      db.collection('predictions').where('jornadaDate', '>', today).get(),
+    ]);
+
+    const toDelete = [...snapBefore.docs, ...snapAfter.docs];
 
     if (!toDelete.length) {
-      out.innerHTML = '✅ No hay predicciones antiguas. Todo está limpio.';
+      out.innerHTML = `✅ No hay predicciones antiguas. Solo existen las de hoy (${today}).`;
       toast('✅ Nada que limpiar', 'success');
       return;
     }
 
-    if (!confirm(`Se encontraron ${toDelete.length} predicciones antiguas.\n¿Confirmas borrarlas?`)) {
+    if (!confirm(`Se encontraron ${toDelete.length} predicciones antiguas (fuera de ${today}).\n¿Confirmas borrarlas?`)) {
       out.innerHTML = 'Operación cancelada.';
       return;
     }
@@ -5120,7 +5122,7 @@ async function cleanOldPreds() {
     }
     await batch.commit();
 
-    out.innerHTML = `✅ ${toDelete.length} predicciones antiguas borradas. Las de hoy (${today}) se conservaron.`;
+    out.innerHTML = `✅ ${toDelete.length} predicciones antiguas borradas.<br>Las de hoy (${today}) se conservaron.`;
     toast(`🗑️ ${toDelete.length} predicciones antiguas eliminadas`, 'success');
   } catch(e) {
     out.innerHTML = `❌ Error: ${e.message}`;
