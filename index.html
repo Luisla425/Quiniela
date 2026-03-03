@@ -2299,31 +2299,56 @@ async function openStats(matchId) {
     const home  = match?.home || '';
     const away  = match?.away || '';
 
-    // ── PASO 1: Datos básicos del evento (V2 + V1 fallback) ────
+    // ── PASO 1: Datos frescos del evento — siempre directo a la API ────
     let evFinal = null;
+
+    // Intento A: V1 lookupevent (más confiable para scores en vivo)
     try {
-      const r2 = await fetchV2(`/lookup/event/${matchId}`);
-      evFinal = r2?.events?.[0] || r2?.event || null;
+      const r1 = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
+      const d1 = await r1.json();
+      evFinal = d1?.events?.[0] || null;
     } catch(e) {}
 
+    // Intento B: V2 como fallback
     if (!evFinal) {
       try {
-        const r1 = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
-        const d1 = await r1.json();
-        evFinal = d1?.events?.[0] || null;
+        const r2 = await fetchV2(`/lookup/event/${matchId}`);
+        evFinal = r2?.events?.[0] || r2?.event || null;
       } catch(e) {}
     }
 
-    const scoreH     = evFinal?.intHomeScore ?? match?.homeScore ?? '–';
-    const scoreA     = evFinal?.intAwayScore ?? match?.awayScore ?? '–';
-    const statusStr  = evFinal?.strStatus || match?.status || '';
-    // strProgress for football = minute ("27", "45+2") or status text
-    const minuteRaw = evFinal?.strProgress || evFinal?.intProgress || '';
-    const minuteDisplay = minuteRaw && !['FT','AET','PEN','HT'].includes(String(minuteRaw).toUpperCase())
-      ? minuteRaw : '';
+    // Intento C: livescore V2 — para partidos en vivo trae el score más actualizado
+    let liveEvData = null;
+    if (isLive(match?.status) || isLive(evFinal?.strStatus)) {
+      try {
+        const lr = await fetchV2('/livescore/soccer');
+        const lives = lr?.livescore || lr?.events || [];
+        liveEvData = lives.find(e => String(e.idEvent||e.id) === String(matchId)) || null;
+      } catch(e) {}
+    }
+
+    // Usar lo más fresco disponible para el score
+    const freshEv  = liveEvData || evFinal;
+    const scoreH   = freshEv?.intHomeScore ?? evFinal?.intHomeScore ?? match?.homeScore ?? '–';
+    const scoreA   = freshEv?.intAwayScore ?? evFinal?.intAwayScore ?? match?.awayScore ?? '–';
+    const statusStr = freshEv?.strStatus || evFinal?.strStatus || match?.status || '';
+    const minuteRaw = freshEv?.strProgress || freshEv?.intProgress ||
+                      evFinal?.strProgress || evFinal?.intProgress || '';
+    const minuteDisplay = minuteRaw && !['FT','AET','PEN','HT','MATCH FINISHED'].includes(
+      String(minuteRaw).toUpperCase()) ? minuteRaw : '';
     const venue      = evFinal?.strVenue || '';
     const leagueName = evFinal?.strLeague || match?.tournamentName || '';
-    const isMatchLive = isLive(statusStr);
+    const isMatchLive = isLive(statusStr) || isLive(match?.status);
+
+    // Actualizar allMatches en memoria con el score más reciente
+    if (scoreH !== '–' && scoreA !== '–') {
+      const idx = allMatches.findIndex(m => String(m.id) === String(matchId));
+      if (idx !== -1) {
+        allMatches[idx].homeScore = +scoreH;
+        allMatches[idx].awayScore = +scoreA;
+        allMatches[idx].status = statusStr || allMatches[idx].status;
+      }
+    }
 
     let html = '';
 
@@ -2334,7 +2359,7 @@ async function openStats(matchId) {
           ${leagueName}
           ${isMatchLive
             ? `<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>
-               <button onclick="openStats(${matchId})" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>`
+               <button onclick="openStats('${matchId}')" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>`
             : ''}
         </div>
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;">
@@ -2344,22 +2369,23 @@ async function openStats(matchId) {
           </div>
           <div style="text-align:left;font-weight:800;font-size:0.88em;line-height:1.4;">${away}</div>
         </div>
-        ${isMatchLive && minuteDisplay ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ ${minuteDisplay}'</div>` : ''}
+        ${isMatchLive && minuteDisplay
+          ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ ${minuteDisplay}'</div>`
+          : ''}
         ${venue ? `<div style="color:var(--muted2);font-size:0.7em;margin-top:4px;">🏟 ${venue}</div>` : ''}
       </div>`;
 
-    // ── PASO 2: Timeline — 3 intentos en orden ─────────────────
+    // ── PASO 2: Timeline — 4 intentos en orden ─────────────────
     let timelineEvents = [];
-    let timelineSource = '';
 
     // Intento A: V2 event_timeline
     try {
       const r = await fetchV2(`/lookup/event_timeline/${matchId}`);
       const tl = r?.timeline || [];
-      if (tl.length > 0) { timelineEvents = tl; timelineSource = 'V2'; }
+      if (tl.length > 0) timelineEvents = tl;
     } catch(e) {}
 
-    // Intento B: V1 lookuptimeline (más confiable para partidos terminados)
+    // Intento B: V1 lookuptimeline
     if (!timelineEvents.length) {
       try {
         const r = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
@@ -2367,62 +2393,64 @@ async function openStats(matchId) {
         if (txt && !txt.trim().startsWith('<')) {
           const d = JSON.parse(txt);
           const tl = d?.timeline || d?.events || [];
-          if (tl.length > 0) { timelineEvents = tl; timelineSource = 'V1-timeline'; }
+          if (tl.length > 0) timelineEvents = tl;
         }
       } catch(e) {}
     }
 
-    // Intento C: V1 lookupeventstats (tiene yellow/red/goals como texto)
-    // Already have evFinal with strHomeGoalDetails etc — use as last resort
+    // Intento C: livescore V2 — el evento inline a veces trae strTimeline o eventos embebidos
+    if (!timelineEvents.length && liveEvData) {
+      const tl = liveEvData?.timeline || liveEvData?.events || [];
+      if (tl.length > 0) timelineEvents = tl;
+    }
+
+    // ── Renderizar timeline si hay eventos ────────────────────
+    const renderTimelineEvent = (t) => {
+      const min     = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
+      const type    = (t.strType || t.strEvent || '').toLowerCase();
+      const player  = t.strPlayer || t.strPlayer1 || '';
+      const player2 = t.strPlayer2 || t.strAssist || '';
+      const isHome  = (t.strHome || t.strSide || '').toLowerCase() === 'home';
+      const side    = isHome ? home : away;
+
+      let icon = '', color = 'var(--text)', extra = '';
+
+      if (type.includes('goal')) {
+        if (type.includes('own'))     { icon='⚽🔴'; color='var(--red)'; extra=' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>'; }
+        else if (type.includes('pen') && !type.includes('miss')) { icon='⚽⚡'; color='var(--gold)'; extra=' <span style="color:var(--gold);font-size:0.75em;">(Penal)</span>'; }
+        else if (type.includes('miss')) { icon='❌'; color='var(--muted2)'; extra=' <span style="color:var(--muted2);font-size:0.75em;">(Penal fallado)</span>'; }
+        else { icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)'; }
+        if (player2 && !type.includes('miss')) extra += ` <span style="color:var(--muted2);font-size:0.72em;">🅰 ${player2}</span>`;
+      }
+      else if (type.includes('yellow') && type.includes('red')) { icon='🟨🟥'; color='var(--red)'; }
+      else if (type.includes('yellow'))  { icon='🟨'; color='var(--gold)'; }
+      else if (type.includes('red'))     { icon='🟥'; color='var(--red)'; }
+      else if (type.includes('sub') || type.includes('substitut')) {
+        icon='🔄'; color='var(--muted2)';
+        if (player2) extra=` <span style="color:var(--red);font-size:0.75em;">▼ ${player2}</span>`;
+      }
+      else if (type.includes('var')) { icon='📺'; color='var(--blue)'; }
+      else return '';
+
+      return `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+          <span style="font-family:var(--font-h);color:var(--gold);min-width:40px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
+          <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:0.88em;color:${color};">${player||'—'}${extra}</div>
+            <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${isHome?'🏠':'✈️'} ${side}</div>
+          </div>
+        </div>`;
+    };
 
     if (timelineEvents.length > 0) {
-      // ── Renderizar timeline (V2 o V1 mismo formato) ──────────
       html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Cronología del Partido</div>`;
-
       const sorted = [...timelineEvents].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
-
-      sorted.forEach(t => {
-        const min     = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
-        const type    = (t.strType || t.strEvent || '').toLowerCase();
-        const player  = t.strPlayer || t.strPlayer1 || '';
-        const player2 = t.strPlayer2 || t.strAssist || '';
-        const isHome  = (t.strHome || t.strSide || '').toLowerCase() === 'home';
-        const side    = isHome ? home : away;
-
-        let icon = '', color = 'var(--text)', extra = '';
-
-        if (type.includes('goal')) {
-          if (type.includes('own'))      { icon='⚽🔴'; color='var(--red)';   extra=' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>'; }
-          else if (type.includes('pen') && !type.includes('miss')) { icon='⚽⚡'; color='var(--gold)'; extra=' <span style="color:var(--gold);font-size:0.75em;">(Penal)</span>'; }
-          else if (type.includes('miss')){ icon='❌';   color='var(--muted2)'; extra=' <span style="color:var(--muted2);font-size:0.75em;">(Penal fallado)</span>'; }
-          else { icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)'; }
-          if (player2 && !type.includes('miss')) extra += ` <span style="color:var(--muted2);font-size:0.72em;">🅰 ${player2}</span>`;
-        }
-        else if (type.includes('yellow') && type.includes('red')) { icon='🟨🟥'; color='var(--red)'; }
-        else if (type.includes('yellow'))  { icon='🟨'; color='var(--gold)'; }
-        else if (type.includes('red'))     { icon='🟥'; color='var(--red)'; }
-        else if (type.includes('sub') || type.includes('substitut')) {
-          icon='🔄'; color='var(--muted2)';
-          if (player2) extra=` <span style="color:var(--red);font-size:0.75em;">▼ ${player2}</span>`;
-        }
-        else if (type.includes('var'))  { icon='📺'; color='var(--blue)'; }
-        else { return; } // skip unknown types
-
-        html += `
-          <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-            <span style="font-family:var(--font-h);color:var(--gold);min-width:40px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
-            <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:800;font-size:0.88em;color:${color};">${player}${extra}</div>
-              <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${isHome?'🏠':'✈️'} ${side}</div>
-            </div>
-          </div>`;
-      });
+      sorted.forEach(t => { html += renderTimelineEvent(t) || ''; });
 
     } else {
-      // ── Intento C: parsear campos de texto del evento (V1) ────
+      // Intento D: parsear strHomeGoalDetails / strAwayGoalDetails del evento V1
       const parseList = s => s ? s.split(';').map(x=>x.trim()).filter(Boolean) : [];
-
       const hGoals  = parseList(evFinal?.strHomeGoalDetails);
       const aGoals  = parseList(evFinal?.strAwayGoalDetails);
       const hYellow = parseList(evFinal?.strHomeYellowCards);
@@ -2430,7 +2458,7 @@ async function openStats(matchId) {
       const hRed    = parseList(evFinal?.strHomeRedCards);
       const aRed    = parseList(evFinal?.strAwayRedCards);
 
-      const allEvents = [
+      const allTextEvents = [
         ...hGoals .map(g=>({g, icon:'⚽', color:'var(--primary2)', side:home})),
         ...aGoals .map(g=>({g, icon:'⚽', color:'var(--green)',    side:away})),
         ...hYellow.map(g=>({g, icon:'🟨', color:'var(--gold)',     side:home})),
@@ -2443,9 +2471,9 @@ async function openStats(matchId) {
         return ma - mb;
       });
 
-      if (allEvents.length) {
+      if (allTextEvents.length) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Eventos del Partido</div>`;
-        allEvents.forEach(({g, icon, color, side}) => {
+        allTextEvents.forEach(({g, icon, color, side}) => {
           const minM   = g.match(/(\d+)\+?(\d+)?'/);
           const min    = minM ? minM[0] : "?'";
           const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').replace(/[()]/g,'').trim() || g;
@@ -2460,10 +2488,21 @@ async function openStats(matchId) {
             </div>`;
         });
       } else {
-        html += `<div class="empty" style="padding:16px 0;">
-          <span class="empty-icon">${isMatchLive?'⏱':'📋'}</span>
-          <span class="empty-text">${isMatchLive?'Partido en curso — actualiza en un momento':'Sin eventos detallados para este partido'}</span>
-        </div>`;
+        // Sin datos de ninguna fuente — mostrar mensaje útil
+        html += `
+          <div style="background:rgba(255,140,66,0.1);border:1px solid rgba(255,140,66,0.3);border-radius:var(--r-sm);padding:14px;text-align:center;">
+            <div style="font-size:1.5em;margin-bottom:6px;">${isMatchLive ? '⏱' : '📋'}</div>
+            <div style="font-weight:800;color:var(--orange);font-size:0.85em;">
+              ${isMatchLive
+                ? 'La API aún no reporta eventos para este partido'
+                : 'Sin eventos detallados disponibles'}
+            </div>
+            <div style="font-size:0.72em;color:var(--muted2);margin-top:4px;">
+              ${isMatchLive
+                ? 'Toca 🔄 Actualizar en unos segundos'
+                : 'TheSportsDB no tiene datos de este partido'}
+            </div>
+          </div>`;
       }
     }
 
@@ -2474,7 +2513,6 @@ async function openStats(matchId) {
 
       if (statsList.length > 0) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
-
         const labels = {
           'Possession':'Posesión','Ball Possession':'Posesión',
           'Shots Total':'Tiros totales','Total Shots':'Tiros totales',
@@ -2484,7 +2522,6 @@ async function openStats(matchId) {
           'Red Cards':'Rojas','Offsides':'Fuera de juego',
           'Saves':'Atajadas','Passes':'Pases','Passes Accurate':'Pases precisos'
         };
-
         statsList.forEach(s => {
           const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
           const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
@@ -2494,7 +2531,6 @@ async function openStats(matchId) {
           const hPct  = total>0 ? Math.round(hn/total*100) : 50;
           const label = labels[s.strStat||s.strType||''] || s.strStat || s.strType || '';
           if (!label) return;
-
           html += `
             <div style="margin-bottom:11px;">
               <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8em;font-weight:700;margin-bottom:4px;">
@@ -2514,15 +2550,12 @@ async function openStats(matchId) {
     try {
       const lr = await fetchV2(`/lookup/event_lineup/${matchId}`);
       const lineup = lr?.lineup || [];
-
       if (lineup.length > 0) {
         const homeXI = lineup.filter(p=>(p.strHome||'').toLowerCase()==='home');
         const awayXI = lineup.filter(p=>(p.strHome||'').toLowerCase()==='away');
-
         if (homeXI.length || awayXI.length) {
           html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">👕 Alineaciones</div>`;
           html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">`;
-
           [[homeXI,home,'var(--primary2)'],[awayXI,away,'var(--green)']].forEach(([players,tname,color])=>{
             const posOrder = {goalkeeper:0,goalie:0,defender:1,midfielder:2,forward:3,striker:3};
             const sorted = [...players].sort((a,b)=>
@@ -5177,7 +5210,3 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-
-
-
-
