@@ -2894,23 +2894,67 @@ async function searchPreds() {
   if (!names.length) { toast('Escribe al menos un nombre','error'); return; }
   const res = $('searchRes');
   res.innerHTML = '<div style="color:var(--muted2);font-size:0.85em;">Buscando...</div>';
+  const today = vzDate();
   let html = '';
+
   for (const uname of names) {
     const uSnap = await db.collection('users').where('username','==',uname).limit(1).get();
-    if (uSnap.empty) { html+=`<div style="color:var(--red);font-size:0.85em;padding:8px 0;">❌ "${uname}" no encontrado</div>`; continue; }
-    const u = {id:uSnap.docs[0].id,...uSnap.docs[0].data()};
-    const ps = await db.collection('predictions').where('userId','==',u.id).limit(30).get();
-    html += `<div class="card" style="margin-bottom:10px;">
-      <div style="font-weight:800;margin-bottom:8px;">👤 ${u.username} <span style="color:var(--muted2);font-size:0.8em;">#${u.playerNumber||'?'}</span></div>`;
-    ps.docs.forEach(d=>{
-      const p=d.data();
-      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82em;">
-        <span>${p.home} vs ${p.away}</span>
-        <span style="font-family:var(--font-h);color:var(--primary2);">${p.predictedHomeScore}—${p.predictedAwayScore}</span>
-      </div>`;
+    if (uSnap.empty) {
+      html += `<div style="color:var(--red);font-size:0.85em;padding:8px 0;">❌ "${uname}" no encontrado</div>`;
+      continue;
+    }
+    const u = { id: uSnap.docs[0].id, ...uSnap.docs[0].data() };
+
+    // Traer predicciones de HOY solamente
+    const ps = await db.collection('predictions')
+      .where('userId', '==', u.id)
+      .where('jornadaDate', '==', today)
+      .get();
+
+    // Deduplicar: por cada matchId quedarse con la más reciente (mayor timestamp)
+    const byMatch = {};
+    ps.docs.forEach(d => {
+      const p = d.data();
+      const mid = String(p.matchId);
+      const ts = p.timestamp?.seconds || 0;
+      if (!byMatch[mid] || ts > (byMatch[mid].timestamp?.seconds || 0)) {
+        byMatch[mid] = p;
+      }
     });
+
+    const unique = Object.values(byMatch);
+
+    // Ordenar por nombre del partido
+    unique.sort((a, b) => (a.home || '').localeCompare(b.home || ''));
+
+    html += `<div class="card" style="margin-bottom:10px;">
+      <div style="font-weight:800;margin-bottom:8px;">
+        👤 ${u.username}
+        <span style="color:var(--muted2);font-size:0.8em;">#${u.playerNumber||'?'}</span>
+        <span style="color:var(--green);font-size:0.72em;margin-left:6px;">${unique.length} partidos</span>
+      </div>`;
+
+    if (!unique.length) {
+      html += `<div style="color:var(--muted2);font-size:0.82em;padding:6px 0;">Sin predicciones para hoy</div>`;
+    } else {
+      unique.forEach(p => {
+        const isDefault = p.isDefault;
+        html += `
+          <div style="display:flex;justify-content:space-between;align-items:center;
+            padding:7px 0;border-bottom:1px solid var(--border);font-size:0.82em;">
+            <span style="color:${isDefault?'var(--muted2)':'var(--text)'};">
+              ${p.home} vs ${p.away}
+              ${isDefault ? '<span style="font-size:0.7em;color:var(--muted);"> (auto)</span>' : ''}
+            </span>
+            <span style="font-family:var(--font-h);color:${isDefault?'var(--muted2)':'var(--primary2)'};">
+              ${p.predictedHomeScore}—${p.predictedAwayScore}
+            </span>
+          </div>`;
+      });
+    }
     html += `</div>`;
   }
+
   res.innerHTML = html || '<div style="color:var(--muted2);">Sin resultados</div>';
 }
 
@@ -4744,76 +4788,85 @@ async function dedupPreds() {
   if (!me.isAdmin) return;
   if (!confirm('¿Limpiar predicciones duplicadas?\nSe conservará la más reciente por jugador+partido+grupo.')) return;
 
-  toast('🧹 Analizando predicciones...', 'info');
+  const out = $('adminOut');
+  out.innerHTML = '⏳ Cargando usuarios...';
+
   try {
-    const snap = await db.collection('predictions').get();
-    const docs = snap.docs.map(d => ({ ref: d.ref, id: d.id, ...d.data() }));
+    const usersSnap = await db.collection('users').get();
+    const userIds = usersSnap.docs.map(d => d.id);
+    if (!userIds.length) { out.innerHTML = '⚠️ Sin usuarios.'; return; }
 
-    console.log(`Total docs: ${docs.length}`);
+    const toDeleteRefs = [];
+    const report = [];
 
-    // ESTRATEGIA 1: duplicados con mismo groupId (o ambos sin groupId)
-    const byGroupMatch = new Map();
-    docs.forEach(doc => {
-      const userId  = doc.userId  || '';
-      const groupId = doc.groupId || 'NO_GROUP';
-      const matchId = String(doc.matchId || '');
-      const key = `${userId}||${groupId}||${matchId}`;
-      if (!byGroupMatch.has(key)) byGroupMatch.set(key, []);
-      byGroupMatch.get(key).push(doc);
-    });
+    for (let i = 0; i < userIds.length; i++) {
+      const uid = userIds[i];
+      const uname = usersSnap.docs[i].data().username || uid;
+      out.innerHTML = `⏳ Revisando ${uname} (${i+1}/${userIds.length})...`;
 
-    // ESTRATEGIA 2: duplicados con mismo userId+matchId sin importar groupId
-    // (doc viejo sin groupId + doc nuevo con groupId = mismo partido)
-    const byUserMatch = new Map();
-    docs.forEach(doc => {
-      const userId  = doc.userId  || '';
-      const matchId = String(doc.matchId || '');
-      const key = `${userId}||${matchId}`;
-      if (!byUserMatch.has(key)) byUserMatch.set(key, []);
-      byUserMatch.get(key).push(doc);
-    });
+      const pSnap = await db.collection('predictions').where('userId', '==', uid).get();
+      if (pSnap.empty) continue;
 
-    const toDeleteIds = new Set();
+      // Agrupar por clave de contenido: userId+groupId+matchId
+      // Esto detecta duplicados sin importar el docId
+      const byKey = new Map();
+      pSnap.docs.forEach(d => {
+        const p = d.data();
+        const gid = p.groupId || 'NO_GROUP';
+        const mid = String(p.matchId || '');
+        const key = `${uid}||${gid}||${mid}`;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push({ ref: d.ref, id: d.id, ts: p.timestamp?.seconds || 0, isDefault: p.isDefault || false });
+      });
 
-    // Procesar estrategia 1
-    byGroupMatch.forEach((groupDocs) => {
-      if (groupDocs.length <= 1) return;
-      groupDocs.sort((a, b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
-      const [, ...dupes] = groupDocs;
-      dupes.forEach(d => toDeleteIds.add(d.id));
-    });
+      byKey.forEach((dupes, key) => {
+        if (dupes.length <= 1) return;
 
-    // Procesar estrategia 2 — docs sin groupId cuando ya existe uno con groupId
-    byUserMatch.forEach((matchDocs) => {
-      if (matchDocs.length <= 1) return;
-      const withGroup    = matchDocs.filter(d => d.groupId);
-      const withoutGroup = matchDocs.filter(d => !d.groupId);
-      // Si hay docs con groupId, los sin groupId son legacy — eliminar
-      if (withGroup.length > 0 && withoutGroup.length > 0) {
-        withoutGroup.forEach(d => toDeleteIds.add(d.id));
-      }
-    });
+        // Ordenar: primero los no-default, luego por timestamp desc
+        // Conservar el mejor: si hay uno manual (no default), conservarlo
+        dupes.sort((a, b) => {
+          if (a.isDefault !== b.isDefault) return a.isDefault ? 1 : -1; // no-default primero
+          return b.ts - a.ts; // más reciente primero
+        });
 
-    const toDelete = docs.filter(d => toDeleteIds.has(d.id)).map(d => d.ref);
-    console.log(`Duplicados encontrados: ${toDelete.length}`);
+        const [keep, ...remove] = dupes;
+        remove.forEach(d => toDeleteRefs.push(d.ref));
+        report.push(`${uname}: ${dupes.length} docs → conserva 1, borra ${remove.length}`);
+      });
+    }
 
-    if (!toDelete.length) {
-      toast('✅ Sin duplicados encontrados', 'success');
+    if (!toDeleteRefs.length) {
+      out.innerHTML = `✅ Sin duplicados encontrados en ${userIds.length} jugadores.<br><small style="color:var(--muted2);">Todos los partidos tienen una sola predicción por jugador/grupo.</small>`;
+      toast('✅ Sin duplicados', 'success');
       return;
     }
 
-    if (!confirm(`Se encontraron ${toDelete.length} predicciones duplicadas o legacy.\n¿Eliminarlas ahora?`)) return;
+    out.innerHTML = `⚠️ Se encontraron <strong>${toDeleteRefs.length}</strong> predicciones duplicadas:<br><small>${report.join('<br>')}</small>`;
 
+    if (!confirm(`Se encontraron ${toDeleteRefs.length} duplicados.\n\n${report.join('\n')}\n\n¿Eliminarlos ahora?`)) {
+      out.innerHTML = 'Operación cancelada.';
+      return;
+    }
+
+    out.innerHTML = `⏳ Borrando ${toDeleteRefs.length} duplicados...`;
     let batch = db.batch();
     let count = 0;
-    for (const ref of toDelete) {
+    for (const ref of toDeleteRefs) {
       batch.delete(ref);
       count++;
-      if (count % 500 === 0) { await batch.commit(); batch = db.batch(); }
+      if (count % 500 === 0) {
+        await batch.commit();
+        batch = db.batch();
+        out.innerHTML = `⏳ Borrados ${count}/${toDeleteRefs.length}...`;
+      }
     }
     await batch.commit();
-    toast(`✅ ${toDelete.length} duplicados eliminados`, 'success');
+
+    out.innerHTML = `✅ ${toDeleteRefs.length} duplicados eliminados.<br><small style="color:var(--green);">${report.join('<br>')}</small>`;
+    toast(`🧹 ${toDeleteRefs.length} duplicados eliminados`, 'success');
+
   } catch(e) {
+    out.innerHTML = `❌ Error: ${e.message}`;
     toast('Error: ' + e.message, 'error');
   }
 }
@@ -5210,3 +5263,4 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
