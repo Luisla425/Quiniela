@@ -2381,7 +2381,7 @@ async function openStats(matchId) {
     // Intento A: V2 event_timeline
     try {
       const r = await fetchV2(`/lookup/event_timeline/${matchId}`);
-      const tl = r?.timeline || [];
+      const tl = Array.isArray(r?.timeline) ? r.timeline : [];
       if (tl.length > 0) timelineEvents = tl;
     } catch(e) {}
 
@@ -2392,15 +2392,16 @@ async function openStats(matchId) {
         const txt = await r.text();
         if (txt && !txt.trim().startsWith('<')) {
           const d = JSON.parse(txt);
-          const tl = d?.timeline || d?.events || [];
+          const tl = Array.isArray(d?.timeline) ? d.timeline : Array.isArray(d?.events) ? d.events : [];
           if (tl.length > 0) timelineEvents = tl;
         }
       } catch(e) {}
     }
 
-    // Intento C: livescore V2 — el evento inline a veces trae strTimeline o eventos embebidos
+    // Intento C: livescore V2
     if (!timelineEvents.length && liveEvData) {
-      const tl = liveEvData?.timeline || liveEvData?.events || [];
+      const tl = Array.isArray(liveEvData?.timeline) ? liveEvData.timeline :
+                 Array.isArray(liveEvData?.events)   ? liveEvData.events : [];
       if (tl.length > 0) timelineEvents = tl;
     }
 
@@ -2588,10 +2589,15 @@ async function openStats(matchId) {
 
   } catch(e) {
     console.error('openStats error:', e);
+    const is429 = e.message?.includes('429') || e.status === 429;
     $('statsContent').innerHTML = `
       <div class="empty">
-        <span class="empty-icon">❌</span>
-        <span class="empty-text" style="color:var(--red);">Error: ${e.message}</span>
+        <span class="empty-icon">${is429 ? '⏳' : '❌'}</span>
+        <span class="empty-text" style="color:${is429 ? 'var(--orange)' : 'var(--red)'};">
+          ${is429
+            ? 'Demasiadas solicitudes — espera unos segundos y vuelve a intentarlo'
+            : 'Error: ' + e.message}
+        </span>
       </div>`;
   }
 }
@@ -3432,6 +3438,7 @@ function renderAdmin() {
       <button class="admin-btn full" onclick="adminSync()">🔄 Sincronizar Partidos Ahora</button>
       <button class="admin-btn full danger" onclick="adminReset()">🗑️ Borrar Datos</button>
       <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">🧹 Limpiar Duplicados</button>
+      <button class="admin-btn full" onclick="migrateMatchIds()" style="background:rgba(61,158,255,0.15);color:var(--blue);">🔢 Migrar matchId a String</button>
       <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">🌍 Evaluar Mundial</button>
       <button class="admin-btn full warn" onclick="cleanOldPreds()">🗑️ Limpiar Predicciones Antiguas</button>
       <button class="admin-btn full danger" onclick="nukeAllPreds()">💣 Borrar TODO (Disolver Grupo)</button>
@@ -3756,10 +3763,11 @@ async function adminEval() {
 }
 
 async function adminEvalManual() {
+  const out = $('adminOut');
   const matchesWithScores=allMatches.filter(m=>m.homeScore!=null&&m.awayScore!=null);
   if(!matchesWithScores.length){out.innerHTML='⚠️ Sin partidos con resultados en memoria.';return;}
   if(!confirm(`¿Evaluar usando ${matchesWithScores.length} partidos con resultados?`)) return;
-  const out=$('adminOut'); out.innerHTML='⏳ Evaluando...';
+  out.innerHTML='⏳ Evaluando...';
   let total=0,pts=0;
   for(const match of matchesWithScores){
     const rh=+match.homeScore,ra=+match.awayScore;
@@ -4034,6 +4042,10 @@ function renderSimMatches() {
 }
 
 function applyScenario(type) {
+  if (!simMatches || !simMatches.length) {
+    toast('Carga una simulación primero', 'warning');
+    return;
+  }
   let applied = 0;
 
   simMatches.forEach(m => {
@@ -5166,6 +5178,52 @@ function _applyExpressPicks() {
 // LIMPIEZA DE PREDICCIONES
 // ═══════════════════════════════════════════
 
+async function migrateMatchIds() {
+  if (!me.isAdmin) return;
+  const out = $('adminOut');
+  out.innerHTML = '⏳ Buscando predicciones con matchId numérico...';
+
+  try {
+    const usersSnap = await db.collection('users').get();
+    const userIds = usersSnap.docs.map(d => d.id);
+    let totalFixed = 0;
+
+    for (let i = 0; i < userIds.length; i++) {
+      const uid = userIds[i];
+      const uname = usersSnap.docs[i].data().username || uid;
+      out.innerHTML = `⏳ Revisando ${uname} (${i+1}/${userIds.length})...`;
+
+      const pSnap = await db.collection('predictions').where('userId','==', uid).get();
+      if (pSnap.empty) continue;
+
+      // Filtrar solo los que tienen matchId como número (typeof number)
+      const toFix = pSnap.docs.filter(d => typeof d.data().matchId === 'number');
+      if (!toFix.length) continue;
+
+      let batch = db.batch();
+      let count = 0;
+      toFix.forEach(d => {
+        batch.update(d.ref, { matchId: String(d.data().matchId) });
+        count++;
+        totalFixed++;
+      });
+      await batch.commit();
+      out.innerHTML = `✅ ${uname}: ${count} corregidos`;
+    }
+
+    if (!totalFixed) {
+      out.innerHTML = `✅ Todo limpio — no hay matchId numéricos. Los double queries ya no son necesarios.`;
+      toast('✅ matchIds ya están como String', 'success');
+    } else {
+      out.innerHTML = `✅ Migración completa: ${totalFixed} predicciones corregidas a String.`;
+      toast(`🔢 ${totalFixed} matchIds migrados`, 'success');
+    }
+  } catch(e) {
+    out.innerHTML = `❌ Error: ${e.message}`;
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
 async function cleanOldPreds() {
   const today = vzDate();
   if (!confirm(`¿Borrar TODAS las predicciones que NO sean de hoy (${today})?\n\nLas predicciones de hoy se conservan.`)) return;
@@ -5263,4 +5321,5 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
