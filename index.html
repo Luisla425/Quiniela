@@ -1251,6 +1251,21 @@ async function fetchV2(endpoint) {
   return res.json();
 }
 
+// Fetch con timeout — evita q la app se congele si la API no responde
+async function fetchTimeout(url, ms = 6000, opts = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(timer);
+    return r;
+  } catch(e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') return null; // timeout silencioso
+    throw e;
+  }
+}
+
 // TheSportsDB V2 used exclusively via fetchV2()
 const _afCache = {}; // kept for compat
 
@@ -1986,15 +2001,15 @@ async function doSync() {
   for (const t of TOURNAMENTS) {
     if (!myTournaments.includes(t.id)) continue;
     try {
-      const r = await fetch(`${API_V1}/eventsnextleague.php?id=${t.lid}`);
-      if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
+      const r = await fetchTimeout(`${API_V1}/eventsnextleague.php?id=${t.lid}`, 6000);
+      if (r && r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
         if (t.teamBlacklist) { const h=(ev.strHomeTeam||'').toLowerCase(),a=(ev.strAwayTeam||'').toLowerCase(); if(t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
     } catch(e) {}
     try {
-      const r = await fetch(`${API_V1}/eventspastleague.php?id=${t.lid}`);
-      if (r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
+      const r = await fetchTimeout(`${API_V1}/eventspastleague.php?id=${t.lid}`, 6000);
+      if (r && r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
         if (t.teamBlacklist) { const h=(ev.strHomeTeam||'').toLowerCase(),a=(ev.strAwayTeam||'').toLowerCase(); if(t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
@@ -2045,8 +2060,8 @@ async function refreshDayScores() {
   const batch = db.batch();
   for (const m of targets) {
     try {
-      const r = await fetch(`${API_V1}/lookupevent.php?id=${m.id}`);
-      if (!r.ok) continue;
+      const r = await fetchTimeout(`${API_V1}/lookupevent.php?id=${m.id}`, 5000);
+      if (!r || !r.ok) continue;
       const data = await r.json();
       const ev = data?.events?.[0];
       if (!ev) continue;
