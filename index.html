@@ -937,7 +937,7 @@ body::before {
   <!-- HEADER -->
   <div class="header" style="padding:8px 12px;gap:6px;">
     <div class="header-left" style="min-width:0;flex:1;">
-      <span class="header-greeting" style="font-size:0.6em;">Bienvenido</span>
+      <span class="header-greeting" id="hdr-greeting" style="font-size:0.6em;">Bienvenido</span>
       <div class="header-name" style="font-size:1em;gap:4px;flex-wrap:wrap;">
         <span id="hdrPlayerNum" class="player-num"></span>
         <span id="hdrName" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">—</span>
@@ -1415,99 +1415,160 @@ let currentLang = localStorage.getItem('ql_lang') || 'es';
 
 const LANGS = {
   es:{
-    // Nav
     matches:'Partidos', predict:'Predecir', chat:'Chat', tournaments:'Torneos',
     groups:'Grupos', simulate:'Simular', admin:'Admin',
-    // Auth
     login:'Entrar →', register:'Crear cuenta →', logging:'⏳ Entrando...', registering:'⏳ Registrando...',
     phone:'Teléfono', password:'Contraseña', name:'Nombre completo', alias:'Alias (máx 8 letras)',
     inviteCode:'Código de invitación', joinGroup:'Unirse a un Grupo',
-    // Grupos
     createGroup:'Crear Grupo', groupName:'Nombre del grupo', maxPlayers:'Máximo de jugadores',
     groupTournaments:'Ligas de esta quiniela', createBtn:'🎉 Crear Grupo',
     joinBtn:'✅ Unirme al Grupo', cancel:'Cancelar',
-    // Partidos
     myPreds:'Mis Predicciones', standings:'Posiciones', sync:'🔄 Actualizar',
     save:'💾 Guardar Predicciones', express:'⚡ Express',
     noPreds:'No tienes predicciones guardadas.', noMatches:'No hay partidos disponibles.',
     searching:'Buscando...', loading:'Cargando...',
     ranking:'🏆 Ver Clasificación', share:'📲',
-    // Express
     whoWins:'¿Quién gana?', draw:'🤝 Empate',
     goalsEach:'¿Cuántos goles para cada equipo?',
     goalsWinner:'Goles del ganador', goalsLoser:'Goles del perdedor',
     skip:'Saltar ⏭', skipMatch:'⏭ Saltar partido',
-    // Chat
     sendMsg:'Enviar', typeMsg:'Escribe aquí...',
-    // General
-    theme:'Tema', language:'Idioma', myStats:'📊 Mis Estadísticas',
+    theme:'Tema', language:'Idioma', myStats:'📊 Mis Stats',
     viewOthers:'🔍 Ver predicciones de otros jugadores', search:'🔍 Buscar',
     closed:'⛔ Predicciones cerradas', liveNow:'🔴 EN VIVO', finished:'✅ Final',
     noStats:'Aún no tienes predicciones evaluadas.',
+    st_1H:'🔴 1er Tiempo', st_HT:'⏸ Descanso', st_2H:'🔴 2do Tiempo',
+    st_ET:'🔴 Prórroga', st_P:'⚡ Penales', st_FT:'✅ Final',
+    st_AET:'✅ Final (Prórr)', st_NS:'No Iniciado',
+    secMatches:'⚽ Partidos', secPreds:'🎯 Mis Predicciones',
+    secTournaments:'🏆 Torneos', secGroups:'👥 Grupos',
+    secSimulator:'🎮 Simulador', secAdmin:'⚙️ Admin',
+    yourPreds:'📋 Tus Predicciones',
+    viewOthersPreds:'🔍 Ver predicciones de otros jugadores',
+    searchUser:'Buscar usuario...',
+    chatTitle:'💬 Chat LuAn', writeMsg:'Escribe aquí...',
+    viewStandings:'📊 Ver Tablas de Posiciones',
+    selectLeagues:'Selecciona las ligas para predecir:',
+    saveSelection:'💾 Guardar selección',
+    adminSeeAll:'👑 Admin — ves todos los grupos',
+    joinCode:'Código', players:'jugadores',
+    viewRanking:'🏆 Ver Clasificación',
+    simTitle:'🎮 Simulador',
+    simDesc:'¿Qué pasaría si...? Pon resultados ficticios y ve cómo quedaría la pizarra. No afecta los puntos reales.',
+    simGroup:'👥 Grupo a simular', simMatches:'📅 Partidos a simular',
+    simPending:'Solo pendientes (sin resultado)', loadSim:'🔄 Cargar Simulación',
+    adminPanel:'PANEL ADMIN', seeUsers:'Ver Usuarios',
+    evalMatches:'Evaluar Partidos', evalManual:'Evaluar Manual',
+    groupCodes:'Códigos Grupos', syncNow:'🔄 Sincronizar Partidos Ahora',
+    deleteData:'🗑️ Borrar Datos', cleanDups:'🧹 Limpiar Duplicados',
+    migrateIds:'🔢 Migrar matchId a String', evalMundial:'🌍 Evaluar Mundial',
+    cleanOld:'🗑️ Limpiar Predicciones Antiguas', nukeAll:'💣 Borrar TODO (Disolver Grupo)',
+    selectAction:'Selecciona una acción...',
   },
   en:{
-    // Nav
     matches:'Matches', predict:'Predict', chat:'Chat', tournaments:'Leagues',
     groups:'Groups', simulate:'Simulate', admin:'Admin',
-    // Auth
     login:'Sign In →', register:'Create account →', logging:'⏳ Signing in...', registering:'⏳ Creating account...',
     phone:'Phone number', password:'Password', name:'Full name', alias:'Username (max 8 chars)',
     inviteCode:'Invite code', joinGroup:'Join a Group',
-    // Groups
     createGroup:'Create Group', groupName:'Group name', maxPlayers:'Maximum players',
     groupTournaments:'Leagues in this pool', createBtn:'🎉 Create Group',
     joinBtn:'✅ Join Group', cancel:'Cancel',
-    // Matches
     myPreds:'My Predictions', standings:'Standings', sync:'🔄 Refresh',
     save:'💾 Save Predictions', express:'⚡ Express',
     noPreds:'You have no saved predictions.', noMatches:'No matches available.',
     searching:'Searching...', loading:'Loading...',
     ranking:'🏆 View Rankings', share:'📲',
-    // Express
     whoWins:'Who wins?', draw:'🤝 Draw',
     goalsEach:'How many goals for each team?',
     goalsWinner:'Winner goals', goalsLoser:'Loser goals',
     skip:'Skip ⏭', skipMatch:'⏭ Skip match',
-    // Chat
     sendMsg:'Send', typeMsg:'Type a message...',
-    // General
-    theme:'Theme', language:'Language', myStats:'📊 My Statistics',
-    viewOthers:'🔍 View other players\' predictions', search:'🔍 Search',
-    closed:'⛔ Predictions closed', liveNow:'🔴 LIVE', finished:'✅ Final',
+    theme:'Theme', language:'Language', myStats:'📊 My Stats',
+    viewOthers:"🔍 View other players' predictions", search:'🔍 Search',
+    closed:'⛔ Predictions closed', liveNow:'🔴 LIVE', finished:'✅ Full Time',
     noStats:'No evaluated predictions yet.',
+    st_1H:'🔴 1st Half', st_HT:'⏸ Half Time', st_2H:'🔴 2nd Half',
+    st_ET:'🔴 Extra Time', st_P:'⚡ Penalties', st_FT:'✅ Full Time',
+    st_AET:'✅ AET', st_NS:'Not Started',
+    secMatches:'⚽ Matches', secPreds:'🎯 My Predictions',
+    secTournaments:'🏆 Leagues', secGroups:'👥 Groups',
+    secSimulator:'🎮 Simulator', secAdmin:'⚙️ Admin',
+    yourPreds:'📋 Your Predictions',
+    viewOthersPreds:"🔍 View other players' predictions",
+    searchUser:'Search user...',
+    chatTitle:'💬 LuAn Chat', writeMsg:'Type a message...',
+    viewStandings:'📊 View League Tables',
+    selectLeagues:'Select leagues to predict:',
+    saveSelection:'💾 Save selection',
+    adminSeeAll:'👑 Admin — you see all groups',
+    joinCode:'Code', players:'players',
+    viewRanking:'🏆 View Rankings',
+    simTitle:'🎮 Simulator',
+    simDesc:"What if...? Set fictional results and see how your group's board would look. Does not affect real points.",
+    simGroup:'👥 Group to simulate', simMatches:'📅 Matches to simulate',
+    simPending:'Pending only (no result yet)', loadSim:'🔄 Load Simulation',
+    adminPanel:'ADMIN PANEL', seeUsers:'View Users',
+    evalMatches:'Evaluate Matches', evalManual:'Manual Evaluation',
+    groupCodes:'Group Codes', syncNow:'🔄 Sync Matches Now',
+    deleteData:'🗑️ Delete Data', cleanDups:'🧹 Clean Duplicates',
+    migrateIds:'🔢 Migrate matchId to String', evalMundial:'🌍 Evaluate World Cup',
+    cleanOld:'🗑️ Clean Old Predictions', nukeAll:'💣 Delete ALL (Dissolve Group)',
+    selectAction:'Select an action...',
   },
   de:{
-    // Nav
     matches:'Spiele', predict:'Tippen', chat:'Chat', tournaments:'Ligen',
     groups:'Gruppen', simulate:'Simulation', admin:'Admin',
-    // Auth
     login:'Anmelden →', register:'Konto erstellen →', logging:'⏳ Anmelden...', registering:'⏳ Konto wird erstellt...',
     phone:'Telefonnummer', password:'Passwort', name:'Vollständiger Name', alias:'Benutzername (max 8 Zeichen)',
     inviteCode:'Einladungscode', joinGroup:'Gruppe beitreten',
-    // Gruppen
     createGroup:'Gruppe erstellen', groupName:'Gruppenname', maxPlayers:'Max. Spieleranzahl',
     groupTournaments:'Ligen in diesem Tipp-Spiel', createBtn:'🎉 Gruppe erstellen',
     joinBtn:'✅ Beitreten', cancel:'Abbrechen',
-    // Spiele
     myPreds:'Meine Tipps', standings:'Tabelle', sync:'🔄 Aktualisieren',
     save:'💾 Tipps speichern', express:'⚡ Express',
     noPreds:'Keine gespeicherten Tipps vorhanden.', noMatches:'Keine Spiele verfügbar.',
     searching:'Suche läuft...', loading:'Wird geladen...',
     ranking:'🏆 Rangliste ansehen', share:'📲',
-    // Express
     whoWins:'Wer gewinnt?', draw:'🤝 Unentschieden',
     goalsEach:'Wie viele Tore pro Mannschaft?',
     goalsWinner:'Tore des Gewinners', goalsLoser:'Tore des Verlierers',
     skip:'Überspringen ⏭', skipMatch:'⏭ Spiel überspringen',
-    // Chat
     sendMsg:'Senden', typeMsg:'Nachricht schreiben...',
-    // Allgemein
-    theme:'Design', language:'Sprache', myStats:'📊 Meine Statistiken',
+    theme:'Design', language:'Sprache', myStats:'📊 Meine Stats',
     viewOthers:'🔍 Tipps anderer Spieler anzeigen', search:'🔍 Suchen',
     closed:'⛔ Tippen gesperrt', liveNow:'🔴 LIVE', finished:'✅ Abpfiff',
     noStats:'Noch keine ausgewerteten Tipps vorhanden.',
+    st_1H:'🔴 1. Halbzeit', st_HT:'⏸ Halbzeit', st_2H:'🔴 2. Halbzeit',
+    st_ET:'🔴 Verlängerung', st_P:'⚡ Elfmeter', st_FT:'✅ Abpfiff',
+    st_AET:'✅ n.V.', st_NS:'Nicht begonnen',
+    secMatches:'⚽ Spiele', secPreds:'🎯 Meine Tipps',
+    secTournaments:'🏆 Ligen', secGroups:'👥 Gruppen',
+    secSimulator:'🎮 Simulation', secAdmin:'⚙️ Admin',
+    yourPreds:'📋 Deine Tipps',
+    viewOthersPreds:'🔍 Tipps anderer Spieler anzeigen',
+    searchUser:'Spieler suchen...',
+    chatTitle:'💬 LuAn Chat', writeMsg:'Nachricht schreiben...',
+    viewStandings:'📊 Tabellen anzeigen',
+    selectLeagues:'Wähle Ligen zum Tippen:',
+    saveSelection:'💾 Auswahl speichern',
+    adminSeeAll:'👑 Admin — du siehst alle Gruppen',
+    joinCode:'Code', players:'Spieler',
+    viewRanking:'🏆 Rangliste',
+    simTitle:'🎮 Simulation',
+    simDesc:'Was wäre wenn...? Gib fiktive Ergebnisse ein und sieh, wie die Tabelle deiner Gruppe aussehen würde. Beeinflusst keine echten Punkte.',
+    simGroup:'👥 Gruppe simulieren', simMatches:'📅 Spiele simulieren',
+    simPending:'Nur ausstehend (kein Ergebnis)', loadSim:'🔄 Simulation laden',
+    adminPanel:'ADMIN-BEREICH', seeUsers:'Spieler anzeigen',
+    evalMatches:'Spiele auswerten', evalManual:'Manuelle Auswertung',
+    groupCodes:'Gruppencodes', syncNow:'🔄 Spiele jetzt synchronisieren',
+    deleteData:'🗑️ Daten löschen', cleanDups:'🧹 Duplikate bereinigen',
+    migrateIds:'🔢 matchId migrieren', evalMundial:'🌍 WM auswerten',
+    cleanOld:'🗑️ Alte Tipps löschen', nukeAll:'💣 ALLES löschen (Gruppe auflösen)',
+    selectAction:'Aktion auswählen...',
   }
 };
+
 
 function cycleLang() {
   const langs = ['es','en','de'];
@@ -1518,6 +1579,7 @@ function cycleLang() {
 function setLang(lang) {
   currentLang = lang;
   localStorage.setItem('ql_lang', lang);
+  // Nav labels
   const navMap = {
     'nav-matches':'matches','nav-preds':'predict','nav-chat':'chat',
     'nav-tournaments':'tournaments','nav-groups':'groups',
@@ -1527,9 +1589,16 @@ function setLang(lang) {
     const el = document.querySelector(`#${id} .nav-label`);
     if(el) el.textContent = t(key);
   });
+  // Lang flag button
   const flags = {es:'🇻🇪',en:'🇬🇧',de:'🇩🇪'};
   const btn = document.getElementById('langBtn');
   if(btn) btn.textContent = flags[lang]||'🌐';
+  // Header greeting
+  const greet = document.getElementById('hdr-greeting');
+  if(greet) greet.textContent = lang==='de'?'Willkommen':lang==='en'?'Welcome':'Bienvenido';
+  // Stats header button text
+  const statsHdrBtn = document.getElementById('statsHdrBtn');
+  if(statsHdrBtn) statsHdrBtn.textContent = t('myStats');
 }
 
 function t(key) {
@@ -1605,6 +1674,9 @@ function effectivelyFinished(match) {
   return isFinished(match.status) || isStaleLive(match);
 }
 function statusLabel(s) {
+  const key = 'st_' + (s||'').replace(/\s/g,'_');
+  if (LANGS[currentLang]?.[key]) return LANGS[currentLang][key];
+  // fallback static map (es)
   const map = {
     'NS':'⏰ Próximo','TBD':'📅 Por definir',
     '1H':'🔴 1er Tiempo','HT':'⏸ Descanso',
@@ -2153,6 +2225,30 @@ async function enterApp() {
     }, interval);
   }
   scheduleNextSync();
+
+  // ── Minuto en vivo — actualiza el badge localmente cada 60s (0 llamadas API) ──
+  setInterval(() => {
+    dayMatches.forEach(m => {
+      if (!isLive(m.status)) return;
+      const badge = document.getElementById(`badge_${m.id}`);
+      if (!badge) return;
+      let min = '';
+      if (m.date && m.time) {
+        try {
+          const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+          const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
+          if (elapsed > 0 && elapsed <= 130) {
+            if (m.status === 'HT') min = 'DT';
+            else if (elapsed <= 45) min = elapsed;
+            else if (elapsed <= 60) min = 45;
+            else min = Math.min(elapsed - 15, 90);
+          }
+        } catch(e) {}
+      }
+      const statusTxt = statusLabel(m.status);
+      badge.textContent = `🔴 ${statusTxt}${min ? ' · ' + min + "'" : ''}`;
+    });
+  }, 60000);
 }
 
 // ═══════════════════════════════════════════
@@ -2526,13 +2622,33 @@ function renderMatches() {
 
 function buildMatchCard(m, closed) {
   const live = isLive(m.status);
-  const done = isFinished(m.status);
+  const done = effectivelyFinished(m);
   const showScore = live || done;
   const cls = live?'live':done?'finished':'';
 
+  // Minuto estimado localmente — 0 llamadas extra a la API
+  let minuteDisplay = '';
+  if (live) {
+    if (m.minute && !['FT','AET','HT','MATCH FINISHED'].includes(String(m.minute).toUpperCase())) {
+      minuteDisplay = m.minute;
+    } else if (m.date && m.time) {
+      try {
+        const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+        const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
+        if (elapsed > 0 && elapsed <= 130) {
+          if (m.status === 'HT') minuteDisplay = 'DT';
+          else if (elapsed <= 45) minuteDisplay = elapsed;
+          else if (elapsed <= 60) minuteDisplay = 45; // descanso
+          else minuteDisplay = Math.min(elapsed - 15, 90); // 2do tiempo
+        }
+      } catch(e) {}
+    }
+  }
+
+  const statusTxt = statusLabel(m.status);
   let badge = '';
-  if (live) badge = `<span class="badge-live">🔴 ${statusLabel(m.status)}</span>`;
-  else if (done) badge = `<span class="badge-done">${statusLabel(m.status)}</span>`;
+  if (live) badge = `<span class="badge-live" id="badge_${m.id}">🔴 ${statusTxt}${minuteDisplay ? ' · ' + minuteDisplay + "'" : ''}</span>`;
+  else if (done) badge = `<span class="badge-done">${statusTxt}</span>`;
   else badge = `<span class="badge-time">${vzTime(m.time)}</span>`;
 
   let centerContent = '';
@@ -2544,32 +2660,55 @@ function buildMatchCard(m, closed) {
           <span style="color:var(--muted);font-family:var(--font-h);font-size:1.2em;">—</span>
           <span class="team-score ${live?'score-live':'score-final'}">${m.awayScore??'?'}</span>
         </div>
-        ${m.minute?`<div style="font-size:0.72em;color:var(--red);font-weight:700;margin-top:2px;">⏱ ${m.minute}'</div>`:''}
       </div>`;
   } else {
     centerContent = `<span class="vs-divider">VS</span>`;
   }
 
-  // Goals detail
-  let goalsHtml = '';
-  if (showScore && (m.homeGoals||m.awayGoals)) {
-    goalsHtml = `<div class="goal-list">`;
-    if (m.homeGoals) m.homeGoals.split(';').filter(Boolean).forEach(g=>{
-      goalsHtml += `<div class="goal-item goal-home">⚽ ${g.trim()}</div>`;
-    });
-    if (m.awayGoals) m.awayGoals.split(';').filter(Boolean).forEach(g=>{
-      goalsHtml += `<div class="goal-item goal-away">⚽ ${g.trim()}</div>`;
-    });
-    goalsHtml += `</div>`;
+  // Goles y eventos — mostrar bajo el marcador directamente
+  let eventsHtml = '';
+  if (showScore) {
+    const parseGoals = (str, side, team) => {
+      if (!str) return [];
+      return str.split(';').map(g=>g.trim()).filter(Boolean).map(g => {
+        const minM = g.match(/(\d+\+?\d*)'?/);
+        const min = minM ? minM[0] : '';
+        const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').replace(/[()]/g,'').trim() || g;
+        return {min, player, side, team, icon:'⚽', color: side==='home' ? 'var(--primary2)' : 'var(--green)'};
+      });
+    };
+    const allGoals = [
+      ...parseGoals(m.homeGoals, 'home', m.home),
+      ...parseGoals(m.awayGoals, 'away', m.away),
+    ].sort((a,b) => parseInt(a.min)||0 - (parseInt(b.min)||0));
+
+    if (allGoals.length > 0) {
+      eventsHtml = `<div style="margin-top:8px;padding:0 4px;">`;
+      allGoals.forEach(g => {
+        const isHome = g.side === 'home';
+        eventsHtml += `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
+            ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
+            ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
+              <span>⚽</span>
+              <span style="color:${g.color};font-weight:700;">${g.player}</span>` :
+              `<span style="color:${g.color};font-weight:700;">${g.player}</span>
+              <span>⚽</span>
+              <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
+          </div>`;
+      });
+      eventsHtml += `</div>`;
+    }
   }
 
-  const isMatchLive = isLive(m.status);
-  const statsBtnLabel = isMatchLive ? '🔴 EN VIVO · Ver Goles y Tarjetas' : '📊 Estadísticas & Goles';
-  const statsBtnStyle = isMatchLive
+  const statsBtnLabel = live
+    ? `🔴 ${currentLang==='de'?'LIVE · Tore & Karten':currentLang==='en'?'LIVE · Goals & Cards':'EN VIVO · Goles y Tarjetas'}`
+    : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
+  const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
   const statsBtn = showScore ? `<button onclick="openStats('${m.id}')" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>` : '';
-  const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 Ver apuestas del grupo</button>` : '';
+  const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
     <div style="margin-top:10px;">
@@ -2581,7 +2720,7 @@ function buildMatchCard(m, closed) {
       <button class="btn-express-trigger"
         ontouchend="event.preventDefault();openExpress('${m.id}')"
         onclick="openExpress('${m.id}')">
-        ⚡ Predecir este partido
+        ⚡ ${currentLang==='de'?'Tipp abgeben':currentLang==='en'?'Predict this match':'Predecir este partido'}
       </button>
     </div>` : '';
 
@@ -2602,9 +2741,10 @@ function buildMatchCard(m, closed) {
           <span class="team-name">${m.away}</span>
         </div>
       </div>
-      ${goalsHtml}
+      ${eventsHtml}
       ${predRow}
       ${statsBtn}
+      ${betStatsBtn}
     </div>`;
 }
 
@@ -5683,6 +5823,6 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-u
+
 
 
