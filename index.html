@@ -36,6 +36,30 @@
   --r-sm:     10px;
   --shadow:   0 8px 32px rgba(0,0,0,0.5);
 }
+
+/* ── TEMA CLARO ─────────────────────────────── */
+body.theme-light {
+  --bg:       #f0f0f8;
+  --surface:  #ffffff;
+  --surface2: #e8e8f5;
+  --border:   rgba(0,0,0,0.08);
+  --border2:  rgba(0,0,0,0.14);
+  --text:     #1a1a2e;
+  --muted:    #9090b0;
+  --muted2:   #6060a0;
+  --shadow:   0 8px 32px rgba(0,0,0,0.12);
+}
+body.theme-light::before { opacity: 0.4; }
+body.theme-light .header { background: rgba(240,240,248,0.9); }
+body.theme-light .nav { background: rgba(255,255,255,0.95); border-top: 1px solid rgba(0,0,0,0.08); }
+body.theme-light .chat-bubble { background: #e8e8f5; color: var(--text); }
+body.theme-light .chat-msg.mine .chat-bubble { background: linear-gradient(135deg,var(--primary),var(--primary2)); color:#fff; }
+body.theme-light .field input, body.theme-light .field select, body.theme-light .field textarea { background: #fff; color: var(--text); }
+body.theme-light .modal-box { background: #fff; }
+body.theme-light .card { background: #fff; }
+
+/* ── TEMA AUTO (día/noche según hora VZ) ────── */
+/* Se aplica via JS según hora */
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html { scroll-behavior: smooth; }
 body {
@@ -925,6 +949,8 @@ body::before {
       <div class="header-clock" id="hdrClock">--:--</div>
       <div style="font-size:0.65em;color:var(--muted);">Venezuela</div>
       <div style="display:flex;gap:6px;align-items:center;">
+        <button class="header-logout" id="themeBtn" onclick="cycleTheme()" title="Cambiar tema" style="font-size:1em;">🌙</button>
+        <button class="header-logout" id="langBtn" onclick="cycleLang()" title="Cambiar idioma" style="font-size:1em;">🇻🇪</button>
         <button class="header-logout" onclick="inviteToApp()" title="Invitar amigos" style="font-size:1em;">📲</button>
         <button class="header-logout" onclick="openModal('changePassModal')" title="Cambiar contraseña" style="font-size:1em;">🔑</button>
         <button class="header-logout" onclick="doLogout()" title="Salir">🚪</button>
@@ -945,7 +971,7 @@ body::before {
   <!-- BOTTOM NAV -->
   <nav class="nav">
     <button class="nav-item active" id="nav-matches" onclick="showScreen('matches')">
-      <span class="nav-icon">⚽</span><span class="nav-label">Partidos</span>
+      <span class="nav-icon">⚽</span><span class="nav-label" id="nav-matches-lbl">Partidos</span>
     </button>
     <button class="nav-item" id="nav-preds" onclick="showScreen('preds')">
       <span class="nav-icon">🎯</span><span class="nav-label">Predecir</span>
@@ -1354,6 +1380,133 @@ let simGroup = null;
 let selectedCountry = { login: COUNTRIES[0], reg: COUNTRIES[0], reset: COUNTRIES[0] };
 let activeGroupId = null;      // ID del grupo activo en vista de partidos
 let myGroupsList  = [];        // Cache de grupos del jugador
+
+// ═══════════════════════════════════════════
+// TEMAS
+// ═══════════════════════════════════════════
+const THEMES = ['dark','light','auto'];
+let currentTheme = localStorage.getItem('ql_theme') || 'dark';
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem('ql_theme', theme);
+  document.body.classList.remove('theme-light');
+  if (theme === 'light') {
+    document.body.classList.add('theme-light');
+  } else if (theme === 'auto') {
+    const h = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'})).getHours();
+    if (h >= 6 && h < 19) document.body.classList.add('theme-light');
+  }
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = theme==='dark'?'🌙':theme==='light'?'☀️':'🌓';
+}
+
+function cycleTheme() {
+  const idx = THEMES.indexOf(currentTheme);
+  applyTheme(THEMES[(idx+1) % THEMES.length]);
+}
+
+// ═══════════════════════════════════════════
+// IDIOMAS
+// ═══════════════════════════════════════════
+let currentLang = localStorage.getItem('ql_lang') || 'es';
+
+const LANGS = {
+  es:{
+    matches:'Partidos',predict:'Predecir',chat:'Chat',tournaments:'Torneos',
+    groups:'Grupos',simulate:'Simular',admin:'Admin',
+    login:'Entrar →',register:'Crear cuenta →',logging:'⏳ Entrando...',registering:'⏳ Registrando...',
+    phone:'Teléfono',password:'Contraseña',name:'Nombre',alias:'Apodo (máx 8)',
+    inviteCode:'Código de invitación',joinGroup:'Unirse a Grupo',
+    createGroup:'Crear Grupo',groupName:'Nombre del grupo',maxPlayers:'Máximo de jugadores',
+    groupTournaments:'Torneos de esta quiniela',createBtn:'🎉 Crear Grupo',
+    joinBtn:'✅ Unirse al Grupo',cancel:'Cancelar',
+    myPreds:'Mis Predicciones',standings:'Tablas',sync:'🔄 Sync',
+    save:'💾 Guardar Predicciones',express:'⚡ Express',
+    noPreds:'Sin predicciones guardadas',noMatches:'Sin partidos disponibles',
+    searching:'Buscando...',loading:'Cargando...',
+    ranking:'🏆 Clasificación',share:'📲',
+    whoWins:'¿Quién gana?',draw:'🤝 Empate',goalsEach:'🤝 ¿Cuántos goles cada uno?',
+    goalsWinner:'⚽ Goles del ganador',goalsLoser:'⚽ Goles del perdedor',
+    skip:'⏭ Saltar',skipMatch:'⏭ Saltar este partido',
+    sendMsg:'Enviar',typeMsg:'Escribe un mensaje...',
+    theme:'Tema',language:'Idioma',myStats:'📊 Mis Stats',
+    viewOthers:'🔍 Ver predicciones de otros',search:'🔍 Buscar',
+  },
+  en:{
+    matches:'Matches',predict:'Predict',chat:'Chat',tournaments:'Leagues',
+    groups:'Groups',simulate:'Simulate',admin:'Admin',
+    login:'Sign In →',register:'Create account →',logging:'⏳ Signing in...',registering:'⏳ Creating...',
+    phone:'Phone',password:'Password',name:'Name',alias:'Alias (max 8)',
+    inviteCode:'Invite code',joinGroup:'Join Group',
+    createGroup:'Create Group',groupName:'Group name',maxPlayers:'Max players',
+    groupTournaments:'Leagues for this pool',createBtn:'🎉 Create Group',
+    joinBtn:'✅ Join Group',cancel:'Cancel',
+    myPreds:'My Predictions',standings:'Tables',sync:'🔄 Sync',
+    save:'💾 Save Predictions',express:'⚡ Express',
+    noPreds:'No predictions saved',noMatches:'No matches available',
+    searching:'Searching...',loading:'Loading...',
+    ranking:'🏆 Standings',share:'📲',
+    whoWins:'Who wins?',draw:'🤝 Draw',goalsEach:'🤝 Goals each?',
+    goalsWinner:'⚽ Winner goals',goalsLoser:'⚽ Loser goals',
+    skip:'⏭ Skip',skipMatch:'⏭ Skip this match',
+    sendMsg:'Send',typeMsg:'Type a message...',
+    theme:'Theme',language:'Language',myStats:'📊 My Stats',
+    viewOthers:'🔍 View others predictions',search:'🔍 Search',
+  },
+  de:{
+    matches:'Spiele',predict:'Tippen',chat:'Chat',tournaments:'Ligen',
+    groups:'Gruppen',simulate:'Simulieren',admin:'Admin',
+    login:'Anmelden →',register:'Konto erstellen →',logging:'⏳ Anmelden...',registering:'⏳ Erstellen...',
+    phone:'Telefon',password:'Passwort',name:'Name',alias:'Alias (max 8)',
+    inviteCode:'Einladungscode',joinGroup:'Gruppe beitreten',
+    createGroup:'Gruppe erstellen',groupName:'Gruppenname',maxPlayers:'Max. Spieler',
+    groupTournaments:'Ligen für diesen Pool',createBtn:'🎉 Gruppe erstellen',
+    joinBtn:'✅ Beitreten',cancel:'Abbrechen',
+    myPreds:'Meine Tipps',standings:'Tabellen',sync:'🔄 Sync',
+    save:'💾 Tipps speichern',express:'⚡ Express',
+    noPreds:'Keine Tipps gespeichert',noMatches:'Keine Spiele verfügbar',
+    searching:'Suchen...',loading:'Laden...',
+    ranking:'🏆 Rangliste',share:'📲',
+    whoWins:'Wer gewinnt?',draw:'🤝 Unentschieden',goalsEach:'🤝 Tore je Team?',
+    goalsWinner:'⚽ Tore Gewinner',goalsLoser:'⚽ Tore Verlierer',
+    skip:'⏭ Überspringen',skipMatch:'⏭ Spiel überspringen',
+    sendMsg:'Senden',typeMsg:'Nachricht eingeben...',
+    theme:'Design',language:'Sprache',myStats:'📊 Meine Stats',
+    viewOthers:'🔍 Tipps anderer Spieler',search:'🔍 Suchen',
+  }
+};
+
+function cycleLang() {
+  const langs = ['es','en','de'];
+  const idx = langs.indexOf(currentLang);
+  setLang(langs[(idx+1) % langs.length]);
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('ql_lang', lang);
+  const navMap = {
+    'nav-matches':'matches','nav-preds':'predict','nav-chat':'chat',
+    'nav-tournaments':'tournaments','nav-groups':'groups',
+    'nav-simulator':'simulate','nav-admin':'admin'
+  };
+  Object.entries(navMap).forEach(([id,key])=>{
+    const el = document.querySelector(`#${id} .nav-label`);
+    if(el) el.textContent = t(key);
+  });
+  const flags = {es:'🇻🇪',en:'🇬🇧',de:'🇩🇪'};
+  const btn = document.getElementById('langBtn');
+  if(btn) btn.textContent = flags[lang]||'🌐';
+}
+
+function t(key) {
+  return (LANGS[currentLang]||LANGS.es)[key] || LANGS.es[key] || key;
+}
+
+// Aplicar tema e idioma al cargar
+applyTheme(currentTheme);
+// setLang se llama después de que el DOM esté listo
 
 // ── CACHE ──────────────────────────────────
 // Saves Firestore reads by keeping data in memory + localStorage
@@ -1927,6 +2080,8 @@ async function enterApp() {
   }
 
   startClock();
+  applyTheme(currentTheme);
+  setLang(currentLang);
   showScreen('matches');
 
   // Cargar grupos del jugador y activar el más reciente
