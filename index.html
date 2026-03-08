@@ -935,25 +935,27 @@ body::before {
 <div id="mainApp" class="hidden">
 
   <!-- HEADER -->
-  <div class="header">
-    <div class="header-left">
-      <span class="header-greeting">Bienvenido</span>
-      <div class="header-name">
+  <div class="header" style="padding:8px 12px;gap:6px;">
+    <div class="header-left" style="min-width:0;flex:1;">
+      <span class="header-greeting" style="font-size:0.6em;">Bienvenido</span>
+      <div class="header-name" style="font-size:1em;gap:4px;flex-wrap:wrap;">
         <span id="hdrPlayerNum" class="player-num"></span>
-        <span id="hdrName">—</span>
-        <span id="hdrAdminBadge" class="header-badge hidden">👑 Admin</span>
+        <span id="hdrName" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;">—</span>
+        <span id="hdrAdminBadge" class="header-badge hidden">👑</span>
       </div>
-      <div style="font-size:0.68em;color:var(--muted);">Invitación: <strong id="hdrCode" style="color:var(--primary2);">—</strong></div>
+      <div style="font-size:0.62em;color:var(--muted);">Inv: <strong id="hdrCode" style="color:var(--primary2);">—</strong></div>
     </div>
-    <div class="header-info">
-      <div class="header-clock" id="hdrClock">--:--</div>
-      <div style="font-size:0.65em;color:var(--muted);">Venezuela</div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <button class="header-logout" id="themeBtn" onclick="cycleTheme()" title="Cambiar tema" style="font-size:1em;">🌙</button>
-        <button class="header-logout" id="langBtn" onclick="cycleLang()" title="Cambiar idioma" style="font-size:1em;">🇻🇪</button>
-        <button class="header-logout" onclick="inviteToApp()" title="Invitar amigos" style="font-size:1em;">📲</button>
-        <button class="header-logout" onclick="openModal('changePassModal')" title="Cambiar contraseña" style="font-size:1em;">🔑</button>
-        <button class="header-logout" onclick="doLogout()" title="Salir">🚪</button>
+    <div class="header-info" style="align-items:flex-end;gap:1px;flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:2px;">
+        <div class="header-clock" id="hdrClock" style="font-size:0.82em;">--:--</div>
+        <span style="font-size:0.58em;color:var(--muted);margin-left:2px;">VZ</span>
+      </div>
+      <div style="display:flex;gap:1px;align-items:center;margin-top:2px;">
+        <button class="header-logout" id="themeBtn" onclick="cycleTheme()" title="Tema" style="font-size:0.9em;padding:4px;">🌙</button>
+        <button class="header-logout" id="langBtn" onclick="cycleLang()" title="Idioma" style="font-size:0.9em;padding:4px;">🇻🇪</button>
+        <button class="header-logout" onclick="inviteToApp()" title="Invitar" style="font-size:0.9em;padding:4px;">📲</button>
+        <button class="header-logout" onclick="openModal('changePassModal')" title="Contraseña" style="font-size:0.9em;padding:4px;">🔑</button>
+        <button class="header-logout" onclick="doLogout()" title="Salir" style="font-size:0.9em;padding:4px;">🚪</button>
       </div>
     </div>
   </div>
@@ -1413,67 +1415,97 @@ let currentLang = localStorage.getItem('ql_lang') || 'es';
 
 const LANGS = {
   es:{
-    matches:'Partidos',predict:'Predecir',chat:'Chat',tournaments:'Torneos',
-    groups:'Grupos',simulate:'Simular',admin:'Admin',
-    login:'Entrar →',register:'Crear cuenta →',logging:'⏳ Entrando...',registering:'⏳ Registrando...',
-    phone:'Teléfono',password:'Contraseña',name:'Nombre',alias:'Apodo (máx 8)',
-    inviteCode:'Código de invitación',joinGroup:'Unirse a Grupo',
-    createGroup:'Crear Grupo',groupName:'Nombre del grupo',maxPlayers:'Máximo de jugadores',
-    groupTournaments:'Torneos de esta quiniela',createBtn:'🎉 Crear Grupo',
-    joinBtn:'✅ Unirse al Grupo',cancel:'Cancelar',
-    myPreds:'Mis Predicciones',standings:'Tablas',sync:'🔄 Sync',
-    save:'💾 Guardar Predicciones',express:'⚡ Express',
-    noPreds:'Sin predicciones guardadas',noMatches:'Sin partidos disponibles',
-    searching:'Buscando...',loading:'Cargando...',
-    ranking:'🏆 Clasificación',share:'📲',
-    whoWins:'¿Quién gana?',draw:'🤝 Empate',goalsEach:'🤝 ¿Cuántos goles cada uno?',
-    goalsWinner:'⚽ Goles del ganador',goalsLoser:'⚽ Goles del perdedor',
-    skip:'⏭ Saltar',skipMatch:'⏭ Saltar este partido',
-    sendMsg:'Enviar',typeMsg:'Escribe un mensaje...',
-    theme:'Tema',language:'Idioma',myStats:'📊 Mis Stats',
-    viewOthers:'🔍 Ver predicciones de otros',search:'🔍 Buscar',
+    // Nav
+    matches:'Partidos', predict:'Predecir', chat:'Chat', tournaments:'Torneos',
+    groups:'Grupos', simulate:'Simular', admin:'Admin',
+    // Auth
+    login:'Entrar →', register:'Crear cuenta →', logging:'⏳ Entrando...', registering:'⏳ Registrando...',
+    phone:'Teléfono', password:'Contraseña', name:'Nombre completo', alias:'Alias (máx 8 letras)',
+    inviteCode:'Código de invitación', joinGroup:'Unirse a un Grupo',
+    // Grupos
+    createGroup:'Crear Grupo', groupName:'Nombre del grupo', maxPlayers:'Máximo de jugadores',
+    groupTournaments:'Ligas de esta quiniela', createBtn:'🎉 Crear Grupo',
+    joinBtn:'✅ Unirme al Grupo', cancel:'Cancelar',
+    // Partidos
+    myPreds:'Mis Predicciones', standings:'Posiciones', sync:'🔄 Actualizar',
+    save:'💾 Guardar Predicciones', express:'⚡ Express',
+    noPreds:'No tienes predicciones guardadas.', noMatches:'No hay partidos disponibles.',
+    searching:'Buscando...', loading:'Cargando...',
+    ranking:'🏆 Ver Clasificación', share:'📲',
+    // Express
+    whoWins:'¿Quién gana?', draw:'🤝 Empate',
+    goalsEach:'¿Cuántos goles para cada equipo?',
+    goalsWinner:'Goles del ganador', goalsLoser:'Goles del perdedor',
+    skip:'Saltar ⏭', skipMatch:'⏭ Saltar partido',
+    // Chat
+    sendMsg:'Enviar', typeMsg:'Escribe aquí...',
+    // General
+    theme:'Tema', language:'Idioma', myStats:'📊 Mis Estadísticas',
+    viewOthers:'🔍 Ver predicciones de otros jugadores', search:'🔍 Buscar',
+    closed:'⛔ Predicciones cerradas', liveNow:'🔴 EN VIVO', finished:'✅ Final',
+    noStats:'Aún no tienes predicciones evaluadas.',
   },
   en:{
-    matches:'Matches',predict:'Predict',chat:'Chat',tournaments:'Leagues',
-    groups:'Groups',simulate:'Simulate',admin:'Admin',
-    login:'Sign In →',register:'Create account →',logging:'⏳ Signing in...',registering:'⏳ Creating...',
-    phone:'Phone',password:'Password',name:'Name',alias:'Alias (max 8)',
-    inviteCode:'Invite code',joinGroup:'Join Group',
-    createGroup:'Create Group',groupName:'Group name',maxPlayers:'Max players',
-    groupTournaments:'Leagues for this pool',createBtn:'🎉 Create Group',
-    joinBtn:'✅ Join Group',cancel:'Cancel',
-    myPreds:'My Predictions',standings:'Tables',sync:'🔄 Sync',
-    save:'💾 Save Predictions',express:'⚡ Express',
-    noPreds:'No predictions saved',noMatches:'No matches available',
-    searching:'Searching...',loading:'Loading...',
-    ranking:'🏆 Standings',share:'📲',
-    whoWins:'Who wins?',draw:'🤝 Draw',goalsEach:'🤝 Goals each?',
-    goalsWinner:'⚽ Winner goals',goalsLoser:'⚽ Loser goals',
-    skip:'⏭ Skip',skipMatch:'⏭ Skip this match',
-    sendMsg:'Send',typeMsg:'Type a message...',
-    theme:'Theme',language:'Language',myStats:'📊 My Stats',
-    viewOthers:'🔍 View others predictions',search:'🔍 Search',
+    // Nav
+    matches:'Matches', predict:'Predict', chat:'Chat', tournaments:'Leagues',
+    groups:'Groups', simulate:'Simulate', admin:'Admin',
+    // Auth
+    login:'Sign In →', register:'Create account →', logging:'⏳ Signing in...', registering:'⏳ Creating account...',
+    phone:'Phone number', password:'Password', name:'Full name', alias:'Username (max 8 chars)',
+    inviteCode:'Invite code', joinGroup:'Join a Group',
+    // Groups
+    createGroup:'Create Group', groupName:'Group name', maxPlayers:'Maximum players',
+    groupTournaments:'Leagues in this pool', createBtn:'🎉 Create Group',
+    joinBtn:'✅ Join Group', cancel:'Cancel',
+    // Matches
+    myPreds:'My Predictions', standings:'Standings', sync:'🔄 Refresh',
+    save:'💾 Save Predictions', express:'⚡ Express',
+    noPreds:'You have no saved predictions.', noMatches:'No matches available.',
+    searching:'Searching...', loading:'Loading...',
+    ranking:'🏆 View Rankings', share:'📲',
+    // Express
+    whoWins:'Who wins?', draw:'🤝 Draw',
+    goalsEach:'How many goals for each team?',
+    goalsWinner:'Winner goals', goalsLoser:'Loser goals',
+    skip:'Skip ⏭', skipMatch:'⏭ Skip match',
+    // Chat
+    sendMsg:'Send', typeMsg:'Type a message...',
+    // General
+    theme:'Theme', language:'Language', myStats:'📊 My Statistics',
+    viewOthers:'🔍 View other players\' predictions', search:'🔍 Search',
+    closed:'⛔ Predictions closed', liveNow:'🔴 LIVE', finished:'✅ Final',
+    noStats:'No evaluated predictions yet.',
   },
   de:{
-    matches:'Spiele',predict:'Tippen',chat:'Chat',tournaments:'Ligen',
-    groups:'Gruppen',simulate:'Simulieren',admin:'Admin',
-    login:'Anmelden →',register:'Konto erstellen →',logging:'⏳ Anmelden...',registering:'⏳ Erstellen...',
-    phone:'Telefon',password:'Passwort',name:'Name',alias:'Alias (max 8)',
-    inviteCode:'Einladungscode',joinGroup:'Gruppe beitreten',
-    createGroup:'Gruppe erstellen',groupName:'Gruppenname',maxPlayers:'Max. Spieler',
-    groupTournaments:'Ligen für diesen Pool',createBtn:'🎉 Gruppe erstellen',
-    joinBtn:'✅ Beitreten',cancel:'Abbrechen',
-    myPreds:'Meine Tipps',standings:'Tabellen',sync:'🔄 Sync',
-    save:'💾 Tipps speichern',express:'⚡ Express',
-    noPreds:'Keine Tipps gespeichert',noMatches:'Keine Spiele verfügbar',
-    searching:'Suchen...',loading:'Laden...',
-    ranking:'🏆 Rangliste',share:'📲',
-    whoWins:'Wer gewinnt?',draw:'🤝 Unentschieden',goalsEach:'🤝 Tore je Team?',
-    goalsWinner:'⚽ Tore Gewinner',goalsLoser:'⚽ Tore Verlierer',
-    skip:'⏭ Überspringen',skipMatch:'⏭ Spiel überspringen',
-    sendMsg:'Senden',typeMsg:'Nachricht eingeben...',
-    theme:'Design',language:'Sprache',myStats:'📊 Meine Stats',
-    viewOthers:'🔍 Tipps anderer Spieler',search:'🔍 Suchen',
+    // Nav
+    matches:'Spiele', predict:'Tippen', chat:'Chat', tournaments:'Ligen',
+    groups:'Gruppen', simulate:'Simulation', admin:'Admin',
+    // Auth
+    login:'Anmelden →', register:'Konto erstellen →', logging:'⏳ Anmelden...', registering:'⏳ Konto wird erstellt...',
+    phone:'Telefonnummer', password:'Passwort', name:'Vollständiger Name', alias:'Benutzername (max 8 Zeichen)',
+    inviteCode:'Einladungscode', joinGroup:'Gruppe beitreten',
+    // Gruppen
+    createGroup:'Gruppe erstellen', groupName:'Gruppenname', maxPlayers:'Max. Spieleranzahl',
+    groupTournaments:'Ligen in diesem Tipp-Spiel', createBtn:'🎉 Gruppe erstellen',
+    joinBtn:'✅ Beitreten', cancel:'Abbrechen',
+    // Spiele
+    myPreds:'Meine Tipps', standings:'Tabelle', sync:'🔄 Aktualisieren',
+    save:'💾 Tipps speichern', express:'⚡ Express',
+    noPreds:'Keine gespeicherten Tipps vorhanden.', noMatches:'Keine Spiele verfügbar.',
+    searching:'Suche läuft...', loading:'Wird geladen...',
+    ranking:'🏆 Rangliste ansehen', share:'📲',
+    // Express
+    whoWins:'Wer gewinnt?', draw:'🤝 Unentschieden',
+    goalsEach:'Wie viele Tore pro Mannschaft?',
+    goalsWinner:'Tore des Gewinners', goalsLoser:'Tore des Verlierers',
+    skip:'Überspringen ⏭', skipMatch:'⏭ Spiel überspringen',
+    // Chat
+    sendMsg:'Senden', typeMsg:'Nachricht schreiben...',
+    // Allgemein
+    theme:'Design', language:'Sprache', myStats:'📊 Meine Statistiken',
+    viewOthers:'🔍 Tipps anderer Spieler anzeigen', search:'🔍 Suchen',
+    closed:'⛔ Tippen gesperrt', liveNow:'🔴 LIVE', finished:'✅ Abpfiff',
+    noStats:'Noch keine ausgewerteten Tipps vorhanden.',
   }
 };
 
@@ -1556,6 +1588,21 @@ function isLive(status) {
 function isFinished(status) {
   const s = (status||'').toUpperCase();
   return ['FT','AET','AP','PEN','ABD','AWD','WO','MATCH FINISHED','FINISHED'].includes(s);
+}
+
+// Si un partido está en "2H"/"1H" pero su hora de inicio fue hace más de 130 min → tratarlo como terminado
+function isStaleLive(match) {
+  if (!isLive(match.status)) return false;
+  if (!match.time && !match.dateTime) return false;
+  try {
+    const dt = new Date(match.dateTime || match.date + 'T' + (match.time||'00:00') + ':00');
+    const elapsed = (Date.now() - dt.getTime()) / 60000; // minutos
+    return elapsed > 130;
+  } catch(e) { return false; }
+}
+
+function effectivelyFinished(match) {
+  return isFinished(match.status) || isStaleLive(match);
 }
 function statusLabel(s) {
   const map = {
@@ -2781,10 +2828,26 @@ async function openStats(matchId) {
       }
     }
 
-    // ── PASO 3: Estadísticas V2 ────────────────────────────────
+    // ── PASO 3: Estadísticas ────────────────────────────────────
     try {
-      const sr = await fetchV2(`/lookup/event_stats/${matchId}`);
-      const statsList = sr?.eventstats || sr?.stats || [];
+      let statsList = [];
+
+      // Intento A: V1 lookupeventstats (más confiable para partidos terminados)
+      try {
+        const r1 = await fetch(`${API_V1}/lookupeventstats.php?id=${matchId}`);
+        const d1 = await r1.json();
+        const s1 = d1?.eventstats || d1?.stats || [];
+        if (s1.length > 0) statsList = s1;
+      } catch(e) {}
+
+      // Intento B: V2 si V1 vació
+      if (!statsList.length) {
+        try {
+          const sr = await fetchV2(`/lookup/event_stats/${matchId}`);
+          const s2 = sr?.eventstats || sr?.stats || [];
+          if (s2.length > 0) statsList = s2;
+        } catch(e) {}
+      }
 
       if (statsList.length > 0) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
@@ -3147,7 +3210,7 @@ async function renderPreds() {
           if (p.pointsAwarded===5) { ptsCls='pts-5'; ptsLabel='⭐ 5pts'; }
           else if (p.pointsAwarded===3) { ptsCls='pts-3'; ptsLabel='🎯 3pts'; }
           else { ptsCls='pts-0'; ptsLabel='❌ 0pts'; }
-        } else if (hasReal && isFinished(match.status)) {
+        } else if (hasReal && effectivelyFinished(match)) {
           ptsLabel='⏳ Eval.';
         }
         html += `
@@ -3653,7 +3716,7 @@ async function autoEval() {
   for(const match of active) {
     const rh = +match.homeScore;
     const ra = +match.awayScore;
-    const isFinal = isFinished(match.status);
+    const isFinal = effectivelyFinished(match);
 
     try {
       // Get ALL predictions for this match (both string and number matchId)
@@ -5620,6 +5683,6 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-
+u
 
 
