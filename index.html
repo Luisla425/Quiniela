@@ -2902,6 +2902,12 @@ async function openStats(matchId) {
 
       let icon = '', color = 'var(--text)', extra = '';
 
+      // Tarjetas: TheSportsDB usa "yellowcard","redcard","yellowredcard","Second Yellow Card"
+      const isYellowRed = type.includes('yellowred') || type.includes('second yellow')
+                       || (type.includes('yellow') && type.includes('red'));
+      const isYellow = !isYellowRed && type.includes('yellow');
+      const isRed    = !isYellowRed && !isYellow && (type.includes('red') || type === 'redcard');
+
       if (type.includes('goal')) {
         if (type.includes('own')) {
           icon='⚽🔴'; color='var(--red)';
@@ -2918,9 +2924,9 @@ async function openStats(matchId) {
         if (player2 && !type.includes('miss'))
           extra += ` <span style="color:var(--muted2);font-size:0.72em;">🅰 ${player2}</span>`;
       }
-      else if (type.includes('yellow') && type.includes('red')) { icon='🟨🟥'; color='var(--red)'; }
-      else if (type.includes('yellow'))  { icon='🟨'; color='var(--gold)'; }
-      else if (type.includes('red'))     { icon='🟥'; color='var(--red)'; }
+      else if (isYellowRed) { icon='🟨🟥'; color='var(--red)'; }
+      else if (isYellow)    { icon='🟨';   color='var(--gold)'; }
+      else if (isRed)       { icon='🟥';   color='var(--red)'; }
       else if (type.includes('sub') || type.includes('substitut')) {
         icon='🔄'; color='var(--muted2)';
         // player = sale ▼ rojo | player2 = entra ▲ verde
@@ -2946,22 +2952,27 @@ async function openStats(matchId) {
       sorted.forEach(t => { html += renderTimelineEvent(t) || ''; });
 
     } else {
-      // Intento D: parsear strHomeGoalDetails / strAwayGoalDetails del evento V1
+      // Intento D: parsear campos de string del evento V1
+      // TheSportsDB devuelve: "Schafer A.(19')" en strHomeRedCards etc.
       const parseList = s => s ? s.split(';').map(x=>x.trim()).filter(Boolean) : [];
-      const hGoals  = parseList(evFinal?.strHomeGoalDetails);
-      const aGoals  = parseList(evFinal?.strAwayGoalDetails);
-      const hYellow = parseList(evFinal?.strHomeYellowCards);
-      const aYellow = parseList(evFinal?.strAwayYellowCards);
-      const hRed    = parseList(evFinal?.strHomeRedCards);
-      const aRed    = parseList(evFinal?.strAwayRedCards);
+      const hGoals      = parseList(evFinal?.strHomeGoalDetails);
+      const aGoals      = parseList(evFinal?.strAwayGoalDetails);
+      const hYellow     = parseList(evFinal?.strHomeYellowCards);
+      const aYellow     = parseList(evFinal?.strAwayYellowCards);
+      const hRed        = parseList(evFinal?.strHomeRedCards);
+      const aRed        = parseList(evFinal?.strAwayRedCards);
+      const hYellowRed  = parseList(evFinal?.strHomeYellowRedCards);
+      const aYellowRed  = parseList(evFinal?.strAwayYellowRedCards);
 
       const allTextEvents = [
-        ...hGoals .map(g=>({g, icon:'⚽', color:'var(--primary2)', side:home})),
-        ...aGoals .map(g=>({g, icon:'⚽', color:'var(--green)',    side:away})),
-        ...hYellow.map(g=>({g, icon:'🟨', color:'var(--gold)',     side:home})),
-        ...aYellow.map(g=>({g, icon:'🟨', color:'var(--gold)',     side:away})),
-        ...hRed   .map(g=>({g, icon:'🟥', color:'var(--red)',      side:home})),
-        ...aRed   .map(g=>({g, icon:'🟥', color:'var(--red)',      side:away})),
+        ...hGoals     .map(g=>({g, icon:'⚽', color:'var(--primary2)', side:home})),
+        ...aGoals     .map(g=>({g, icon:'⚽', color:'var(--green)',    side:away})),
+        ...hYellow    .map(g=>({g, icon:'🟨', color:'var(--gold)',     side:home})),
+        ...aYellow    .map(g=>({g, icon:'🟨', color:'var(--gold)',     side:away})),
+        ...hYellowRed .map(g=>({g, icon:'🟨🟥', color:'var(--red)',   side:home})),
+        ...aYellowRed .map(g=>({g, icon:'🟨🟥', color:'var(--red)',   side:away})),
+        ...hRed       .map(g=>({g, icon:'🟥', color:'var(--red)',      side:home})),
+        ...aRed       .map(g=>({g, icon:'🟥', color:'var(--red)',      side:away})),
       ].sort((a,b) => {
         const ma = parseInt((a.g.match(/(\d+)/)||['0'])[1]);
         const mb = parseInt((b.g.match(/(\d+)/)||['0'])[1]);
@@ -2976,7 +2987,7 @@ async function openStats(matchId) {
           const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').replace(/[()]/g,'').trim() || g;
           html += `
             <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-              <span style="font-family:var(--font-h);color:var(--gold);min-width:40px;font-size:0.82em;font-weight:800;flex-shrink:0;">${min}</span>
+              <span style="font-family:var(--font-h);color:var(--gold);min-width:44px;font-size:0.82em;font-weight:800;flex-shrink:0;">${min}</span>
               <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
               <div style="flex:1;">
                 <div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>
@@ -2985,19 +2996,14 @@ async function openStats(matchId) {
             </div>`;
         });
       } else {
-        // Sin datos de ninguna fuente — mostrar mensaje útil
         html += `
           <div style="background:rgba(255,140,66,0.1);border:1px solid rgba(255,140,66,0.3);border-radius:var(--r-sm);padding:14px;text-align:center;">
             <div style="font-size:1.5em;margin-bottom:6px;">${isMatchLive ? '⏱' : '📋'}</div>
             <div style="font-weight:800;color:var(--orange);font-size:0.85em;">
-              ${isMatchLive
-                ? 'La API aún no reporta eventos para este partido'
-                : 'Sin eventos detallados disponibles'}
+              ${isMatchLive ? 'La API aún no reporta eventos para este partido' : 'Sin eventos detallados disponibles'}
             </div>
             <div style="font-size:0.72em;color:var(--muted2);margin-top:4px;">
-              ${isMatchLive
-                ? 'Toca 🔄 Actualizar en unos segundos'
-                : 'TheSportsDB no tiene datos de este partido'}
+              ${isMatchLive ? 'Toca 🔄 Actualizar en unos segundos' : 'TheSportsDB no tiene datos de este partido'}
             </div>
           </div>`;
       }
