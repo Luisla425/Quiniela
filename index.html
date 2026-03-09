@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="robots" content="noindex,nofollow">
-  <meta name="copyright" content="LUANSystem™ 2025">
-  <meta name="theme-color" content="#0d0d14">
+<meta name="theme-color" content="#0d0d14">
 <title>⚽ Quiniela LuAn</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1260,22 +1258,22 @@ body::before {
 // FIREBASE CONFIG
 // ═══════════════════════════════════════════
 const fbConfig = {
-  apiKey:atob("QUl6YVN5Q0dmUElmLVExeDkwaFRuZTF0Q01XTkZ1UzBoaW80Q3RB"),
-  authDomain:atob("cXVpbmllbGEtbHVhbi0yNS5maXJlYmFzZWFwcC5jb20="),
-  projectId:atob("cXVpbmllbGEtbHVhbi0yNQ=="),
-  storageBucket:atob("cXVpbmllbGEtbHVhbi0yNS5maXJlYmFzZXN0b3JhZ2UuYXBw"),
-  messagingSenderId:atob("MzYwMzI1NjA4ODM5"),
-  appId:atob("MTozNjAzMjU2MDg4Mzk6d2ViOjkwMGFmOWJhZmM1NmJiY2JmYWNmMjI=")
+  apiKey:"AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hio4CtA",
+  authDomain:"quiniela-luan-25.firebaseapp.com",
+  projectId:"quiniela-luan-25",
+  storageBucket:"quiniela-luan-25.firebasestorage.app",
+  messagingSenderId:"360325608839",
+  appId:"1:360325608839:web:900af9bafc56bbcbfacf22"
 };
 firebase.initializeApp(fbConfig);
-const _au = firebase._au();
-const _db   = firebase.firestore();
+const auth = firebase.auth();
+const db   = firebase.firestore();
 
 // ═══════════════════════════════════════════
 // API CONFIG
 // ═══════════════════════════════════════════
-const API_KEY = atob('MzMzMjg5');
-const _v1  = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
+const API_KEY = '333289';
+const API_V1  = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
 const API_V2  = `https://www.thesportsdb.com/api/v2/json`;
 
 // Helper — always sends X-API-KEY header for V2
@@ -1309,9 +1307,9 @@ async function fetchTimeout(url, ms = 6000, opts = {}) {
 const _afCache = {}; // kept for compat
 
 // ═══════════════════════════════════════════
-// _TR
+// TOURNAMENTS
 // ═══════════════════════════════════════════
-const _TR = [
+const TOURNAMENTS = [
   { id:'ucl',      name:'Champions League', flag:'⭐', lid:'4480' },
   { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
   { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
@@ -1371,8 +1369,8 @@ const COUNTRIES = [
 // ═══════════════════════════════════════════
 let me = null;
 let myTournaments = [];
-let _aM = [];
-let _dM = [];
+let allMatches = [];
+let dayMatches = [];
 let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
@@ -1389,10 +1387,10 @@ let myGroupsList  = [];        // Cache de grupos del jugador
 // TEMAS
 // ═══════════════════════════════════════════
 const THEMES = ['dark','light','auto'];
-let _ct = localStorage.getItem('ql_theme') || 'dark';
+let currentTheme = localStorage.getItem('ql_theme') || 'dark';
 
 function applyTheme(theme) {
-  _ct = theme;
+  currentTheme = theme;
   localStorage.setItem('ql_theme', theme);
   document.body.classList.remove('theme-light');
   if (theme === 'light') {
@@ -1406,16 +1404,16 @@ function applyTheme(theme) {
 }
 
 function cycleTheme() {
-  const idx = THEMES.indexOf(_ct);
+  const idx = THEMES.indexOf(currentTheme);
   applyTheme(THEMES[(idx+1) % THEMES.length]);
 }
 
 // ═══════════════════════════════════════════
 // IDIOMAS
 // ═══════════════════════════════════════════
-let _cl = localStorage.getItem('ql_lang') || 'es';
+let currentLang = localStorage.getItem('ql_lang') || 'es';
 
-const _LG = {
+const LANGS = {
   es:{
     matches:'Partidos', predict:'Predecir', chat:'Chat', tournaments:'Torneos',
     groups:'Grupos', simulate:'Simular', admin:'Admin',
@@ -1571,14 +1569,15 @@ const _LG = {
   }
 };
 
+
 function cycleLang() {
   const langs = ['es','en','de'];
-  const idx = langs.indexOf(_cl);
+  const idx = langs.indexOf(currentLang);
   setLang(langs[(idx+1) % langs.length]);
 }
 
 function setLang(lang) {
-  _cl = lang;
+  currentLang = lang;
   localStorage.setItem('ql_lang', lang);
   // Nav labels
   const navMap = {
@@ -1603,11 +1602,11 @@ function setLang(lang) {
 }
 
 function t(key) {
-  return (_LG[_cl]||_LG.es)[key] || _LG.es[key] || key;
+  return (LANGS[currentLang]||LANGS.es)[key] || LANGS.es[key] || key;
 }
 
 // Aplicar tema e idioma al cargar
-applyTheme(_ct);
+applyTheme(currentTheme);
 // setLang se llama después de que el DOM esté listo
 
 // ── CACHE ──────────────────────────────────
@@ -1676,7 +1675,7 @@ function effectivelyFinished(match) {
 }
 function statusLabel(s) {
   const key = 'st_' + (s||'').replace(/\s/g,'_');
-  if (_LG[_cl]?.[key]) return _LG[_cl][key];
+  if (LANGS[currentLang]?.[key]) return LANGS[currentLang][key];
   // fallback static map (es)
   const map = {
     'NS':'⏰ Próximo','TBD':'📅 Por definir',
@@ -2014,13 +2013,13 @@ async function doLogin() {
 
   const email = phoneToEmail(phone, 'login');
   try {
-    await _au.signInWithEmailAndPassword(email, pass);
+    await auth.signInWithEmailAndPassword(email, pass);
     // onAuthStateChanged handles the rest
   } catch(e) {
-    const msg = e.code==='_au/wrong-password' ? '❌ Contraseña incorrecta'
-              : e.code==='_au/user-not-found'  ? '❌ Teléfono no registrado'
-              : e.code==='_au/too-many-requests'? '❌ Demasiados intentos. Espera unos minutos'
-              : e.code==='_au/network-request-failed' ? '❌ Sin conexión'
+    const msg = e.code==='auth/wrong-password' ? '❌ Contraseña incorrecta'
+              : e.code==='auth/user-not-found'  ? '❌ Teléfono no registrado'
+              : e.code==='auth/too-many-requests'? '❌ Demasiados intentos. Espera unos minutos'
+              : e.code==='auth/network-request-failed' ? '❌ Sin conexión'
               : '❌ Error: ' + e.message;
     toast(msg,'error');
     if (btn) { btn.disabled = false; btn.textContent = 'Entrar →'; }
@@ -2049,14 +2048,14 @@ async function doRegister() {
     const countryCode = selectedCountry.reg.d.replace('+','');
     const fullPhone = '+' + countryCode + phone.replace(/^0/,'').replace(/\D/g,'');
 
-    // Step 1: Create _au user first (no Firestore needed yet)
-    const cred = await _au.createUserWithEmailAndPassword(email, pass);
+    // Step 1: Create auth user first (no Firestore needed yet)
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
     const uid  = cred.user.uid;
 
     // Step 2: Now authenticated — check username unique
-    const uCheck = await _db.collection('users').where('username','==',username).limit(1).get();
+    const uCheck = await db.collection('users').where('username','==',username).limit(1).get();
     if (!uCheck.empty) {
-      // Username taken — delete the _au user we just created and abort
+      // Username taken — delete the auth user we just created and abort
       await cred.user.delete();
       toast('❌ Ese apodo ya está en uso','error');
       if (btn) { btn.disabled=false; btn.textContent='Crear cuenta →'; }
@@ -2064,12 +2063,12 @@ async function doRegister() {
     }
 
     // Step 3: Get player number
-    const allSnap = await _db.collection('users').get();
+    const allSnap = await db.collection('users').get();
     const playerNumber = allSnap.size + 1;
     const isFirst = allSnap.empty;
 
     // Step 4: Save profile to Firestore
-    await _db.collection('users').doc(uid).set({
+    await db.collection('users').doc(uid).set({
       name, username,
       phone: fullPhone,
       phoneDisplay: `${selectedCountry.reg.f} ${selectedCountry.reg.d} ${phone.replace(/^0/,'')}`,
@@ -2085,9 +2084,9 @@ async function doRegister() {
     // onAuthStateChanged fires automatically and calls enterApp()
 
   } catch(e) {
-    const msg = e.code==='_au/email-already-in-use' ? 'Ese teléfono ya está registrado'
-              : e.code==='_au/weak-password' ? 'Contraseña muy débil (mín. 6 caracteres)'
-              : e.code==='_au/network-request-failed' ? 'Sin conexión. Revisa tu internet'
+    const msg = e.code==='auth/email-already-in-use' ? 'Ese teléfono ya está registrado'
+              : e.code==='auth/weak-password' ? 'Contraseña muy débil (mín. 6 caracteres)'
+              : e.code==='auth/network-request-failed' ? 'Sin conexión. Revisa tu internet'
               : e.message;
     toast('❌ '+msg,'error');
   } finally {
@@ -2100,7 +2099,7 @@ async function doReset() {
   if (!phone) { toast('Ingresa tu teléfono','error'); return; }
   const email = phoneToEmail(phone, 'reset');
   try {
-    await _au.sendPasswordResetEmail(email);
+    await auth.sendPasswordResetEmail(email);
     toast('✅ Enlace enviado','success');
   } catch(e) {
     toast('Teléfono no encontrado','error');
@@ -2110,7 +2109,7 @@ async function doReset() {
 async function doLogout() {
   clearTimeout(syncTimer);
   if (chatUnsub) chatUnsub();
-  await _au.signOut();
+  await auth.signOut();
 }
 
 async function doChangePass() {
@@ -2122,14 +2121,14 @@ async function doChangePass() {
   if (newPass !== newPass2) { toast('Las contraseñas no coinciden','error'); return; }
   try {
     // Re-authenticate first
-    const user = _au._cU;
-    const cred = firebase._au.EmailAuthProvider.credential(user.email, oldPass);
+    const user = auth.currentUser;
+    const cred = firebase.auth.EmailAuthProvider.credential(user.email, oldPass);
     await user.reauthenticateWithCredential(cred);
     await user.updatePassword(newPass);
     closeModal('changePassModal');
     toast('✅ Contraseña cambiada exitosamente','success');
   } catch(e) {
-    if (e.code==='_au/wrong-password') toast('❌ Contraseña actual incorrecta','error');
+    if (e.code==='auth/wrong-password') toast('❌ Contraseña actual incorrecta','error');
     else toast('Error: '+e.message,'error');
   }
 }
@@ -2137,18 +2136,18 @@ async function doChangePass() {
 // ═══════════════════════════════════════════
 // AUTH STATE
 // ═══════════════════════════════════════════
-_au.onAuthStateChanged(async user => {
+auth.onAuthStateChanged(async user => {
   if (user) {
     // Retry up to 5 times — doc may not be saved yet after registration
     let doc = null;
     for (let i = 0; i < 5; i++) {
-      doc = await _db.collection('users').doc(user.uid).get();
+      doc = await db.collection('users').doc(user.uid).get();
       if (doc.exists) break;
       await new Promise(r => setTimeout(r, 600)); // wait 600ms and retry
     }
     if (!doc || !doc.exists) {
       toast('❌ Error al cargar tu perfil. Intenta de nuevo.','error');
-      await _au.signOut();
+      await auth.signOut();
       return;
     }
     me = { uid: user.uid, ...doc.data() };
@@ -2172,13 +2171,13 @@ async function enterApp() {
 
   // Check if user has a pending temp password reset
   try {
-    const resetDoc = await _db.collection('passResets').doc(me.uid).get();
+    const resetDoc = await db.collection('passResets').doc(me.uid).get();
     if (resetDoc.exists && !resetDoc.data().used) {
       setTimeout(() => {
         toast('🔑 Entraste con contraseña temporal. Cámbiala ahora.','warning', 6000);
         openModal('changePassModal');
         // Mark as used
-        _db.collection('passResets').doc(me.uid).update({used: true});
+        db.collection('passResets').doc(me.uid).update({used: true});
       }, 1500);
     }
   } catch(e) {}
@@ -2200,8 +2199,8 @@ async function enterApp() {
   }
 
   startClock();
-  applyTheme(_ct);
-  setLang(_cl);
+  applyTheme(currentTheme);
+  setLang(currentLang);
   showScreen('matches');
 
   // Cargar grupos del jugador y activar el más reciente
@@ -2214,11 +2213,11 @@ async function enterApp() {
   // • No live games today: every 5 minutes (saves reads)
   // • User typing: skip
   function scheduleNextSync() {
-    const hasLive = _dM.some(m => isLive(m.status));
+    const hasLive = dayMatches.some(m => isLive(m.status));
     const interval = hasLive ? 45000 : 300000;
     syncTimer = setTimeout(async () => {
       if (!userEnteringPreds) {
-        const hasTodayGames = _dM.length > 0;
+        const hasTodayGames = dayMatches.length > 0;
         if (hasTodayGames) await doSync();
         else await autoEval();
       }
@@ -2229,7 +2228,7 @@ async function enterApp() {
 
   // ── Minuto en vivo — actualiza el badge localmente cada 60s (0 llamadas API) ──
   setInterval(() => {
-    _dM.forEach(m => {
+    dayMatches.forEach(m => {
       if (!isLive(m.status)) return;
       const badge = document.getElementById(`badge_${m.id}`);
       if (!badge) return;
@@ -2273,9 +2272,7 @@ function showScreen(name) {
   $(`nav-${name}`)?.classList.add('active');
 
   // Unsubscribe chat listener when leaving chat
-  if (nam
-// Copyright LUANSystem™ 2025 - All rights reserved
-e !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
+  if (name !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
 
   if (name==='preds')        renderPreds();
   if (name==='chat')         initChat();
@@ -2292,11 +2289,11 @@ async function loadMatches() {
   // 1) Try memory cache first (zero Firestore reads)
   const cached = cacheGet(CACHE_KEY_MATCHES, CACHE_TTL_MATCHES);
   if (cached && cached.length) {
-    _aM = cached;
+    allMatches = cached;
     setDayMatches();
     renderMatches();
     // Only sync if cache is old or there are live games
-    const hasLive = _dM.some(m => isLive(m.status));
+    const hasLive = dayMatches.some(m => isLive(m.status));
     const lastSync = +localStorage.getItem(CACHE_KEY_SYNC) || 0;
     const sinceLast = Date.now() - lastSync;
     if (sinceLast < CACHE_TTL_MATCHES && !hasLive) return; // Cache fresh, no sync needed
@@ -2314,24 +2311,24 @@ async function doSync() {
     if (data) {
       const lives = data?.livescore || data?.events || [];
       lives.forEach(ev => {
-        const t = _TR.find(t => t.lid === ev.idLeague);
+        const t = TOURNAMENTS.find(t => t.lid === ev.idLeague);
         if (t && myTournaments.includes(t.id)) found.set(ev.idEvent, parseEvent(ev,t));
       });
     }
   } catch(e) {}
 
   // 2) V1 next + past per tournament
-  for (const t of _TR) {
+  for (const t of TOURNAMENTS) {
     if (!myTournaments.includes(t.id)) continue;
     try {
-      const r = await fetchTimeout(`${_v1}/eventsnextleague.php?id=${t.lid}`, 6000);
+      const r = await fetchTimeout(`${API_V1}/eventsnextleague.php?id=${t.lid}`, 6000);
       if (r && r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
         if (t.teamBlacklist) { const h=(ev.strHomeTeam||'').toLowerCase(),a=(ev.strAwayTeam||'').toLowerCase(); if(t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
         found.set(ev.idEvent,parseEvent(ev,t));
       }); }
     } catch(e) {}
     try {
-      const r = await fetchTimeout(`${_v1}/eventspastleague.php?id=${t.lid}`, 6000);
+      const r = await fetchTimeout(`${API_V1}/eventspastleague.php?id=${t.lid}`, 6000);
       if (r && r.ok) { const d=await r.json(); (d?.events||[]).forEach(ev=>{
         if (t.teamBlacklist) { const h=(ev.strHomeTeam||'').toLowerCase(),a=(ev.strAwayTeam||'').toLowerCase(); if(t.teamBlacklist.some(x=>h.includes(x)||a.includes(x))) return; }
         found.set(ev.idEvent,parseEvent(ev,t));
@@ -2341,7 +2338,7 @@ async function doSync() {
 
   // 3) Merge with Firestore
   try {
-    const fsSnap = await _db.collection('matches').get();
+    const fsSnap = await db.collection('matches').get();
     fsSnap.docs.forEach(d=>{
       if (!found.has(d.id)) found.set(d.id,{id:d.id,...d.data()});
     });
@@ -2349,7 +2346,7 @@ async function doSync() {
 
   if (!found.size) { renderMatches(); return; }
 
-  _aM = Array.from(found.values());
+  allMatches = Array.from(found.values());
 
   // 4) lookupevent ONLY for today's matches (not all matches)
   await refreshDayScores();
@@ -2359,14 +2356,14 @@ async function doSync() {
   const toWrite = Array.from(found.values()).filter(m => m.date === today);
   if (toWrite.length) {
     try {
-      const b = _db.batch();
-      toWrite.forEach(m => b.set(_db.collection('matches').doc(String(m.id)), m, {merge:true}));
+      const b = db.batch();
+      toWrite.forEach(m => b.set(db.collection('matches').doc(String(m.id)), m, {merge:true}));
       await b.commit();
     } catch(e) {}
   }
 
   // 6) Update cache
-  cacheSet(CACHE_KEY_MATCHES, _aM);
+  cacheSet(CACHE_KEY_MATCHES, allMatches);
   localStorage.setItem(CACHE_KEY_SYNC, Date.now());
 
   setDayMatches();
@@ -2377,13 +2374,13 @@ async function doSync() {
 
 async function refreshDayScores() {
   const today = vzDate();
-  const targets = _aM.filter(m => m.date===today || m.date===vzDate());
+  const targets = allMatches.filter(m => m.date===today || m.date===vzDate());
   if (!targets.length) return;
 
-  const batch = _db.batch();
+  const batch = db.batch();
   for (const m of targets) {
     try {
-      const r = await fetchTimeout(`${_v1}/lookupevent.php?id=${m.id}`, 5000);
+      const r = await fetchTimeout(`${API_V1}/lookupevent.php?id=${m.id}`, 5000);
       if (!r || !r.ok) continue;
       const data = await r.json();
       const ev = data?.events?.[0];
@@ -2396,9 +2393,9 @@ async function refreshDayScores() {
         homeGoals: ev.strHomeGoalDetails||'',
         awayGoals: ev.strAwayGoalDetails||'',
       };
-      const idx = _aM.findIndex(x=>String(x.id)===String(m.id));
-      if (idx!==-1) _aM[idx]={..._aM[idx],...upd};
-      batch.set(_db.collection('matches').doc(String(m.id)),upd,{merge:true});
+      const idx = allMatches.findIndex(x=>String(x.id)===String(m.id));
+      if (idx!==-1) allMatches[idx]={...allMatches[idx],...upd};
+      batch.set(db.collection('matches').doc(String(m.id)),upd,{merge:true});
     } catch(e) {}
   }
   try { await batch.commit(); } catch(e) {}
@@ -2428,21 +2425,21 @@ function parseEvent(ev, t) {
 
 function setDayMatches() {
   const today = vzDate();
-  let pool = _aM.filter(m=>m.date===today);
+  let pool = allMatches.filter(m=>m.date===today);
   if (!pool.length) {
-    const upcoming = _aM.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date));
+    const upcoming = allMatches.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date));
     const nextDate = upcoming[0]?.date;
-    pool = nextDate ? _aM.filter(m=>m.date===nextDate) : [];
+    pool = nextDate ? allMatches.filter(m=>m.date===nextDate) : [];
   }
-  _dM = pool.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  dayMatches = pool.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
 }
 
 function bettingClosed() {
   // Cerrado si algún partido está en vivo o terminado
-  if (_dM.some(m => isLive(m.status) || isFinished(m.status))) return true;
+  if (dayMatches.some(m => isLive(m.status) || isFinished(m.status))) return true;
   // También cerrado si faltan menos de 2 horas para el primer partido
   const vzNow = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Caracas'}));
-  for (const m of _dM) {
+  for (const m of dayMatches) {
     if (!m.time) continue;
     const [hh, mm] = m.time.split(':').map(Number);
     const kick = new Date(vzNow);
@@ -2458,7 +2455,7 @@ function renderCreatePicker() {
   const el = $('createTournamentPicker');
   if (!el) return;
   // Solo torneos de ligas (no Copa del Rey ni Mundial)
-  const playable = _TR.filter(t => !t.isMundial && t.id !== 'copadelrey');
+  const playable = TOURNAMENTS.filter(t => !t.isMundial && t.id !== 'copadelrey');
   el.innerHTML = playable.map(t => `
     <button class="t-pick-btn" data-tid="${t.id}"
       onclick="this.classList.toggle('selected');this.style.borderColor=this.classList.contains('selected')?'var(--primary)':'var(--border2)';this.style.background=this.classList.contains('selected')?'rgba(108,71,255,0.25)':'var(--surface2)';this.style.color=this.classList.contains('selected')?'var(--primary2)':'var(--muted2)';"
@@ -2475,7 +2472,7 @@ function renderCreatePicker() {
 // ═══════════════════════════════════════════
 async function loadMyGroups() {
   try {
-    const snap = await _db.collection('groups').get();
+    const snap = await db.collection('groups').get();
     myGroupsList = snap.docs
       .filter(d => d.data().members?.some(m => m.userId === me.uid))
       .map(d => ({ id: d.id, ...d.data() }));
@@ -2528,7 +2525,7 @@ function renderMatches() {
 
   // Save typed predictions
   const saved = {};
-  _dM.forEach(m=>{
+  dayMatches.forEach(m=>{
     const hi=$(`hi_${m.id}`),ai=$(`ai_${m.id}`);
     if(!hi||!ai) return;
     const hv = hi.tagName==='INPUT' ? hi.value : hi.textContent;
@@ -2537,7 +2534,7 @@ function renderMatches() {
   });
 
   const closed = bettingClosed();
-  const nextClose = !closed ? _dM.find(m=>m.status==='Not Started') : null;
+  const nextClose = !closed ? dayMatches.find(m=>m.status==='Not Started') : null;
 
   let html = `
     <div class="section-header">
@@ -2554,7 +2551,7 @@ function renderMatches() {
     myGroupsList.forEach(g => {
       const isActive = g.id === activeGroupId;
       const flag = (g.tournaments||[]).map(tid => {
-        const t = _TR.find(t=>t.id===tid);
+        const t = TOURNAMENTS.find(t=>t.id===tid);
         return t?.flag || '';
       }).filter(Boolean).slice(0,2).join('');
       html += `
@@ -2601,10 +2598,10 @@ function renderMatches() {
     </div>`;
   }
 
-  if (!_dM.length) {
+  if (!dayMatches.length) {
     html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Sin partidos. Pulsa Sync.</span></div>`;
   } else {
-    _dM.forEach(m => { html += buildMatchCard(m, closed); });
+    dayMatches.forEach(m => { html += buildMatchCard(m, closed); });
     if (!closed) {
       html += `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
@@ -2722,13 +2719,13 @@ function buildMatchCard(m, closed) {
   }
 
   const statsBtnLabel = live
-    ? `🔴 ${_cl==='de'?'LIVE · Tore & Karten':_cl==='en'?'LIVE · Goals & Cards':'EN VIVO · Goles y Tarjetas'}`
-    : `📊 ${_cl==='de'?'Statistiken & Tore':_cl==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
+    ? `🔴 ${currentLang==='de'?'LIVE · Tore & Karten':currentLang==='en'?'LIVE · Goals & Cards':'EN VIVO · Goles y Tarjetas'}`
+    : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
   const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
   const statsBtn = showScore ? `<button onclick="openStats('${m.id}')" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>` : '';
-  const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${_cl==='de'?'Tipps der Gruppe':_cl==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
+  const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
     <div style="margin-top:10px;">
@@ -2740,7 +2737,7 @@ function buildMatchCard(m, closed) {
       <button class="btn-express-trigger"
         ontouchend="event.preventDefault();openExpress('${m.id}')"
         onclick="openExpress('${m.id}')">
-        ⚡ ${_cl==='de'?'Tipp abgeben':_cl==='en'?'Predict this match':'Predecir este partido'}
+        ⚡ ${currentLang==='de'?'Tipp abgeben':currentLang==='en'?'Predict this match':'Predecir este partido'}
       </button>
     </div>` : '';
 
@@ -2775,14 +2772,14 @@ async function openStats(matchId) {
   openModal('statsModal');
   $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
   try {
-    const match = _aM.find(m => String(m.id) === String(matchId));
+    const match = allMatches.find(m => String(m.id) === String(matchId));
     const home  = match?.home || '';
     const away  = match?.away || '';
 
     // ── Datos frescos del evento ──────────────────────────────
     let evFinal = null;
     try {
-      const r1 = await fetch(`${_v1}/lookupevent.php?id=${matchId}`);
+      const r1 = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
       const d1 = await r1.json();
       evFinal = d1?.events?.[0] || null;
     } catch(e) {}
@@ -2816,11 +2813,11 @@ async function openStats(matchId) {
     const isMatchLive = isLive(statusStr) || isLive(match?.status);
 
     if (scoreH !== '–' && scoreA !== '–') {
-      const idx = _aM.findIndex(m => String(m.id) === String(matchId));
+      const idx = allMatches.findIndex(m => String(m.id) === String(matchId));
       if (idx !== -1) {
-        _aM[idx].homeScore = +scoreH;
-        _aM[idx].awayScore = +scoreA;
-        _aM[idx].status    = statusStr || _aM[idx].status;
+        allMatches[idx].homeScore = +scoreH;
+        allMatches[idx].awayScore = +scoreA;
+        allMatches[idx].status    = statusStr || allMatches[idx].status;
       }
     }
 
@@ -2858,7 +2855,7 @@ async function openStats(matchId) {
     // B) V1 lookuptimeline — el más completo para tarjetas y cambios
     if (!timelineEvents.length) {
       try {
-        const r   = await fetch(`${_v1}/lookuptimeline.php?id=${matchId}`);
+        const r   = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
         const txt = await r.text();
         if (txt && !txt.trim().startsWith('<')) {
           const d  = JSON.parse(txt);
@@ -3011,7 +3008,7 @@ async function openStats(matchId) {
     try {
       let statsList = [];
       try {
-        const r1 = await fetch(`${_v1}/lookupeventstats.php?id=${matchId}`);
+        const r1 = await fetch(`${API_V1}/lookupeventstats.php?id=${matchId}`);
         const d1 = await r1.json();
         const s1 = d1?.eventstats || d1?.stats || [];
         if (s1.length > 0) statsList = s1;
@@ -3112,10 +3109,13 @@ async function openStats(matchId) {
   }
 }
 
+
+
+
 function setDefaultPreds() {
   // Set all pending matches to 0-0
   let count = 0;
-  _dM.forEach(m => {
+  dayMatches.forEach(m => {
     if (isLive(m.status) || isFinished(m.status)) return;
     const hi = $(`hi_${m.id}`), ai = $(`ai_${m.id}`);
     if (!hi || !ai) return;
@@ -3139,22 +3139,22 @@ function setDefaultPreds() {
 // Auto-save 0-0 for any match that starts without a prediction
 async function autoDefaultPreds() {
   if (!me?.uid) return;
-  const jDate = _dM[0]?.date;
+  const jDate = dayMatches[0]?.date;
   if (!jDate) return;
 
-  const grpSnap = await _db.collection('groups').get();
+  const grpSnap = await db.collection('groups').get();
   const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()}))
     .filter(g => g.members?.some(m => m.userId === me.uid));
   if (!myGroups.length) return;
 
   // Find matches that just started (live) with no prediction
-  const liveMtchs = _dM.filter(m => isLive(m.status));
+  const liveMtchs = dayMatches.filter(m => isLive(m.status));
   if (!liveMtchs.length) return;
 
   for (const group of myGroups) {
     for (const m of liveMtchs) {
       // Check if prediction exists
-      const existing = await _db.collection('predictions')
+      const existing = await db.collection('predictions')
         .where('userId','==',me.uid)
         .where('matchId','==',String(m.id))
         .where('groupId','==',group.id)
@@ -3163,7 +3163,7 @@ async function autoDefaultPreds() {
 
       // Auto-save 0-0 — use same docId to prevent duplicates
       const docId = `${me.uid}_${group.id}_${m.id}`;
-      await _db.collection('predictions').doc(docId).set({
+      await db.collection('predictions').doc(docId).set({
         userId: me.uid, username: me.username,
         groupId: group.id, groupName: group.name,
         matchId: String(m.id),
@@ -3181,11 +3181,11 @@ async function savePreds() {
   if (!me?.uid) return;
   if (bettingClosed()) { toast('⛔ Predicciones cerradas — ya inició un partido','error'); return; }
 
-  const jDate = _dM[0]?.date;
+  const jDate = dayMatches[0]?.date;
   if (!jDate) { toast('Sin partidos disponibles','error'); return; }
 
   const preds = [];
-  _dM.forEach(m=>{
+  dayMatches.forEach(m=>{
     const hi=$(`hi_${m.id}`),ai=$(`ai_${m.id}`);
     if(hi&&ai){
       // Support both input.value and div.textContent
@@ -3197,12 +3197,12 @@ async function savePreds() {
   if (!preds.length) { toast('Sin predicciones para guardar','error'); return; }
 
   // Get my groups
-  const grpSnap = await _db.collection('groups').get();
+  const grpSnap = await db.collection('groups').get();
   const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()})).filter(g=>g.members?.some(m=>m.userId===me.uid));
   if (!myGroups.length) {
     // No está en ningún grupo — mostrar grupos disponibles para unirse
     try {
-      const allGroups = await _db.collection('groups').get();
+      const allGroups = await db.collection('groups').get();
       const available = allGroups.docs.map(d=>({id:d.id,...d.data()}))
         .filter(g => g.isPublic !== false); // show public groups
 
@@ -3228,7 +3228,7 @@ async function savePreds() {
           closeModal('grpPickModal');
           // Join the group first
           try {
-            await _db.collection('groups').doc(g.id).update({
+            await db.collection('groups').doc(g.id).update({
               members: firebase.firestore.FieldValue.arrayUnion({
                 userId: me.uid,
                 username: me.username,
@@ -3271,7 +3271,7 @@ async function savePreds() {
 async function doSavePreds(preds, jDate, group) {
   // Check if already saved for this group+date
   try {
-    const ex = await _db.collection('predictions')
+    const ex = await db.collection('predictions')
       .where('userId','==',me.uid)
       .where('jornadaDate','==',jDate)
       .where('groupId','==',group.id)
@@ -3285,10 +3285,10 @@ async function doSavePreds(preds, jDate, group) {
   if (!confirm(`📋 GRUPO: ${group.name}\n\n${summary}\n\n¿Confirmar predicciones?`)) return;
 
   try {
-    const batch = _db.batch();
+    const batch = db.batch();
     for (const p of preds) {
       const docId = `${me.uid}_${group.id}_${p.matchId}`;
-      const ref   = _db.collection('predictions').doc(docId);
+      const ref   = db.collection('predictions').doc(docId);
       const snap  = await ref.get();
 
       if (snap.exists) {
@@ -3368,13 +3368,13 @@ async function renderPreds() {
 
   try {
     // Limit to 30 most recent predictions (reduce reads)
-    const snap = await _db.collection('predictions').where('userId','==',me.uid).orderBy('timestamp','desc').limit(30).get();
+    const snap = await db.collection('predictions').where('userId','==',me.uid).orderBy('timestamp','desc').limit(30).get();
     if (snap.empty) {
       html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Aún no has predicho</span></div>`;
     } else {
       snap.docs.forEach(d=>{
         const p = d.data();
-        const match = _aM.find(m=>String(m.id)===String(p.matchId));
+        const match = allMatches.find(m=>String(m.id)===String(p.matchId));
         const hasReal = match && match.homeScore!=null;
         let ptsCls = 'pts-pending', ptsLabel = '⏳';
         if (p.evaluated) {
@@ -3412,7 +3412,7 @@ async function searchPreds() {
   let html = '';
 
   for (const uname of names) {
-    const uSnap = await _db.collection('users').where('username','==',uname).limit(1).get();
+    const uSnap = await db.collection('users').where('username','==',uname).limit(1).get();
     if (uSnap.empty) {
       html += `<div style="color:var(--red);font-size:0.85em;padding:8px 0;">❌ "${uname}" no encontrado</div>`;
       continue;
@@ -3420,7 +3420,7 @@ async function searchPreds() {
     const u = { id: uSnap.docs[0].id, ...uSnap.docs[0].data() };
 
     // Traer predicciones de HOY solamente
-    const ps = await _db.collection('predictions')
+    const ps = await db.collection('predictions')
       .where('userId', '==', u.id)
       .where('jornadaDate', '==', today)
       .get();
@@ -3501,9 +3501,10 @@ function initChat() {
         onclick="sendChat();">➤</button>
     </div>`;
 
+
   // Use onSnapshot but limit to last 40 messages to reduce reads
   if (chatUnsub) chatUnsub();
-  chatUnsub = _db.collection('chat').orderBy('ts').limitToLast(CHAT_PAGE_SIZE)
+  chatUnsub = db.collection('chat').orderBy('ts').limitToLast(CHAT_PAGE_SIZE)
     .onSnapshot({includeMetadataChanges: false}, snap=>{
       const el=$('chatMessages');
       if(!el) return;
@@ -3523,9 +3524,7 @@ function initChat() {
           const bubbleStyle = `border-color:${uColor}33;`;
           el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}">
             <span class="chat-name" style="color:${uColor};">${escapeHtml(displayName)}${mine?' <span style="font-size:0.75em;opacity:0.6;">(tú)</span>':''}</span>
-            <div class="chat-bubble" style="${bubbleStyle}">${escapeHtml(c.tex
-/* @license proprietary - unauthorized use prohibited */
-t)}</div>
+            <div class="chat-bubble" style="${bubbleStyle}">${escapeHtml(c.text)}</div>
             <span class="chat-time">${hm}</span>
           </div>`;
         }
@@ -3546,7 +3545,7 @@ async function sendChat() {
   input.focus();
   
   try {
-    await _db.collection('chat').add({
+    await db.collection('chat').add({
       uid: me.uid,
       username: me.username,
       name: me.name || me.username,
@@ -3565,7 +3564,7 @@ async function sendChat() {
 }
 
 // ═══════════════════════════════════════════
-// _TR
+// TOURNAMENTS
 // ═══════════════════════════════════════════
 function renderTournaments() {
   const el = $('screenTournaments');
@@ -3590,7 +3589,7 @@ function renderTournaments() {
       </div>
     </div>
     <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">Selecciona las ligas para las que quieres predecir:</p>`;
-  _TR.forEach(t=>{
+  TOURNAMENTS.forEach(t=>{
     const sel = myTournaments.includes(t.id);
     html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${t.id}',this)">
       <div class="tourn-left">
@@ -3612,7 +3611,7 @@ function toggleTournament(id, el) {
 }
 
 async function saveTournaments() {
-  await _db.collection('users').doc(me.uid).update({tournaments:myTournaments});
+  await db.collection('users').doc(me.uid).update({tournaments:myTournaments});
   me.tournaments=myTournaments;
   toast('✅ Torneos guardados','success');
   await doSync();
@@ -3634,7 +3633,7 @@ async function renderGroups() {
   </div>`;
 
   try {
-    const snap = await _db.collection('groups').get();
+    const snap = await db.collection('groups').get();
     if(me.isAdmin) html+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">👑 Admin — ves todos los grupos</div>`;
 
     let found=0;
@@ -3679,12 +3678,12 @@ async function doCreateGroup() {
     .map(b => b.dataset.tid);
   if(!selectedT.length){toast('Selecciona al menos un torneo','error');return;}
 
-  const total=await _db.collection('groups').get();
+  const total=await db.collection('groups').get();
   if(total.size>=5){toast('Máximo 5 grupos permitidos','error');return;}
   const btn=$('createBtn'); btn.disabled=true;
   try {
     const code=randCode();
-    const ref = await _db.collection('groups').add({
+    const ref = await db.collection('groups').add({
       name, code, maxMembers:max,
       tournaments: selectedT,
       createdBy:me.uid,
@@ -3710,7 +3709,7 @@ async function doJoinGroup() {
   if(code.length!==6){setS('El código debe tener 6 caracteres','error');return;}
   btn.disabled=true; setS('🔍 Buscando grupo...','info');
   try {
-    const snap=await _db.collection('groups').where('code','==',code).limit(1).get();
+    const snap=await db.collection('groups').where('code','==',code).limit(1).get();
     if(snap.empty){setS('❌ Código incorrecto. Verifica con el admin.','error');btn.disabled=false;return;}
     const gdoc=snap.docs[0]; const g=gdoc.data();
     if(g.members?.some(m=>m.userId===me.uid)){setS(`✅ Ya eres miembro de "${g.name}"`,'success');setTimeout(()=>closeModal('joinModal'),1500);btn.disabled=false;return;}
@@ -3734,14 +3733,14 @@ async function deleteGroup(gid, name) {
   try {
     toast('🗑️ Eliminando grupo y datos...','info',3000);
     // Borrar todas las predicciones del grupo
-    const preds = await _db.collection('predictions').where('groupId','==',gid).get();
+    const preds = await db.collection('predictions').where('groupId','==',gid).get();
     if (preds.docs.length) {
-      const b = _db.batch();
+      const b = db.batch();
       preds.docs.forEach(d => b.delete(d.ref));
       await b.commit();
     }
     // Borrar el grupo
-    await _db.collection('groups').doc(gid).delete();
+    await db.collection('groups').doc(gid).delete();
     toast('✅ Grupo y predicciones eliminados','success');
     renderGroups();
   } catch(e) {
@@ -3774,7 +3773,7 @@ async function openGroupRanking(gid) {
   openModal('rankModal');
   $('rankModalList').innerHTML='<div class="empty"><span class="empty-icon">⏳</span></div>';
 
-  const gdoc=await _db.collection('groups').doc(gid).get();
+  const gdoc=await db.collection('groups').doc(gid).get();
   const g=gdoc.data();
   $('rankModalTitle').textContent=`🏆 ${g.name}`;
   $('rankModalCode').textContent=`🔐 Código: ${g.code}`;
@@ -3785,7 +3784,7 @@ async function openGroupRanking(gid) {
 
   try {
     // Get ALL predictions for this group (evaluated + live in progress)
-    const pSnap = await _db.collection('predictions').where('groupId','==',gid).get();
+    const pSnap = await db.collection('predictions').where('groupId','==',gid).get();
     pSnap.docs.forEach(d=>{
       const p = d.data();
       if(!ptMap[p.userId]) ptMap[p.userId]={pts:0,exact:0,correct:0,live:0};
@@ -3799,7 +3798,7 @@ async function openGroupRanking(gid) {
     });
     // Old predictions without groupId
     if(memberIds.length <= 10) {
-      const oldPreds = await _db.collection('predictions')
+      const oldPreds = await db.collection('predictions')
         .where('userId','in',memberIds).get();
       oldPreds.docs.forEach(d=>{
         const p=d.data();
@@ -3816,7 +3815,7 @@ async function openGroupRanking(gid) {
     const allU=[];
     for(let i=0;i<memberIds.length;i+=10){
       const chunk=memberIds.slice(i,i+10);
-      const us=await _db.collection('users').where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
+      const us=await db.collection('users').where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
       us.docs.forEach(d=>allU.push({id:d.id,...d.data()}));
     }
 
@@ -3827,7 +3826,7 @@ async function openGroupRanking(gid) {
         grpLive:ptMap[u.id]?.live||0
       })).sort((a,b)=>b.grpPts-a.grpPts||b.grpExact-a.grpExact);
 
-    const anyLive = _aM.some(m=>isLive(m.status));
+    const anyLive = allMatches.some(m=>isLive(m.status));
     const nowStr = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
     let html = anyLive
       ? `<div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:0.78em;display:flex;justify-content:space-between;">
@@ -3879,7 +3878,7 @@ function calcPoints(ph, pa, rh, ra) {
 // Main eval — runs after every sync, handles live AND finished matches
 async function autoEval() {
   // Include ALL matches that have started (live or finished)
-  const active = _aM.filter(m =>
+  const active = allMatches.filter(m =>
     (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
   );
   if(!active.length) return;
@@ -3893,8 +3892,8 @@ async function autoEval() {
     try {
       // Get ALL predictions for this match (both string and number matchId)
       const snaps = await Promise.all([
-        _db.collection('predictions').where('matchId','==',String(match.id)).get(),
-        _db.collection('predictions').where('matchId','==',match.id).get()
+        db.collection('predictions').where('matchId','==',String(match.id)).get(),
+        db.collection('predictions').where('matchId','==',match.id).get()
       ]);
       const seen = new Set(); const docs = [];
       snaps.forEach(s=>s.docs.forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);docs.push(d);}}));
@@ -3932,7 +3931,7 @@ async function autoEval() {
             const userUpd = {points: firebase.firestore.FieldValue.increment(pts)};
             if(pts===5) userUpd.exactPredictions = firebase.firestore.FieldValue.increment(1);
             if(pts===3) userUpd.correctResults = firebase.firestore.FieldValue.increment(1);
-            await _db.collection('users').doc(p.userId).update(userUpd);
+            await db.collection('users').doc(p.userId).update(userUpd);
           }
         }
 
@@ -3976,10 +3975,10 @@ async function adminUsers() {
   out.innerHTML='⏳ Cargando...';
 
   // Load users
-  const snap = await _db.collection('users').orderBy('playerNumber').get();
+  const snap = await db.collection('users').orderBy('playerNumber').get();
 
   // Load evaluated predictions
-  const predSnap = await _db.collection('predictions').where('evaluated','==',true).get();
+  const predSnap = await db.collection('predictions').where('evaluated','==',true).get();
   const realPts = {};
   predSnap.docs.forEach(d=>{
     const p=d.data();
@@ -3990,7 +3989,7 @@ async function adminUsers() {
   });
 
   // Live points
-  const liveSnap = await _db.collection('predictions').where('evaluated','==',false).get();
+  const liveSnap = await db.collection('predictions').where('evaluated','==',false).get();
   const livePts = {};
   liveSnap.docs.forEach(d=>{
     const p=d.data();
@@ -4225,9 +4224,9 @@ async function adminResetUserPass(username, phone, uid) {
   if (!confirm(`¿Resetear contraseña de ${username}?\n\nContraseña temporal: ${tempPass}\n\nSe la enviarás por WhatsApp.`)) return;
 
   try {
-    // Update password using Firebase Auth REST API (client-side trick via re-_au)
+    // Update password using Firebase Auth REST API (client-side trick via re-auth)
     // We store the temp pass request in Firestore — user must change on next login
-    await _db.collection('passResets').doc(uid).set({
+    await db.collection('passResets').doc(uid).set({
       uid, username,
       tempPass,
       requestedBy: me.uid,
@@ -4254,17 +4253,17 @@ async function adminEval() {
   if(!confirm('¿Evaluar todos los partidos finalizados?')) return;
   const out=$('adminOut'); out.innerHTML='⏳ Evaluando...';
   try {
-    const fsSnap=await _db.collection('matches').get();
-    if(!fsSnap.empty) _aM=fsSnap.docs.map(d=>({id:d.id,...d.data()}));
+    const fsSnap=await db.collection('matches').get();
+    if(!fsSnap.empty) allMatches=fsSnap.docs.map(d=>({id:d.id,...d.data()}));
   } catch(e){}
-  const fin=_aM.filter(m=>isFinished(m.status)&&m.homeScore!=null);
+  const fin=allMatches.filter(m=>isFinished(m.status)&&m.homeScore!=null);
   if(!fin.length){out.innerHTML='⚠️ Sin partidos finalizados en memoria. Haz Sync primero.';return;}
   let total=0,pts=0;
   for(const match of fin){
     const rh=+match.homeScore,ra=+match.awayScore;
     const rr=rh===ra?'empate':rh>ra?'home':'away';
-    const s1=await _db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get();
-    const s2=await _db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
+    const s1=await db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get();
+    const s2=await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
     const seen=new Set();const docs=[];
     [s1,s2].forEach(s=>s.docs.forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);docs.push(d);}}));
     for(const pd of docs){
@@ -4279,7 +4278,7 @@ async function adminEval() {
         const upd={points:firebase.firestore.FieldValue.increment(points)};
         if(points===5) upd.exactPredictions=firebase.firestore.FieldValue.increment(1);
         if(points===3) upd.correctResults=firebase.firestore.FieldValue.increment(1);
-        await _db.collection('users').doc(p.userId).update(upd);
+        await db.collection('users').doc(p.userId).update(upd);
       }
       total++;
     }
@@ -4289,7 +4288,7 @@ async function adminEval() {
 
 async function adminEvalManual() {
   const out = $('adminOut');
-  const matchesWithScores=_aM.filter(m=>m.homeScore!=null&&m.awayScore!=null);
+  const matchesWithScores=allMatches.filter(m=>m.homeScore!=null&&m.awayScore!=null);
   if(!matchesWithScores.length){out.innerHTML='⚠️ Sin partidos con resultados en memoria.';return;}
   if(!confirm(`¿Evaluar usando ${matchesWithScores.length} partidos con resultados?`)) return;
   out.innerHTML='⏳ Evaluando...';
@@ -4297,8 +4296,8 @@ async function adminEvalManual() {
   for(const match of matchesWithScores){
     const rh=+match.homeScore,ra=+match.awayScore;
     const rr=rh===ra?'empate':rh>ra?'home':'away';
-    const s1=await _db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get();
-    const s2=await _db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
+    const s1=await db.collection('predictions').where('matchId','==',String(match.id)).where('evaluated','==',false).get();
+    const s2=await db.collection('predictions').where('matchId','==',match.id).where('evaluated','==',false).get();
     const seen=new Set();const docs=[];
     [s1,s2].forEach(s=>s.docs.forEach(d=>{if(!seen.has(d.id)){seen.add(d.id);docs.push(d);}}));
     for(const pd of docs){
@@ -4313,7 +4312,7 @@ async function adminEvalManual() {
         const upd={points:firebase.firestore.FieldValue.increment(points)};
         if(points===5) upd.exactPredictions=firebase.firestore.FieldValue.increment(1);
         if(points===3) upd.correctResults=firebase.firestore.FieldValue.increment(1);
-        await _db.collection('users').doc(p.userId).update(upd);
+        await db.collection('users').doc(p.userId).update(upd);
       }
       total++;
     }
@@ -4323,7 +4322,7 @@ async function adminEvalManual() {
 
 async function adminShowGroups() {
   const out=$('adminOut'); out.innerHTML='⏳ Cargando...';
-  const snap=await _db.collection('groups').get();
+  const snap=await db.collection('groups').get();
   if(snap.empty){out.innerHTML='Sin grupos creados';return;}
   let html=`<p style="font-weight:800;margin-bottom:12px;color:var(--primary2);">📋 GRUPOS (${snap.size}/5)</p>`;
   snap.docs.forEach(doc=>{
@@ -4351,7 +4350,7 @@ function copyCode(code, name) {
 async function adminSync() {
   const out=$('adminOut'); out.innerHTML='⏳ Sincronizando...';
   await doSync();
-  out.innerHTML=`✅ Sync completado · ${_aM.length} partidos`;
+  out.innerHTML=`✅ Sync completado · ${allMatches.length} partidos`;
 }
 
 async function adminReset() {
@@ -4359,17 +4358,17 @@ async function adminReset() {
   if(opt===null) return;
   if(opt){
     if(!confirm('¿Borrar predicciones y resetear puntos?')) return;
-    const ps=await _db.collection('predictions').get();
-    const b=_db.batch(); ps.docs.forEach(d=>b.delete(d.ref)); await b.commit();
-    const us=await _db.collection('users').get();
-    const b2=_db.batch(); us.docs.forEach(d=>b2.update(d.ref,{points:0,exactPredictions:0,correctResults:0})); await b2.commit();
+    const ps=await db.collection('predictions').get();
+    const b=db.batch(); ps.docs.forEach(d=>b.delete(d.ref)); await b.commit();
+    const us=await db.collection('users').get();
+    const b2=db.batch(); us.docs.forEach(d=>b2.update(d.ref,{points:0,exactPredictions:0,correctResults:0})); await b2.commit();
     toast('✅ Predicciones borradas','success');
   } else {
     const code=prompt('Escribe BORRAR-TODO para confirmar:');
     if(code!=='BORRAR-TODO'){toast('Cancelado','error');return;}
     for(const col of ['users','predictions','groups','chat']){
-      const s=await _db.collection(col).get();
-      const b=_db.batch(); s.docs.forEach(d=>b.delete(d.ref)); await b.commit();
+      const s=await db.collection(col).get();
+      const b=db.batch(); s.docs.forEach(d=>b.delete(d.ref)); await b.commit();
     }
     toast('✅ Base de datos limpiada','success');
     doLogout();
@@ -4438,7 +4437,7 @@ async function loadSimGroups() {
   const sel = $('simGroupSel');
   if (!sel) return;
   try {
-    const snap = await _db.collection('groups').get();
+    const snap = await db.collection('groups').get();
     const myGroups = snap.docs.map(d=>({id:d.id,...d.data()}))
       .filter(g => g.members?.some(m=>m.userId===me.uid) || me.isAdmin);
     if (!myGroups.length) {
@@ -4457,7 +4456,7 @@ async function loadSimulation() {
   toast('⏳ Cargando simulación...','info');
   try {
     // Load group
-    const gdoc = await _db.collection('groups').doc(gid).get();
+    const gdoc = await db.collection('groups').doc(gid).get();
     simGroup = {id:gid,...gdoc.data()};
     let memberIds = simGroup.members.map(m=>m.userId);
 
@@ -4468,13 +4467,13 @@ async function loadSimulation() {
     simPlayers = [];
     for(let i=0;i<memberIds.length;i+=10){
       const chunk = memberIds.slice(i,i+10);
-      const us = await _db.collection('users')
+      const us = await db.collection('users')
         .where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
       us.docs.forEach(d => simPlayers.push({id:d.id,...d.data()}));
     }
 
     // Current group points (evaluated only)
-    const pSnap = await _db.collection('predictions')
+    const pSnap = await db.collection('predictions')
       .where('groupId','==',gid).where('evaluated','==',true).get();
     const ptMap = {};
     pSnap.docs.forEach(d=>{
@@ -4491,11 +4490,11 @@ async function loadSimulation() {
     // Choose matches
     const today = vzDate();
     simMatches = matchFilter==='pending'
-      ? _dM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
-      : _dM;
+      ? dayMatches.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+      : dayMatches;
 
     if (!simMatches.length)
-      simMatches = _aM.filter(m=>m.date>=today).slice(0,8);
+      simMatches = allMatches.filter(m=>m.date>=today).slice(0,8);
     if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
 
     // ── Load predictions: try groupId AND no-groupId (legacy) ──
@@ -4504,12 +4503,12 @@ async function loadSimulation() {
 
     for (const player of simPlayers) {
       // Query 1: predictions with this groupId
-      const q1 = await _db.collection('predictions')
+      const q1 = await db.collection('predictions')
         .where('userId','==',player.id)
         .where('groupId','==',gid).get();
 
       // Query 2: predictions without groupId (legacy, same user)
-      const q2 = await _db.collection('predictions')
+      const q2 = await db.collection('predictions')
         .where('userId','==',player.id).get();
 
       // Merge, deduplicate by matchId, prefer groupId version
@@ -4797,7 +4796,7 @@ async function openMyStats() {
 
   try {
     // Load all my evaluated predictions
-    const snap = await _db.collection('predictions')
+    const snap = await db.collection('predictions')
       .where('userId','==', me.uid)
       .where('evaluated','==', true)
       .get();
@@ -4930,7 +4929,7 @@ async function openMyPredictions() {
   openModal('myPredsModal');
   $('myPredsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
   try {
-    const snap = await _db.collection('predictions').where('userId','==',me.uid).get();
+    const snap = await db.collection('predictions').where('userId','==',me.uid).get();
     const allPreds = snap.docs.map(d=>({id:d.id,...d.data()}));
     const today = vzDate();
     const byDate = {};
@@ -4961,7 +4960,7 @@ async function openMyPredictions() {
           else if(p.pointsAwarded===1){ptsColor='var(--primary2)';ptsLabel='💙 +1';}
           else{ptsColor='var(--red)';ptsLabel='❌ +0 Falló';}
         }
-        const matchObj=_aM.find(m=>String(m.id)===String(p.matchId));
+        const matchObj=allMatches.find(m=>String(m.id)===String(p.matchId));
         const homeName=p.home||matchObj?.home||'?';
         const awayName=p.away||matchObj?.away||'?';
         const borderExtra=ev&&p.pointsAwarded===5?'border-color:rgba(245,197,66,0.4);':ev&&p.pointsAwarded===3?'border-color:rgba(0,229,160,0.3);':'';
@@ -5001,7 +5000,7 @@ async function openBetStats(matchId, home, away) {
 
   try {
     // Load all predictions for this match
-    const snap = await _db.collection('predictions')
+    const snap = await db.collection('predictions')
       .where('matchId','==', String(matchId))
       .get();
 
@@ -5123,7 +5122,7 @@ async function loadStandings(leagueId, leagueKey, tabEl) {
 
   try {
     // Try V1 first
-    const r = await fetch(`${_v1}/lookuptable.php?l=${leagueId}`);
+    const r = await fetch(`${API_V1}/lookuptable.php?l=${leagueId}`);
     const text = await r.text();
 
     // Guard against empty or HTML response
@@ -5224,7 +5223,7 @@ async function openMundialModal() {
 
   // Load config from Firestore
   try {
-    const cfg = await _db.collection('system').doc('mundialConfig').get();
+    const cfg = await db.collection('system').doc('mundialConfig').get();
     if (cfg.exists) {
       mundialConfig = {...mundialConfig, ...cfg.data()};
       $('mPtsCampeon').value    = mundialConfig.campeon;
@@ -5247,7 +5246,7 @@ async function openMundialModal() {
 
   // Check if user already saved predictions (locked)
   try {
-    const myPred = await _db.collection('mundialPreds').doc(me.uid).get();
+    const myPred = await db.collection('mundialPreds').doc(me.uid).get();
     if (myPred.exists) {
       const d = myPred.data();
       $('mCampeon').value    = d.campeon    || '';
@@ -5269,9 +5268,7 @@ function updateMundialLabels() {
   $('mPtsCampeonLabel').textContent  = `Vale ${mundialConfig.campeon} pts si aciertas`;
   $('mPtsSubLabel').textContent      = `Vale ${mundialConfig.sub} pts si aciertas`;
   $('mPtsTerceroLabel').textContent  = `Vale ${mundialConfig.tercero} pts si aciertas`;
-  $('mPtsGoleadorLabel').textContent = `Vale ${mundialConfig.gol
-// Build: LS-A0F904DB
-eador} pts si aciertas`;
+  $('mPtsGoleadorLabel').textContent = `Vale ${mundialConfig.goleador} pts si aciertas`;
 }
 
 async function saveMundialConfig() {
@@ -5284,7 +5281,7 @@ async function saveMundialConfig() {
     lockedAt:  firebase.firestore.FieldValue.serverTimestamp()
   };
   try {
-    await _db.collection('system').doc('mundialConfig').set(mundialConfig);
+    await db.collection('system').doc('mundialConfig').set(mundialConfig);
     updateMundialLabels();
     toast('✅ Configuración guardada y bloqueada','success');
   } catch(e) { toast('Error: '+e.message,'error'); }
@@ -5307,7 +5304,7 @@ async function saveMundialPreds() {
   if (!confirm('¿Confirmas tus predicciones? No podrás cambiarlas después.')) return;
 
   try {
-    await _db.collection('mundialPreds').doc(me.uid).set({
+    await db.collection('mundialPreds').doc(me.uid).set({
       userId: me.uid, username: me.username,
       campeon, subcampeon, tercero, goleador,
       ptsConfig: {...mundialConfig},
@@ -5331,7 +5328,7 @@ async function dedupPreds() {
   out.innerHTML = '⏳ Cargando usuarios...';
 
   try {
-    const usersSnap = await _db.collection('users').get();
+    const usersSnap = await db.collection('users').get();
     const userIds = usersSnap.docs.map(d => d.id);
     if (!userIds.length) { out.innerHTML = '⚠️ Sin usuarios.'; return; }
 
@@ -5343,7 +5340,7 @@ async function dedupPreds() {
       const uname = usersSnap.docs[i].data().username || uid;
       out.innerHTML = `⏳ Revisando ${uname} (${i+1}/${userIds.length})...`;
 
-      const pSnap = await _db.collection('predictions').where('userId', '==', uid).get();
+      const pSnap = await db.collection('predictions').where('userId', '==', uid).get();
       if (pSnap.empty) continue;
 
       // Agrupar por clave de contenido: userId+groupId+matchId
@@ -5388,14 +5385,14 @@ async function dedupPreds() {
     }
 
     out.innerHTML = `⏳ Borrando ${toDeleteRefs.length} duplicados...`;
-    let batch = _db.batch();
+    let batch = db.batch();
     let count = 0;
     for (const ref of toDeleteRefs) {
       batch.delete(ref);
       count++;
       if (count % 500 === 0) {
         await batch.commit();
-        batch = _db.batch();
+        batch = db.batch();
         out.innerHTML = `⏳ Borrados ${count}/${toDeleteRefs.length}...`;
       }
     }
@@ -5424,7 +5421,7 @@ async function evalMundial() {
 ⚽ ${goleador}?`)) return;
 
   try {
-    const snap = await _db.collection('mundialPreds').where('evaluated','==',false).get();
+    const snap = await db.collection('mundialPreds').where('evaluated','==',false).get();
     let count = 0;
     for (const doc of snap.docs) {
       const p = doc.data();
@@ -5440,7 +5437,7 @@ async function evalMundial() {
         realTercero:tercero, realGoleador:goleador });
 
       if (pts > 0) {
-        await _db.collection('users').doc(p.userId).update({
+        await db.collection('users').doc(p.userId).update({
           points: firebase.firestore.FieldValue.increment(pts)
         });
       }
@@ -5463,7 +5460,7 @@ let _expressTmpH    = 0;
 
 function openExpress(matchId) {
   // Build queue: this match first, then remaining pending matches
-  const pending = _dM.filter(m => !isLive(m.status) && !isFinished(m.status));
+  const pending = dayMatches.filter(m => !isLive(m.status) && !isFinished(m.status));
   const idx = pending.findIndex(m => String(m.id) === String(matchId));
   _expressMatches = idx >= 0
     ? [...pending.slice(idx), ...pending.slice(0, idx)]
@@ -5720,7 +5717,7 @@ async function migrateMatchIds() {
   out.innerHTML = '⏳ Buscando predicciones con matchId numérico...';
 
   try {
-    const usersSnap = await _db.collection('users').get();
+    const usersSnap = await db.collection('users').get();
     const userIds = usersSnap.docs.map(d => d.id);
     let totalFixed = 0;
 
@@ -5729,14 +5726,14 @@ async function migrateMatchIds() {
       const uname = usersSnap.docs[i].data().username || uid;
       out.innerHTML = `⏳ Revisando ${uname} (${i+1}/${userIds.length})...`;
 
-      const pSnap = await _db.collection('predictions').where('userId','==', uid).get();
+      const pSnap = await db.collection('predictions').where('userId','==', uid).get();
       if (pSnap.empty) continue;
 
       // Filtrar solo los que tienen matchId como número (typeof number)
       const toFix = pSnap.docs.filter(d => typeof d.data().matchId === 'number');
       if (!toFix.length) continue;
 
-      let batch = _db.batch();
+      let batch = db.batch();
       let count = 0;
       toFix.forEach(d => {
         batch.update(d.ref, { matchId: String(d.data().matchId) });
@@ -5770,8 +5767,8 @@ async function cleanOldPreds() {
   try {
     // Firestore no soporta != en versiones compat, usamos dos queries: antes y después de hoy
     const [snapBefore, snapAfter] = await Promise.all([
-      _db.collection('predictions').where('jornadaDate', '<', today).get(),
-      _db.collection('predictions').where('jornadaDate', '>', today).get(),
+      db.collection('predictions').where('jornadaDate', '<', today).get(),
+      db.collection('predictions').where('jornadaDate', '>', today).get(),
     ]);
 
     const toDelete = [...snapBefore.docs, ...snapAfter.docs];
@@ -5789,14 +5786,14 @@ async function cleanOldPreds() {
 
     out.innerHTML = `⏳ Borrando ${toDelete.length} predicciones...`;
 
-    let batch = _db.batch();
+    let batch = db.batch();
     let count = 0;
     for (const doc of toDelete) {
       batch.delete(doc.ref);
       count++;
       if (count % 500 === 0) {
         await batch.commit();
-        batch = _db.batch();
+        batch = db.batch();
         out.innerHTML = `⏳ Borradas ${count}/${toDelete.length}...`;
       }
     }
@@ -5821,19 +5818,19 @@ async function nukeAllPreds() {
 
   try {
     // 1) Borrar todas las predicciones
-    const snap = await _db.collection('predictions').get();
-    let batch = _db.batch();
+    const snap = await db.collection('predictions').get();
+    let batch = db.batch();
     let count = 0;
     for (const doc of snap.docs) {
       batch.delete(doc.ref);
       count++;
-      if (count % 500 === 0) { await batch.commit(); batch = _db.batch(); }
+      if (count % 500 === 0) { await batch.commit(); batch = db.batch(); }
     }
     await batch.commit();
 
     // 2) Resetear puntos de todos los usuarios
-    const users = await _db.collection('users').get();
-    let batchU = _db.batch();
+    const users = await db.collection('users').get();
+    let batchU = db.batch();
     users.docs.forEach(d => batchU.update(d.ref, {
       points: 0, exactPredictions: 0, correctResults: 0
     }));
@@ -5857,6 +5854,7 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
+
 
 
 
