@@ -2622,6 +2622,45 @@ async function confirmJoinGroup(gid, gname) {
   }
 }
 
+// ── VAR detail decoder ─────────────────────────────────────
+// Lee strTimelineDetail / strTimeline y devuelve {icon, label, color}
+function varDetail(t) {
+  // Intentamos leer el campo más detallado primero
+  const raw = (t.strTimelineDetail || t.strTimeline || t.strType || t.strEvent || '').toLowerCase();
+  // Algunos campos alternativos que TheSportsDB puede traer
+  const detail = raw + ' ' + (t.strComment || t.strOutcome || t.strDecision || '').toLowerCase();
+
+  if (detail.includes('goal') && (detail.includes('disallow') || detail.includes('annul') || detail.includes('cancel') || detail.includes('offside'))) {
+    return { icon: '📺❌⚽', color: 'var(--red)',    label: 'Gol anulado (VAR)' };
+  }
+  if (detail.includes('goal') && detail.includes('uphold')) {
+    return { icon: '📺✅⚽', color: 'var(--green)',  label: 'Gol confirmado (VAR)' };
+  }
+  if (detail.includes('offside')) {
+    return { icon: '📺🚩',  color: 'var(--orange)', label: 'Fuera de juego (VAR)' };
+  }
+  if (detail.includes('penalty') || detail.includes('penal')) {
+    if (detail.includes('no') || detail.includes('deny') || detail.includes('overrul')) {
+      return { icon: '📺❌⚡', color: 'var(--orange)', label: 'Penal anulado (VAR)' };
+    }
+    return { icon: '📺⚡',    color: 'var(--orange)', label: 'Penal concedido (VAR)' };
+  }
+  if (detail.includes('red') || detail.includes('roja')) {
+    return { icon: '📺🟥',   color: 'var(--red)',    label: 'Tarjeta roja (VAR)' };
+  }
+  if (detail.includes('yellow') || detail.includes('amarilla')) {
+    return { icon: '📺🟨',   color: 'var(--gold)',   label: 'Tarjeta amarilla (VAR)' };
+  }
+  if (detail.includes('hand') || detail.includes('mano')) {
+    return { icon: '📺✋',   color: 'var(--red)',    label: 'Mano revisada (VAR)' };
+  }
+  if (detail.includes('foul') || detail.includes('falta')) {
+    return { icon: '📺⚠️',   color: 'var(--orange)', label: 'Falta revisada (VAR)' };
+  }
+  // Sin detalle suficiente
+  return { icon: '📺',       color: 'var(--blue)',   label: 'Revisión VAR' };
+}
+
 // ═══════════════════════════════════════════
 // RENDER MATCHES
 // ═══════════════════════════════════════════
@@ -2906,19 +2945,23 @@ function buildMatchCard(m, closed) {
       const isRed       = !isYellowRed && !isYellow && type.includes('red');
       const isPenalty   = type.includes('penalty')||type.includes('penal');
       const isVar       = type.includes('var');
-      let icon='', color='';
+      let icon='', color='', label='';
       if (isYellowRed)    { icon='🟨🟥'; color='var(--red)'; }
       else if (isYellow)  { icon='🟨';   color='var(--gold)'; }
       else if (isRed)     { icon='🟥';   color='var(--red)'; }
       else if (isPenalty) { icon='⚡';   color='var(--orange)'; }
-      else if (isVar)     { icon='📺';   color='var(--blue)'; }
+      else if (isVar)     { const v=varDetail(t); icon=v.icon; color=v.color; label=v.label; }
       else return;
       liveEventsHtml += `
-        <div style="display:flex;align-items:center;gap:5px;padding:2px 0;font-size:0.72em;
+        <div style="display:flex;align-items:flex-start;gap:5px;padding:3px 0;font-size:0.72em;
           ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
           ${isHome
-            ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${min}</span><span>${icon}</span><span style="color:${color};font-weight:700;">${player}</span>`
-            : `<span style="color:${color};font-weight:700;">${player}</span><span>${icon}</span><span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${min}</span>`}
+            ? `<span style="color:var(--gold);min-width:28px;font-weight:800;flex-shrink:0;">${min}</span>
+               <span style="flex-shrink:0;">${icon}</span>
+               <span style="color:${color};font-weight:700;">${player}${label?' <span style="opacity:0.75;font-weight:600;">· '+label+'</span>':''}</span>`
+            : `<span style="color:${color};font-weight:700;">${player}${label?' <span style="opacity:0.75;font-weight:600;">· '+label+'</span>':''}</span>
+               <span style="flex-shrink:0;">${icon}</span>
+               <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;flex-shrink:0;">${min}</span>`}
         </div>`;
     });
     liveEventsHtml += '</div>';
@@ -3129,7 +3172,12 @@ async function openStats(matchId) {
         icon='🔄'; color='var(--muted2)';
         if (player2) extra = ` <span style="color:var(--green);font-size:0.75em;">▲ ${player2}</span>`;
       }
-      else if (type.includes('var'))                               { icon='📺'; color='var(--blue)'; }
+      else if (type.includes('var')) {
+        const v = varDetail(t);
+        icon  = v.icon;
+        color = v.color;
+        extra = ` <span style="color:${v.color};font-size:0.78em;font-weight:700;">${v.label}</span>`;
+      }
       else if (type.includes('penalty') || type.includes('penal')) { icon='⚡'; color='var(--orange)'; }
       else return '';
 
