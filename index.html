@@ -1733,99 +1733,82 @@ function openRankWAMenu() {
   const p1 = ranked[0];
   const p2 = ranked[1];
   const p3 = ranked[2];
-  const me_ = ranked.find(r => r.id === me.uid);
+  const last = ranked[ranked.length - 1];
   const gname = name || 'Quiniela LuAn';
+  const appUrl = 'https://luisla425.github.io/Quiniela/';
+  const nombre = me.name || me.username || '';
+
+  const pizarraText = _buildPizarraText(gname);
+  const top3Text = _buildTop3Text(gname);
 
   const msgs = [
+    // ── Individuales con teléfono ──────────────────────
     {
-      label: `🥇 Felicitar al líder — ${p1?.username||'?'}`,
       icon: '🥇',
+      label: `Felicitar al líder — ${p1?.username||'?'}`,
       phone: p1?.phone || '',
-      text: `🥇 *¡LÍDER DEL GRUPO!* 🥇
-
-¡Felicitaciones ${p1?.username||''}! 👏
-
-Estás en la cima del grupo *"${gname}"* con *${p1?.grpPts||0} puntos* esta jornada. ¡Qué ojo para el fútbol! 🎯
-
-Sigue así que la corona te espera 👑
-
-⚽ Quiniela LuAn
-_— Luis Lárez_`
+      text: `🥇 *¡ERES EL LÍDER DE LA JORNADA!* 🥇\n\n¡Felicidades ${p1?.username||''}! 👏\n\nEstuviste fantástico esta jornada en el grupo *"${gname}"*. Obtuviste *${p1?.grpPts||0} puntos*${p1?.grpExact ? `, con ${p1.grpExact} predicciones exactas ⭐` : ''} y fuiste el mejor de todos. ¡Qué ojo para el fútbol! 🎯\n\nSigue así que la corona te espera 👑\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
     },
     {
-      label: `🥈 Felicitar al 2do — ${p2?.username||'?'}`,
       icon: '🥈',
+      label: `Felicitar al 2do — ${p2?.username||'?'}`,
       phone: p2?.phone || '',
-      text: `🥈 *¡Gran jornada ${p2?.username||''}!* 
-
-Vas en el *2° lugar* del grupo *"${gname}"* con *${p2?.grpPts||0} puntos*. ¡Estás muy cerca de la cima! 🔥
-
-Un partido te puede cambiar todo, no te rindas 💪
-
-⚽ Quiniela LuAn
-_— Luis Lárez_`
+      text: `🥈 *¡Gran jornada ${p2?.username||''}!* 🔥\n\nVas en el *2° lugar* del grupo *"${gname}"* con *${p2?.grpPts||0} puntos*. ¡Estás muy cerca de la cima!\n\nUn buen partido puede cambiar todo — no te rindas 💪\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
     },
     {
-      label: `🥉 Felicitar al 3ro — ${p3?.username||'?'}`,
       icon: '🥉',
+      label: `Felicitar al 3ro — ${p3?.username||'?'}`,
       phone: p3?.phone || '',
-      text: `🥉 *¡Top 3 ${p3?.username||''}!*
-
-Vas en el *3er lugar* del grupo *"${gname}"* con *${p3?.grpPts||0} puntos*. ¡Estás en el podio! 🏆
-
-La lucha por arriba está apretada, sigue prediciendo con cabeza 🧠⚽
-
-⚽ Quiniela LuAn
-_— Luis Lárez_`
+      text: `🥉 *¡Top 3 ${p3?.username||''}!* 🏆\n\nVas en el *3er lugar* del grupo *"${gname}"* con *${p3?.grpPts||0} puntos*. ¡Estás en el podio!\n\nLa lucha por arriba está apretada, sigue prediciendo con cabeza 🧠⚽\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
     },
     {
-      label: '🔥 Motivar a todo el grupo',
-      icon: '🔥',
-      phone: '',
-      text: `🔥 *¡Resumen de la jornada!* — ${gname}
-
-${ranked.slice(0,3).map((r,i)=>{
-        const medals=['🥇','🥈','🥉'];
-        return `${medals[i]} ${r.username} — ${r.grpPts}pts`;
-      }).join('\n')}
-
-¡Gran jornada para todos! La clasificación está apretada y el fútbol siempre sorprende 🎲
-
-Sigue en la pelea, la próxima jornada viene con todo ⚽💥
-
-📲 Mira la tabla completa en la app
-
-_— Luis Lárez_`
-    },
-    {
-      label: '📣 Anunciar próxima jornada',
-      icon: '📣',
-      phone: '',
-      text: `📣 *¡Se viene la próxima jornada!* ⚽
-
-Hola a todos en *"${gname}"* 👋
-
-Recuerden predecir los marcadores *antes del inicio del primer partido*.
-
-⚠️ El que no predice antes del pitazo inicial recibe 0-0 en todos los partidos automáticamente.
-
-📲 Entra ya: https://luislarezquiniela.github.io
-
-¡Que empiece el show! 🏆
-
-_— Luis Lárez_`
-    },
-    {
-      label: '😬 Animar al último lugar',
       icon: '💪',
-      phone: ranked[ranked.length-1]?.phone || '',
-      text: `💪 *¡Ánimo ${ranked[ranked.length-1]?.username||''}!*
-
-Estamos todos en esto juntos y el fútbol siempre da revancha 🔄
-
-Cada jornada es una nueva oportunidad, ¡tú puedes remontar! ⚽🔥
-
-_El grupo te apoya — Quiniela LuAn_`
+      label: `Animar al último — ${last?.username||'?'}`,
+      phone: last?.phone || '',
+      text: `💪 *¡Ánimo ${last?.username||''}!* ⚽\n\nEstamos todos en esto juntos y el fútbol siempre da revancha 🔄\n\nCada jornada es una nueva oportunidad. ¡Tú puedes remontar!\n\n_El grupo te apoya — Quiniela LuAn_\n_— ${nombre}_`
+    },
+    // ── Grupales (sin teléfono → copia al portapapeles) ───
+    {
+      icon: '🎉',
+      label: 'Podio completo — Top 3 juntos',
+      phone: '',
+      text: top3Text
+    },
+    {
+      icon: '📊',
+      label: 'Compartir pizarra actual',
+      phone: '',
+      text: pizarraText
+    },
+    {
+      icon: '🔥',
+      label: 'Motivar a todo el grupo',
+      phone: '',
+      text: `🔥 *¡Resumen de la jornada!* — *${gname}*\n\n${ranked.slice(0,3).map((r,i)=>{const m=['🥇','🥈','🥉'];return `${m[i]} ${r.username} — ${r.grpPts}pts`;}).join('\n')}\n\n¡Gran jornada para todos! La clasificación está apretada y el fútbol siempre sorprende 🎲\n\nLa próxima jornada viene con todo ⚽💥\n📲 ${appUrl}\n\n_— ${nombre}_`
+    },
+    {
+      icon: '📅',
+      label: 'Recordatorio: predice antes del pitazo',
+      phone: '',
+      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
+    },
+    {
+      icon: '⏰',
+      label: 'Último aviso — cierre próximo',
+      phone: '',
+      text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta poco para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
+    },
+    {
+      icon: '🔴',
+      label: 'Los partidos ya empezaron',
+      phone: '',
+      text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar el fútbol ⚽🔥\n\nEntra a la app para ver los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
+    },
+    {
+      icon: '🏁',
+      label: 'Jornada terminada — revisa la pizarra',
+      phone: '',
+      text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
     },
   ];
 
@@ -1837,26 +1820,41 @@ _El grupo te apoya — Quiniela LuAn_`
   modal.className = 'modal-overlay';
   modal.style.zIndex = '6000';
   modal.innerHTML = `
-    <div class="modal-box" style="max-height:88vh;">
+    <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
       <div class="modal-handle"></div>
       <div class="modal-title">💬 Mensajes del Grupo</div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar por WhatsApp</div>
-      ${msgs.map((m,i) => {
+      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar</div>
+
+      <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personales (abre WhatsApp directo)</div>
+      ${msgs.slice(0,4).map((m,i) => {
         const hasPhone = m.phone && m.phone.replace(/[^0-9]/g,'').length > 5;
-        return `
-        <button onclick="sendRankWA(${i})"
+        return `<button onclick="sendRankWA(${i})"
           style="width:100%;margin-bottom:8px;padding:12px 14px;
           background:var(--surface2);border:1px solid var(--border2);
           border-radius:var(--r-sm);cursor:pointer;text-align:left;
           color:var(--text);font-family:var(--font-b);
           display:flex;align-items:center;gap:10px;
-          ${!hasPhone&&i<3?'opacity:0.5;':''}">
+          ${!hasPhone?'opacity:0.5;':''}">
           <span style="font-size:1.4em;flex-shrink:0;">${m.icon}</span>
           <div>
             <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-            ${!hasPhone&&i<3?'<div style="font-size:0.68em;color:var(--red);">Sin número de teléfono</div>':''}
+            ${!hasPhone?'<div style="font-size:0.68em;color:var(--red);">Sin número registrado</div>':''}
           </div>
-        </button>`}).join('')}
+        </button>`;
+      }).join('')}
+
+      <div style="font-size:0.7em;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">Para el grupo de WhatsApp (copia y pega)</div>
+      ${msgs.slice(4).map((m,i) => `
+        <button onclick="sendRankWA(${i+4})"
+          style="width:100%;margin-bottom:8px;padding:12px 14px;
+          background:var(--surface2);border:1px solid var(--border2);
+          border-radius:var(--r-sm);cursor:pointer;text-align:left;
+          color:var(--text);font-family:var(--font-b);
+          display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.4em;flex-shrink:0;">${m.icon}</span>
+          <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
+        </button>`).join('')}
+
       <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
     </div>`;
 
@@ -2232,36 +2230,66 @@ async function enterApp() {
   }
   scheduleNextSync();
 
-  // ── Minuto en vivo — actualiza el badge localmente cada 60s (0 llamadas API) ──
+  // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
+  // Solo muestra tiempo cuando la API confirma '1H' o '2H'
+  // HT/ET/P muestran su label sin cronómetro
   setInterval(() => {
     _dM.forEach(m => {
       if (!isLive(m.status)) return;
       const badge = document.getElementById(`badge_${m.id}`);
       if (!badge) return;
-      let min = '';
-      if (m.date && m.time) {
-        try {
-          const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
-          const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
-          if (elapsed >= 0 && elapsed <= 150) {
-            if (m.status === 'HT') {
-              min = 'DT';
-            } else if (elapsed <= 47) {
-              min = elapsed <= 45 ? elapsed : `45+${elapsed - 45}`;
-            } else if (elapsed <= 62) {
-              min = 'DT';
-            } else {
-              const secondHalf = elapsed - 62;
-              const min2 = secondHalf + 45;
-              min = min2 <= 90 ? min2 : `90+${min2 - 90}`;
-            }
-          }
-        } catch(e) {}
-      }
+
+      const phase = badge.dataset.phase || '';
+      const kickoffMs = +badge.dataset.kickoff || 0;
       const statusTxt = statusLabel(m.status);
-      badge.textContent = `🔴 ${statusTxt}${min ? ' · ' + min + "'" : ''}`;
+
+      // Descanso / penales / prórroga sin cronómetro
+      if (phase === 'HT') { badge.textContent = `⏸ Descanso`; return; }
+      if (phase === 'P')  { badge.textContent = `⚡ Penales`; return; }
+      if (phase === 'ET') { badge.textContent = `🔴 Prórroga`; return; }
+
+      // Sin kickoff o sin fase 1H/2H → solo el label
+      if (!kickoffMs || (phase !== '1H' && phase !== '2H')) {
+        badge.textContent = `🔴 ${statusTxt}`;
+        return;
+      }
+
+      const nowMs  = Date.now();
+      const elapsedMs = nowMs - kickoffMs;
+
+      let totalSec, baseMin, capMin;
+      if (phase === '1H') {
+        // Primer tiempo: 0 → 45'+
+        totalSec = Math.floor(elapsedMs / 1000);
+        baseMin  = 0;
+        capMin   = 45;
+      } else {
+        // Segundo tiempo: 45 → 90'+
+        // Asumimos 15 min de descanso después del kickoff
+        totalSec = Math.floor((elapsedMs - 60 * 60 * 1000) / 1000); // restamos ~60 min (45' + 15' DT)
+        if (totalSec < 0) totalSec = 0;
+        baseMin  = 45;
+        capMin   = 90;
+      }
+
+      const rawMin = Math.floor(totalSec / 60);
+      const sec    = totalSec % 60;
+      const secStr = String(sec).padStart(2, '0');
+
+      let cronText;
+      if (rawMin <= capMin) {
+        const minStr = String(baseMin + rawMin).padStart(2, '0');
+        cronText = `${minStr}:${secStr}`;
+      } else {
+        // Tiempo añadido
+        const extra = rawMin - capMin;
+        const extSec = String(sec).padStart(2, '0');
+        cronText = `${capMin}+${extra}:${extSec}`;
+      }
+
+      badge.textContent = `🔴 ${cronText}`;
     });
-  }, 60000);
+  }, 1000);
 }
 
 // ═══════════════════════════════════════════
@@ -2762,40 +2790,32 @@ function buildMatchCard(m, closed) {
   const showScore = live || done;
   const cls = live?'live':done?'finished':'';
 
-  // Minuto estimado localmente — 0 llamadas extra a la API
-  let minuteDisplay = '';
-  if (live) {
-    if (m.minute && !['FT','AET','HT','MATCH FINISHED'].includes(String(m.minute).toUpperCase())) {
-      minuteDisplay = m.minute; // Si la API ya lo da, úsalo
-    } else if (m.date && m.time) {
-      try {
-        const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
-        const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
-        if (elapsed >= 0 && elapsed <= 150) {
-          if (m.status === 'HT') {
-            minuteDisplay = 'DT'; // Descanso
-          } else if (elapsed <= 47) {
-            // 1er tiempo normal
-            minuteDisplay = elapsed <= 45 ? elapsed : `45+${elapsed - 45}`;
-          } else if (elapsed <= 62) {
-            // Descanso estimado (45-60 min)
-            minuteDisplay = 'DT';
-          } else {
-            // 2do tiempo: elapsed - ~15min de descanso
-            const secondHalf = elapsed - 62;
-            const min2 = secondHalf + 45;
-            minuteDisplay = min2 <= 90 ? min2 : `90+${min2 - 90}`;
-          }
-        }
-      } catch(e) {}
-    }
+  // Cronómetro real — solo cuando la API confirma '1H' o '2H'
+  // El badge tiene id="badge_{id}" y un data-kickoff para que el interval lo actualice
+  let kickoffMs = 0;
+  let cronPhase = ''; // '1H' | 'HT' | '2H' | 'ET' | 'P'
+  if (live && m.date && m.time) {
+    try {
+      const ko = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+      kickoffMs = ko.getTime();
+    } catch(e) {}
+    const st = (m.status || '').toUpperCase();
+    if (st === '1H')  cronPhase = '1H';
+    else if (st === 'HT') cronPhase = 'HT';
+    else if (st === '2H') cronPhase = '2H';
+    else if (st === 'ET') cronPhase = 'ET';
+    else if (st === 'P')  cronPhase = 'P';
   }
 
   const statusTxt = statusLabel(m.status);
   let badge = '';
-  if (live) badge = `<span class="badge-live" id="badge_${m.id}">🔴 ${statusTxt}${minuteDisplay ? ' · ' + minuteDisplay + "'" : ''}</span>`;
-  else if (done) badge = `<span class="badge-done">${statusTxt}</span>`;
-  else badge = `<span class="badge-time">${vzTime(m.time)}</span>`;
+  if (live) {
+    badge = `<span class="badge-live" id="badge_${m.id}" data-kickoff="${kickoffMs}" data-phase="${cronPhase}">🔴 ${statusTxt}</span>`;
+  } else if (done) {
+    badge = `<span class="badge-done">${statusTxt}</span>`;
+  } else {
+    badge = `<span class="badge-time">${vzTime(m.time)}</span>`;
+  }
 
   let centerContent = '';
   if (showScore) {
@@ -4043,22 +4063,126 @@ async function deleteGroup(gid, name) {
 }
 
 function shareGroup(code, name) {
+  // Redirige al menú WA de la clasificación si está cargada, o abre menú directo
+  if (_currentRankData?.ranked?.length) {
+    openRankWAMenu();
+  } else {
+    openGroupWAMenu(code, name);
+  }
+}
+
+// ── Menú WA directo (sin clasificación cargada) ─────────────
+function openGroupWAMenu(code, gname) {
+  const existing = document.getElementById('groupWAModal');
+  if (existing) existing.remove();
+
   const nombre = me.name || me.username || '';
-  const msg = encodeURIComponent(
-    `⚽ QUINIELA LuAn ⚽\n\n` +
-    `👋 ¡Hola! Soy ${nombre} y tengo una invitación imperdible para ti:\n\n` +
-    `🔥 AL GRUPO: *"${name}"*\n\n` +
-    `📲 ¿Cómo unirte?\n\n` +
-    `1. Abre la app Quiniela LuAn\n` +
-    `2. Ve a la sección Grupos\n` +
-    `3. Toca "Unirse"\n` +
-    `4. Ingresa el código:\n` +
-    `   🔐 *CÓDIGO: ${code}*\n\n` +
-    `✅ ¡Listo! Ya serás parte de la acción.\n\n` +
-    `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
-    `— luislárez`
-  );
-  window.open(`https://wa.me/?text=${msg}`, '_blank');
+  const appUrl = 'https://luisla425.github.io/Quiniela/';
+
+  const quickMsgs = [
+    {
+      icon: '📣',
+      label: 'Invitar al grupo de WhatsApp',
+      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola a todos 👋 Estamos organizando la quiniela del grupo *"${gname}"*.\n\n📲 Entra a la app, únete al grupo *"${gname}"* directo desde la pantalla de Partidos — un toque y listo.\n\n🔗 ${appUrl}\n\n¡Que empiece la competencia! 🏆\n_— ${nombre}_`
+    },
+    {
+      icon: '📅',
+      label: 'Recordatorio: predice antes del pitazo',
+      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
+    },
+    {
+      icon: '⏰',
+      label: 'Último aviso — 1 hora para el cierre',
+      text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta menos de 1 hora para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
+    },
+    {
+      icon: '🔴',
+      label: 'Los partidos ya empezaron',
+      text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar y sufrir el fútbol ⚽🔥\n\nEntra a la app para seguir los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
+    },
+    {
+      icon: '🏁',
+      label: 'Jornada terminada — revisa la pizarra',
+      text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
+    },
+    {
+      icon: '📊',
+      label: 'Compartir pizarra actual',
+      text: _buildPizarraText(gname)
+    },
+    {
+      icon: '🎉',
+      label: 'Felicitar a los Top 3 juntos',
+      text: _buildTop3Text(gname)
+    },
+    {
+      icon: '🔥',
+      label: 'Motivar al grupo para la próxima jornada',
+      text: `🔥 *¡La próxima jornada se viene cargada!* — *${gname}*\n\nLa tabla está apretada, cualquiera puede escalar. Un buen ojo en las predicciones lo puede cambiar todo 🎯\n\nPredicción + suerte + conocimiento = Campeón 🏆\n\n📲 ${appUrl}\n\n_— ${nombre}_`
+    },
+    {
+      icon: '📢',
+      label: 'Anuncio general al grupo',
+      text: `📢 *Aviso del grupo "${gname}"* — Quiniela LuAn ⚽\n\nHola a todos, recuerden estar pendientes de la app para no perderse ninguna jornada.\n\n📲 ${appUrl}\n\n¡Éxito a todos! 💪\n_— ${nombre}_`
+    },
+    {
+      icon: '🌟',
+      label: 'Mensaje de bienvenida al grupo',
+      text: `🌟 *¡Bienvenidos al grupo "${gname}"!* ⚽\n\nYa estamos todos listos para competir en *Quiniela LuAn*.\n\nReglas simples:\n✅ Predice antes del primer partido\n✅ Los puntos se calculan automáticamente\n✅ Exacto = 3pts · Resultado correcto = 1pt\n\n📲 ${appUrl}\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
+    },
+  ];
+
+  const modal = document.createElement('div');
+  modal.id = 'groupWAModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '6000';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+      <div class="modal-handle"></div>
+      <div class="modal-title">💬 Mensajes para el grupo</div>
+      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar por WhatsApp</div>
+      ${quickMsgs.map((m,i) => `
+        <button onclick="sendGroupWA(${i})"
+          style="width:100%;margin-bottom:8px;padding:12px 14px;
+          background:var(--surface2);border:1px solid var(--border2);
+          border-radius:var(--r-sm);cursor:pointer;text-align:left;
+          color:var(--text);font-family:var(--font-b);
+          display:flex;align-items:center;gap:10px;">
+          <span style="font-size:1.5em;flex-shrink:0;">${m.icon}</span>
+          <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
+        </button>`).join('')}
+      <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+    </div>`;
+
+  window._groupWAMsgs = quickMsgs;
+  document.body.appendChild(modal);
+}
+
+function _buildPizarraText(gname) {
+  if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;
+  const medals = ['🥇','🥈','🥉'];
+  const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
+  let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;
+  _currentRankData.ranked.forEach((p,i) => {
+    const pos = medals[i] || `  ${i+1}.`;
+    msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;
+  });
+  msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;
+  return msg;
+}
+
+function _buildTop3Text(gname) {
+  if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;
+  const ranked = _currentRankData.ranked;
+  const [p1,p2,p3] = ranked;
+  return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`;
+}
+
+function sendGroupWA(idx) {
+  const msg = window._groupWAMsgs[idx];
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg.text)}`, '_blank');
+  document.getElementById('groupWAModal')?.remove();
 }
 
 let _currentRankData = { name:'', ranked:[] };
