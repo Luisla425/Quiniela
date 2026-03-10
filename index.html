@@ -2197,6 +2197,9 @@ async function enterApp() {
   if (me.isAdmin) {
     $('hdrAdminBadge').classList.remove('hidden');
     $('nav-admin').classList.remove('hidden');
+  } else {
+    // Jugadores no necesitan la pestaña Torneos — las ligas las gestiona el Admin
+    $('nav-tournaments')?.classList.add('hidden');
   }
 
   startClock();
@@ -2519,6 +2522,78 @@ function clearActiveGroup() {
   doSync();
 }
 
+// Carga grupos públicos disponibles para unirse — muestra chips en el cintillo
+async function _loadPublicGroupsStrip() {
+  try {
+    const snap = await db.collection('groups').get();
+    const all = snap.docs.map(d=>({id:d.id,...d.data()}));
+    const strip = $('publicGroupsStrip');
+    if (!strip) return;
+    if (!all.length) { strip.innerHTML = `<span style="font-size:0.75em;color:var(--muted2);">Sin grupos disponibles</span>`; return; }
+    let extra = '';
+    all.forEach(g => {
+      const isMine = g.members?.some(m=>m.userId===me.uid);
+      const isActive = g.id === activeGroupId;
+      const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,2).join('');
+      const borderColor = isActive ? 'var(--primary)' : isMine ? 'var(--green)' : 'var(--border2)';
+      const bgColor = isActive ? 'rgba(108,71,255,0.2)' : isMine ? 'rgba(0,229,160,0.1)' : 'var(--surface2)';
+      const txtColor = isActive ? 'var(--primary2)' : isMine ? 'var(--green)' : 'var(--muted2)';
+      extra += `<button onclick="${isMine?`setActiveGroup('${g.id}')`:`promptJoinGroup('${g.id}','${g.name.replace(/'/g,"\\'")}')`}"
+        style="flex-shrink:0;padding:6px 12px;border-radius:20px;border:2px solid ${borderColor};
+        background:${bgColor};color:${txtColor};
+        font-family:var(--font-b);font-weight:700;font-size:0.78em;cursor:pointer;white-space:nowrap;transition:all 0.2s;">
+        ${flag} ${g.name}${isMine?'':' ＋'}
+      </button>`;
+    });
+    strip.innerHTML = `<span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">Grupos:</span>` + extra;
+  } catch(e) {}
+}
+
+// Popup de confirmación "¿Unirte a este grupo?"
+function promptJoinGroup(gid, gname) {
+  const existing = document.getElementById('joinTapModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'joinTapModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '6000';
+  modal.innerHTML = `
+    <div class="modal-box" style="padding:28px 24px;text-align:center;">
+      <div class="modal-handle"></div>
+      <div style="font-size:2em;margin-bottom:10px;">👥</div>
+      <div style="font-family:var(--font-h);font-size:1.3em;font-weight:800;margin-bottom:8px;">¿Unirte a este grupo?</div>
+      <div style="font-size:1em;color:var(--primary2);font-weight:700;margin-bottom:18px;">${gname}</div>
+      <div style="font-size:0.82em;color:var(--muted2);margin-bottom:22px;">
+        Podrás predecir partidos y competir con los jugadores de este grupo.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-ghost" onclick="document.getElementById('joinTapModal').remove()">No</button>
+        <button class="btn btn-primary" onclick="confirmJoinGroup('${gid}','${gname.replace(/'/g,"\\'")}')">✅ Sí, unirme</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function confirmJoinGroup(gid, gname) {
+  document.getElementById('joinTapModal')?.remove();
+  try {
+    await db.collection('groups').doc(gid).update({
+      members: firebase.firestore.FieldValue.arrayUnion({
+        userId: me.uid,
+        username: me.username,
+        joinedAt: new Date().toISOString()
+      })
+    });
+    toast(`✅ Te uniste a "${gname}"`, 'success');
+    // Actualizar lista local y re-renderizar
+    await loadMyGroups();
+    renderMatches();
+  } catch(e) {
+    toast('Error al unirse: ' + e.message, 'error');
+  }
+}
+
 // ═══════════════════════════════════════════
 // RENDER MATCHES
 // ═══════════════════════════════════════════
@@ -2549,27 +2624,11 @@ function renderMatches() {
     </div>`;
 
   // ── SELECTOR DE GRUPO ACTIVO ──────────────
-  if (myGroupsList.length > 0) {
-    html += `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;">`;
-    myGroupsList.forEach(g => {
-      const isActive = g.id === activeGroupId;
-      const flag = (g.tournaments||[]).map(tid => {
-        const t = TOURNAMENTS.find(t=>t.id===tid);
-        return t?.flag || '';
-      }).filter(Boolean).slice(0,2).join('');
-      html += `
-        <button onclick="setActiveGroup('${g.id}')"
-          style="flex-shrink:0;padding:6px 12px;border-radius:20px;border:2px solid ${isActive?'var(--primary)':'var(--border2)'};
-          background:${isActive?'rgba(108,71,255,0.2)':'var(--surface2)'};
-          color:${isActive?'var(--primary2)':'var(--muted2)'};
-          font-family:var(--font-b);font-weight:700;font-size:0.78em;cursor:pointer;white-space:nowrap;
-          transition:all 0.2s;">
-          ${flag} ${g.name}
-        </button>`;
-    });
-    // Opción "Sin grupo" → torneos del perfil — removida (sin valor práctico)
-    html += `</div>`;
-  }
+  // Siempre se cargan todos los grupos públicos — los propios como chips activos,
+  // los ajenos con "+" para unirse con 1 tap
+  html += `<div id="publicGroupsStrip" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;">
+    <span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">Grupos:</span>
+  </div>`;
 
   // Countdown banner with time remaining
   if (nextClose) {
@@ -2622,6 +2681,9 @@ function renderMatches() {
   }
 
   el.innerHTML = html;
+
+  // Cargar el cintillo de grupos (propios activos + ajenos con "+" para unirse)
+  _loadPublicGroupsStrip();
 
   // Restore typed predictions
   Object.entries(saved).forEach(([mid,v])=>{
@@ -3752,13 +3814,35 @@ async function renderGroups() {
     <span class="section-title">👥 Grupos</span>
     <div style="display:flex;gap:8px;">
       ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="renderCreatePicker();openModal('createModal')">➕ Crear</button>` : ''}
-      <button class="btn btn-ghost btn-sm" onclick="openModal('joinModal')">🔗 Unirse</button>
+      ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="openModal('joinModal')">🔗 Unirse</button>` : ''}
     </div>
-  </div>`;
+  </div>
+  <!-- SUB-TABS: Mis Grupos / Ligas -->
+  <div style="display:flex;gap:6px;margin-bottom:14px;">
+    <button id="grpTab-grupos" onclick="switchGrpTab('grupos')"
+      style="flex:1;padding:9px;border-radius:var(--r-sm);border:1px solid var(--primary);
+      background:rgba(108,71,255,0.2);color:var(--primary2);
+      font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;">
+      👥 Mis Grupos
+    </button>
+    <button id="grpTab-ligas" onclick="switchGrpTab('ligas')"
+      style="flex:1;padding:9px;border-radius:var(--r-sm);border:1px solid var(--border2);
+      background:var(--surface2);color:var(--muted2);
+      font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;">
+      🏆 Ligas
+    </button>
+  </div>
+  <div id="grpPanel-grupos"></div>
+  <div id="grpPanel-ligas" class="hidden"></div>`;
 
+  // Render the shell first so panels exist in DOM
+  el.innerHTML = html;
+
+  // ── PANEL GRUPOS ───────────────────────────
   try {
     const snap = await db.collection('groups').get();
-    if(me.isAdmin) html+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">👑 Admin — ves todos los grupos</div>`;
+    let grpHtml = '';
+    if(me.isAdmin) grpHtml+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">👑 Admin — ves todos los grupos</div>`;
 
     let found=0;
     snap.docs.forEach(doc=>{
@@ -3766,7 +3850,7 @@ async function renderGroups() {
       if(!me.isAdmin&&!g.members?.some(m=>m.userId===me.uid)) return;
       found++;
       const isMine=g.members?.some(m=>m.userId===me.uid);
-      html+=`<div class="group-card">
+      grpHtml+=`<div class="group-card">
         <div class="group-card-header">
           <div>
             <div class="group-name">${g.name} ${isMine?'👑':''}</div>
@@ -3785,11 +3869,97 @@ async function renderGroups() {
       </div>`;
     });
 
-    if(!found) html+=`<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">Sin grupos. Crea o únete a uno.</span></div>`;
+    if(!found) grpHtml+=`<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">Sin grupos todavía.<br><small style="color:var(--muted2);">Toca un grupo en el cintillo de Partidos para unirte.</small></span></div>`;
+    $('grpPanel-grupos').innerHTML = grpHtml;
   } catch(e) {
-    html+=`<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+    $('grpPanel-grupos').innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
-  el.innerHTML=html;
+
+  // ── PANEL LIGAS (solo lectura para jugadores, editable para admin) ──
+  renderLigasPanel();
+}
+
+function renderLigasPanel() {
+  const panel = $('grpPanel-ligas');
+  if (!panel) return;
+
+  let html = `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:0.78em;color:var(--muted2);font-weight:600;margin-bottom:12px;">
+        ${me.isAdmin
+          ? '👑 Como Admin puedes activar/desactivar ligas para los grupos.'
+          : '👀 Estas son las ligas disponibles en el sistema. ¿Quieres proponer una quiniela con alguna?'}
+      </div>`;
+
+  // Copa del Mundo — destacada
+  html += `
+    <div class="card-glow" style="margin-bottom:14px;cursor:pointer;" onclick="openMundialModal()">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:2em;">🌍🏆</span>
+        <div style="flex:1;">
+          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
+          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">48 selecciones · 104 partidos · USA/MX/CA</div>
+        </div>
+        <span style="font-size:1.5em;">→</span>
+      </div>
+    </div>`;
+
+  // Lista de ligas
+  TOURNAMENTS.filter(t => !t.isMundial).forEach(t => {
+    const sel = myTournaments.includes(t.id);
+    if (me.isAdmin) {
+      // Admin: puede activar/desactivar
+      html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${t.id}',this)">
+        <div class="tourn-left"><span style="font-size:1.3em;">${t.flag}</span><span>${t.name}</span></div>
+        <div class="tourn-check">${sel?'✓':''}</div>
+      </div>`;
+    } else {
+      // Jugador: solo lectura
+      html += `<div class="tourn-item" style="opacity:${sel?'1':'0.5'};cursor:default;">
+        <div class="tourn-left"><span style="font-size:1.3em;">${t.flag}</span><span>${t.name}</span></div>
+        <div class="tourn-check" style="color:${sel?'var(--green)':'var(--muted)'};">${sel?'✓':'—'}</div>
+      </div>`;
+    }
+  });
+
+  if (me.isAdmin) {
+    html += `<button class="btn btn-primary" style="margin-top:12px;" onclick="saveTournaments()">💾 Guardar selección</button>`;
+  } else {
+    // Botón sugerir al admin por WhatsApp
+    const adminWaNum = '584145555555'; // fallback — el admin puede configurar
+    html += `
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(37,211,102,0.08);border:1px solid rgba(37,211,102,0.25);border-radius:var(--r-sm);">
+        <div style="font-size:0.78em;color:var(--muted2);font-weight:700;margin-bottom:8px;">
+          ¿Quieres proponer una liga? Cuéntaselo al admin:
+        </div>
+        <button class="btn-wa" onclick="suggestLeagueWA()" style="width:100%;padding:11px;font-size:0.85em;">
+          📲 Sugerir liga al Admin por WhatsApp
+        </button>
+      </div>`;
+  }
+
+  html += `</div>`;
+  panel.innerHTML = html;
+}
+
+function suggestLeagueWA() {
+  const text = `⚽ Hola, soy ${me.name||me.username} en Quiniela LuAn.\n\n💡 Quiero sugerir agregar una nueva liga al sistema. ¿Podemos hablar?\n\n_Quiniela LuAn_`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+function switchGrpTab(tab) {
+  ['grupos','ligas'].forEach(t => {
+    const panel = $(`grpPanel-${t}`);
+    const btn = $(`grpTab-${t}`);
+    if (!panel || !btn) return;
+    const active = t === tab;
+    panel.classList.toggle('hidden', !active);
+    btn.style.border = active ? '1px solid var(--primary)' : '1px solid var(--border2)';
+    btn.style.background = active ? 'rgba(108,71,255,0.2)' : 'var(--surface2)';
+    btn.style.color = active ? 'var(--primary2)' : 'var(--muted2)';
+  });
+  // Render ligas panel on demand
+  if (tab === 'ligas') renderLigasPanel();
 }
 
 async function doCreateGroup() {
@@ -5978,8 +6148,3 @@ console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-s
 </script>
 </body>
 </html>
-
-
-
-
-
