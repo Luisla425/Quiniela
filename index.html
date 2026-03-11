@@ -2235,45 +2235,47 @@ async function enterApp() {
   scheduleNextSync();
 
   // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
-  // 1H: 00:01 → 44:59 → 45:00 → 45+0:01 → 45+1:00 → ... sigue hasta HT
-  // 2H: 45:01 → 89:59 → 90:00 → 90+0:01 → 90+1:00 → ... sigue hasta FT
-  // Al pasar el tope sigue contando el tiempo añadido en formato 45+M:SS
+  // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
+  // Chip añadido:    [+? | 00:01] arranca automático al pasar 45:00 / 90:00
+  //                 Si la API manda el tiempo añadido, reemplaza '?' con el número
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
       _dM.forEach(m => {
         if (!isLive(m.status)) return;
-        const badge = document.getElementById(`badge_${m.id}`);
-        if (!badge) return;
+        const wrap = document.getElementById(`badge_${m.id}`);
+        if (!wrap) return;
 
-        // Sincronizar fase con el status real del partido
+        // Sincronizar fase con el status real
         const st = (m.status || '').toUpperCase();
-        let phase = badge.dataset.phase || '';
-        if      (st === '1H' && phase !== '1H') { badge.dataset.phase = '1H'; phase = '1H'; }
-        else if (st === 'HT' && phase !== 'HT') { badge.dataset.phase = 'HT'; phase = 'HT'; }
-        else if (st === '2H' && phase !== '2H') { badge.dataset.phase = '2H'; phase = '2H'; }
-        else if (st === 'ET' && phase !== 'ET') { badge.dataset.phase = 'ET'; phase = 'ET'; }
-        else if (st === 'P'  && phase !== 'P')  { badge.dataset.phase = 'P';  phase = 'P';  }
+        let phase = wrap.dataset.phase || '';
+        if      (st === '1H' && phase !== '1H') { wrap.dataset.phase = '1H'; phase = '1H'; }
+        else if (st === 'HT' && phase !== 'HT') { wrap.dataset.phase = 'HT'; phase = 'HT'; }
+        else if (st === '2H' && phase !== '2H') { wrap.dataset.phase = '2H'; phase = '2H'; }
+        else if (st === 'ET' && phase !== 'ET') { wrap.dataset.phase = 'ET'; phase = 'ET'; }
+        else if (st === 'P'  && phase !== 'P')  { wrap.dataset.phase = 'P';  phase = 'P';  }
 
-        // Estados sin cronómetro numérico
-        if (phase === 'HT') { badge.textContent = `⏸ Descanso`;  return; }
-        if (phase === 'P')  { badge.textContent = `⚡ Penales`;   return; }
-        if (phase === 'ET') { badge.textContent = `🔴 Prórroga`;  return; }
+        const mainEl  = document.getElementById(`badge_main_${m.id}`);
+        const extraEl = document.getElementById(`badge_extra_${m.id}`);
+        if (!mainEl || !extraEl) return;
 
-        const kickoffMs = +badge.dataset.kickoff || 0;
+        // Estados especiales — sin cronómetro numérico
+        if (phase === 'HT') { mainEl.textContent = `⏸ Descanso`; extraEl.style.display='none'; return; }
+        if (phase === 'P')  { mainEl.textContent = `⚡ Penales`;  extraEl.style.display='none'; return; }
+        if (phase === 'ET') { mainEl.textContent = `🔴 Prórroga`; extraEl.style.display='none'; return; }
+
+        const kickoffMs = +wrap.dataset.kickoff || 0;
         if (!kickoffMs || (phase !== '1H' && phase !== '2H')) {
-          badge.textContent = `🔴 En Vivo`; return;
+          mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
         }
 
         const elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000));
 
         let dispSec, capMin;
         if (phase === '1H') {
-          // 1er tiempo: arranca desde el kickoff, 00:01 en adelante
           dispSec = elapsedSec;
           capMin  = 45;
         } else {
-          // 2do tiempo: el kickoff fue ~60 min antes (45' juego + ~15' descanso)
-          // Restamos 3600 seg y sumamos 45*60 para arrancar en 45:01
+          // 2H: restar ~60 min del kickoff (45' juego + 15' descanso) y sumar 45*60 base
           dispSec = Math.max(1, elapsedSec - 3600) + 45 * 60;
           capMin  = 90;
         }
@@ -2282,20 +2284,25 @@ async function enterApp() {
         const sec      = dispSec % 60;
         const ss       = String(sec).padStart(2, '0');
 
-        let cronText;
         if (totalMin < capMin) {
-          // Tiempo reglamentario normal: 00:01 → 44:59  /  45:01 → 89:59
-          cronText = `${String(totalMin).padStart(2,'0')}:${ss}`;
-        } else if (totalMin === capMin && sec === 0) {
-          // Justo en el límite: 45:00 o 90:00
-          cronText = `${capMin}:00`;
-        } else {
-          // Tiempo añadido — sigue contando: 45+0:01, 45+1:00, 45+7:59...
-          const extraMin = totalMin - capMin;
-          cronText = `${capMin}+${extraMin}:${ss}`;
-        }
+          // ── Tiempo reglamentario: chip único, sin chip de añadido ──
+          mainEl.textContent = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
+          extraEl.style.display = 'none';
 
-        badge.textContent = `🔴 ${cronText}`;
+        } else {
+          // ── Pasó el límite: chip principal fijo + chip de tiempo añadido ──
+          mainEl.textContent = `🔴 ${capMin}:00`;
+
+          const extraMin = totalMin - capMin;
+          const extraSS  = String(sec).padStart(2, '0');
+
+          // Tiempo añadido oficial si la API lo manda en el match
+          const officialExtra = m.intExtraTime || m.strExtraTime || null;
+          const addedLabel    = officialExtra ? `+${officialExtra}` : '+?';
+
+          extraEl.textContent  = `${addedLabel} | ${String(extraMin).padStart(2,'0')}:${extraSS}`;
+          extraEl.style.display = 'inline-block';
+        }
       });
     }, 1000);
   }
@@ -2858,7 +2865,16 @@ function buildMatchCard(m, closed) {
   const statusTxt = statusLabel(m.status);
   let badge = '';
   if (live) {
-    badge = `<span class="badge-live" id="badge_${m.id}" data-kickoff="${kickoffMs}" data-phase="${cronPhase}">🔴 ${statusTxt}</span>`;
+    // Dos chips estilo marcador de TV:
+    // [🔴 45:00] [+? | 02:12]  ← chip principal fijo + chip de tiempo añadido corriendo
+    badge = `<span id="badge_${m.id}" data-kickoff="${kickoffMs}" data-phase="${cronPhase}"
+      style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;">
+      <span id="badge_main_${m.id}" class="badge-live">🔴 ${statusTxt}</span>
+      <span id="badge_extra_${m.id}" style="display:none;
+        background:#1a1a2e;color:#ffd700;border:1px solid #ffd700;
+        border-radius:5px;font-size:0.72em;font-family:var(--font-h);
+        font-weight:900;padding:1px 5px;letter-spacing:0.5px;white-space:nowrap;"></span>
+    </span>`;
   } else if (done) {
     badge = `<span class="badge-done">${statusTxt}</span>`;
   } else {
@@ -6618,4 +6634,4 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-</html>
+   </html>
