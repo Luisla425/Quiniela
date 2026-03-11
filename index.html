@@ -1790,7 +1790,11 @@ function openRankWAMenu() {
       icon: '📅',
       label: 'Recordatorio: predice antes del pitazo',
       phone: '',
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
+      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\n✅ Cómo registrar tus pronósticos ⚽
+​Es muy fácil. En el cintillo "⚡ PREDECIR ESTE PARTIDO", sigue estos pasos:
+​Si hay un ganador: Toca primero el nombre de tu equipo favorito (no importa si es local, el de la izquierda o visitante el de la derecha). Luego, selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.
+​Tip: Si marcas a ganador 1, el sistema asigna automáticamente  0 goles al perdedor.
+​Si es empate: Toca el botón Empate, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
     },
     {
       icon: '⏰',
@@ -3122,79 +3126,134 @@ async function openStats(matchId) {
       if (tl.length > 0) timelineEvents = tl;
     }
 
-    // ── Render de cada evento ─────────────────────────────────
+    // ── Render de cada evento — estilo FlashScore ────────────
     const renderTimelineEvent = (t) => {
-      // Minuto con tiempo añadido: 45+3', 90+8'
-      const min     = t.intTime ? `${t.intTime}${t.intTimeExtra ? '+' + t.intTimeExtra : ''}'` : "?'";
-      // TheSportsDB usa distintos campos según versión
+      const minRaw  = t.intTime ? +t.intTime : null;
+      const minExtra = t.intTimeExtra ? '+' + t.intTimeExtra : '';
+      const minStr  = minRaw !== null ? `${minRaw}${minExtra}'` : "?'";
       const type    = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
       const player  = t.strPlayer  || t.strPlayer1 || '';
+      // Para sustituciones: player = entra, player2 = sale
       const player2 = t.strAssist  || t.strPlayer2 || '';
-      // V1 usa "yes/no" en strHome; V2 usa "home/away"
       const homeRaw = (t.strHome || t.strSide || '').toLowerCase();
       const isHome  = homeRaw === 'yes' || homeRaw === 'home';
-      const side    = isHome ? home : away;
 
-      let icon = '', color = 'var(--text)', extra = '';
-
-      // Tarjetas: cubrir yellowcard / redcard / yellowredcard / "Second Yellow Card"
+      // ── Clasificar tipo de evento ────────────────────────
       const isYellowRed = type.includes('yellowred') || type.includes('second yellow')
                        || (type.includes('yellow') && type.includes('red'));
       const isYellow    = !isYellowRed && type.includes('yellow');
       const isRed       = !isYellowRed && !isYellow &&
                           (type.includes('redcard') || type === 'red' ||
-                           (type.includes('red') && !type.includes('score') && !type.includes('card')==false));
+                           (type.includes('red') && !type.includes('score')));
+      const isSub       = type.includes('sub') || type.includes('substitut');
+      const isVAR       = type.includes('var');
+      const isGoal      = type.includes('goal');
+      const isPenalty   = !isGoal && (type.includes('penalty') || type.includes('penal'));
 
-      if (type.includes('goal')) {
+      let icon = '', color = 'var(--text)', mainLine = '', subLine = '';
+
+      if (isGoal) {
         if (type.includes('own')) {
           icon='⚽🔴'; color='var(--red)';
-          extra=' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>';
+          mainLine = `${player} <span style="color:var(--red);font-size:0.78em;">(Autogol)</span>`;
         } else if (type.includes('pen') && !type.includes('miss')) {
           icon='⚽⚡'; color='var(--gold)';
-          extra=' <span style="color:var(--gold);font-size:0.75em;">(Penal)</span>';
-          if (t.strFoul) extra += ` <span style="color:var(--muted2);font-size:0.72em;">· falta: ${t.strFoul}</span>`;
+          mainLine = `${player} <span style="color:var(--gold);font-size:0.78em;">(Penal)</span>`;
         } else if (type.includes('miss')) {
           icon='❌'; color='var(--muted2)';
-          extra=' <span style="color:var(--muted2);font-size:0.75em;">(Penal fallado)</span>';
+          mainLine = `${player} <span style="color:var(--muted2);font-size:0.78em;">(Penal fallado)</span>`;
         } else {
           icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)';
+          mainLine = player;
         }
         if (player2 && !type.includes('miss'))
-          extra += ` <span style="color:var(--muted2);font-size:0.72em;">🅰 ${player2}</span>`;
+          subLine = `<span style="color:var(--muted2);">🅰 ${player2}</span>`;
       }
       else if (isYellowRed) {
         icon='🟨🟥'; color='var(--red)';
-        extra=' <span style="color:var(--red);font-size:0.72em;">(2ª Amarilla)</span>';
+        mainLine = `${player} <span style="color:var(--red);font-size:0.78em;">(2ª Amarilla)</span>`;
       }
-      else if (isYellow) { icon='🟨'; color='var(--gold)'; }
-      else if (isRed)    { icon='🟥'; color='var(--red)'; }
-      else if (type.includes('sub') || type.includes('substitut')) {
+      else if (isYellow) {
+        icon='🟨'; color='var(--gold)';
+        // Acumulación: la API a veces lo pone en strComment o strFoul
+        const comment = (t.strComment || t.strFoul || t.strReason || '').trim();
+        const isAccum = comment.toLowerCase().includes('accumul') ||
+                        comment.toLowerCase().includes('next match') ||
+                        comment.toLowerCase().includes('pierde') ||
+                        comment.toLowerCase().includes('suspend');
+        mainLine = player;
+        if (comment) subLine = `<span style="color:var(--gold);font-size:0.78em;">· ${comment}</span>`;
+        else if (isAccum) subLine = `<span style="color:var(--orange);font-size:0.78em;">⚠️ Se pierde el próximo partido</span>`;
+      }
+      else if (isRed) {
+        icon='🟥'; color='var(--red)';
+        mainLine = player;
+        const reason = (t.strComment || t.strFoul || '').trim();
+        if (reason) subLine = `<span style="color:var(--red);font-size:0.78em;">· ${reason}</span>`;
+      }
+      else if (isSub) {
         icon='🔄'; color='var(--muted2)';
-        if (player2) extra = ` <span style="color:var(--green);font-size:0.75em;">▲ ${player2}</span>`;
+        // player = entra (verde), player2 = sale (rojo)
+        if (player2) {
+          mainLine = `<span style="color:var(--green);font-weight:800;">▲ ${player}</span>`;
+          subLine  = `<span style="color:var(--red);font-size:0.82em;">▼ ${player2}</span>`;
+        } else {
+          mainLine = player;
+        }
       }
-      else if (type.includes('var')) {
+      else if (isVAR) {
         const v = varDetail(t);
-        icon  = v.icon;
-        color = v.color;
-        extra = ` <span style="color:${v.color};font-size:0.78em;font-weight:700;">${v.label}</span>`;
+        icon  = v.icon; color = v.color;
+        mainLine = `<span style="color:${v.color};font-weight:800;">${v.label}</span>`;
+        if (player) subLine = `<span style="color:var(--muted2);">${player}</span>`;
       }
-      else if (type.includes('penalty') || type.includes('penal')) { icon='⚡'; color='var(--orange)'; }
+      else if (isPenalty) {
+        icon='⚡'; color='var(--orange)';
+        mainLine = player;
+      }
       else return '';
 
-      return `
-        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-          <span style="font-family:var(--font-h);color:var(--gold);min-width:44px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
-          <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:800;font-size:0.88em;color:${color};">${player || '—'}${extra}</div>
-            <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${isHome ? '🏠 ' : '✈️ '}${side}</div>
-          </div>
-        </div>`;
+      // ── Layout FlashScore: local izquierda, visitante derecha ──
+      const timeEl   = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.82em;font-weight:800;white-space:nowrap;">${minStr}</span>`;
+      const iconEl   = `<span style="font-size:1.1em;">${icon}</span>`;
+      const textBlock = `<div style="line-height:1.4;">
+        <div style="font-weight:800;font-size:0.88em;color:${color};">${mainLine}</div>
+        ${subLine ? `<div style="margin-top:1px;">${subLine}</div>` : ''}
+      </div>`;
+
+      if (isHome) {
+        // Local → izquierda: tiempo | ícono | texto
+        return `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:flex-start;gap:7px;">
+              ${timeEl}
+              ${iconEl}
+              ${textBlock}
+            </div>
+            <div></div>
+          </div>`;
+      } else {
+        // Visitante → derecha: texto | ícono | tiempo
+        return `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div></div>
+            <div style="display:flex;align-items:flex-start;gap:7px;justify-content:flex-end;text-align:right;">
+              ${textBlock}
+              ${iconEl}
+              ${timeEl}
+            </div>
+          </div>`;
+      }
     };
 
     // ── Mostrar timeline O fallback con strings V1 ────────────
     if (timelineEvents.length > 0) {
-      html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Cronología del Partido</div>`;
+      // Header con nombres de equipos — estilo FlashScore
+      html += `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 0 10px;border-bottom:2px solid var(--border2);margin-bottom:4px;">
+          <div style="font-size:0.75em;font-weight:800;color:var(--primary2);">🏠 ${home}</div>
+          <div style="font-size:0.75em;font-weight:800;color:var(--green);text-align:right;">✈️ ${away}</div>
+        </div>`;
       const sorted = [...timelineEvents].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
       sorted.forEach(t => { html += renderTimelineEvent(t) || ''; });
 
@@ -3227,22 +3286,32 @@ async function openStats(matchId) {
       });
 
       if (allTextEvents.length) {
-        html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Eventos del Partido</div>`;
+        html += `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 0 10px;border-bottom:2px solid var(--border2);margin-bottom:4px;">
+            <div style="font-size:0.75em;font-weight:800;color:var(--primary2);">🏠 ${home}</div>
+            <div style="font-size:0.75em;font-weight:800;color:var(--green);text-align:right;">✈️ ${away}</div>
+          </div>`;
         allTextEvents.forEach(({g, icon, color, side}) => {
-          // Extraer minuto: soporta "45'", "45+2'", "(90')"
+          const isHome = side === home;
           const minM   = g.match(/(\d+)\+?(\d+)?'/);
           const min    = minM ? minM[0] : "?'";
-          // Extraer nombre: quitar todo el patrón del minuto
           const player = g.replace(/\(?\d+\+?\d*'\)?/g, '').replace(/[()]/g, '').trim() || g;
-          html += `
-            <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
-              <span style="font-family:var(--font-h);color:var(--gold);min-width:44px;font-size:0.82em;font-weight:800;flex-shrink:0;">${min}</span>
-              <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
-              <div style="flex:1;">
-                <div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>
-                <div style="font-size:0.7em;color:var(--muted2);">${side}</div>
-              </div>
-            </div>`;
+          const timeEl = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.82em;font-weight:800;white-space:nowrap;">${min}</span>`;
+          const iconEl = `<span style="font-size:1.1em;">${icon}</span>`;
+          const textEl = `<div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>`;
+          if (isHome) {
+            html += `
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:flex-start;gap:7px;">${timeEl}${iconEl}${textEl}</div>
+                <div></div>
+              </div>`;
+          } else {
+            html += `
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div></div>
+                <div style="display:flex;align-items:flex-start;gap:7px;justify-content:flex-end;text-align:right;">${textEl}${iconEl}${timeEl}</div>
+              </div>`;
+          }
         });
       } else {
         html += `
