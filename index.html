@@ -3929,17 +3929,52 @@ async function searchPreds() {
   const today = vzDate();
   let html = '';
 
+  // Cache de todos los usuarios para búsqueda fuzzy si falla exacta
+  let allUsersCache = null;
+  const getAllUsers = async () => {
+    if (allUsersCache) return allUsersCache;
+    const snap = await db.collection('users').get();
+    allUsersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return allUsersCache;
+  };
+
+  // Normalizar: quitar espacios extras, todo mayúsculas
+  const normalize = s => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
   for (const uname of names) {
+    // 1) Búsqueda exacta
+    let uDoc = null;
     const uSnap = await db.collection('users').where('username','==',uname).limit(1).get();
-    if (uSnap.empty) {
+    if (!uSnap.empty) {
+      uDoc = { id: uSnap.docs[0].id, ...uSnap.docs[0].data() };
+    }
+
+    // 2) Si no encontró — búsqueda fuzzy del lado del cliente
+    if (!uDoc) {
+      const all = await getAllUsers();
+      // Buscar coincidencia: normalizar ambos lados, o que uno contenga al otro
+      const unameNorm = normalize(uname);
+      const match = all.find(u => {
+        const uNorm = normalize(u.username || '');
+        return uNorm === unameNorm ||
+               uNorm.replace(/\s/g,'') === unameNorm.replace(/\s/g,'') ||
+               uNorm.includes(unameNorm) ||
+               unameNorm.includes(uNorm);
+      });
+      if (match) uDoc = match;
+    }
+
+    if (!uDoc) {
       html += `<div style="color:var(--red);font-size:0.85em;padding:8px 0;">❌ "${uname}" no encontrado</div>`;
       continue;
     }
-    const u = { id: uSnap.docs[0].id, ...uSnap.docs[0].data() };
+
+    // Usar el username real guardado en Firestore para mostrarlo
+    const displayName = uDoc.username || uname;
 
     // Traer predicciones de HOY solamente
     const ps = await db.collection('predictions')
-      .where('userId', '==', u.id)
+      .where('userId', '==', uDoc.id)
       .where('jornadaDate', '==', today)
       .get();
 
@@ -3961,8 +3996,8 @@ async function searchPreds() {
 
     html += `<div class="card" style="margin-bottom:10px;">
       <div style="font-weight:800;margin-bottom:8px;">
-        👤 ${u.username}
-        <span style="color:var(--muted2);font-size:0.8em;">#${u.playerNumber||'?'}</span>
+        👤 ${displayName}
+        <span style="color:var(--muted2);font-size:0.8em;">#${uDoc.playerNumber||'?'}</span>
         <span style="color:var(--green);font-size:0.72em;margin-left:6px;">${unique.length} partidos</span>
       </div>`;
 
