@@ -3196,18 +3196,41 @@ async function openStats(matchId) {
       let icon = '', color = 'var(--text)', mainLine = '', subLine = '';
 
       if (isGoal) {
+        // Marcador parcial en el momento del gol — viene en intScore o intHomeScore/intAwayScore del evento
+        const gScoreH = t.intHomeScore ?? t.intScore?.split('-')?.[0] ?? null;
+        const gScoreA = t.intAwayScore ?? t.intScore?.split('-')?.[1] ?? null;
+        const scoreChip = (gScoreH !== null && gScoreA !== null)
+          ? `<span style="font-family:var(--font-h);font-size:0.82em;font-weight:900;
+              background:var(--surface2);border:1px solid var(--border2);
+              border-radius:6px;padding:1px 6px;margin-left:4px;color:var(--text);">
+              ${gScoreH}-${gScoreA}
+            </span>`
+          : '';
+
+        // Causa del penal si la API la manda
+        const foulRaw  = (t.strFoul || t.strComment || t.strReason || '').trim();
+        const foulMap  = {
+          'hand': 'mano', 'handball': 'mano', 'hand ball': 'mano',
+          'foul': 'falta', 'tackle': 'entrada', 'push': 'empujón',
+          'trip': 'zancadilla', 'pulling': 'agarrón', 'shirt': 'agarrón',
+          'offside': 'fuera de juego', 'simulation': 'simulación'
+        };
+        const foulLower = foulRaw.toLowerCase();
+        const foulEs = Object.entries(foulMap).find(([k]) => foulLower.includes(k))?.[1] || foulRaw;
+        const penalDetail = foulEs ? ` · ${foulEs}` : '';
+
         if (type.includes('own')) {
           icon='⚽🔴'; color='var(--red)';
-          mainLine = `${player} <span style="color:var(--red);font-size:0.78em;">(Autogol)</span>`;
+          mainLine = `${player}${scoreChip} <span style="color:var(--red);font-size:0.78em;">(Autogol)</span>`;
         } else if (type.includes('pen') && !type.includes('miss')) {
           icon='⚽⚡'; color='var(--gold)';
-          mainLine = `${player} <span style="color:var(--gold);font-size:0.78em;">(Penal)</span>`;
+          mainLine = `${player}${scoreChip} <span style="color:var(--gold);font-size:0.78em;">(Penal${penalDetail})</span>`;
         } else if (type.includes('miss')) {
           icon='❌'; color='var(--muted2)';
-          mainLine = `${player} <span style="color:var(--muted2);font-size:0.78em;">(Penal fallado)</span>`;
+          mainLine = `${player} <span style="color:var(--muted2);font-size:0.78em;">(Penal fallado${penalDetail})</span>`;
         } else {
           icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)';
-          mainLine = player;
+          mainLine = `${player}${scoreChip}`;
         }
         if (player2 && !type.includes('miss'))
           subLine = `<span style="color:var(--muted2);">🅰 ${player2}</span>`;
