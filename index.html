@@ -1788,13 +1788,9 @@ function openRankWAMenu() {
     },
     {
       icon: '📅',
-      label: 'Recordatorio: predice antes del pitazo',
+      label: 'Recordatorio + tutorial cómo predecir',
       phone: '',
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\n✅ Cómo registrar tus pronósticos ⚽
-​Es muy fácil. En el cintillo "⚡ PREDECIR ESTE PARTIDO", sigue estos pasos:
-​Si hay un ganador: Toca primero el nombre de tu equipo favorito (no importa si es local, el de la izquierda o visitante el de la derecha). Luego, selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.
-​Tip: Si marcas a ganador 1, el sistema asigna automáticamente  0 goles al perdedor.
-​Si es empate: Toca el botón Empate, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
+      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
     },
     {
       icon: '⏰',
@@ -1887,21 +1883,25 @@ function inviteToApp() {
   const code = me.personalInviteCode || '';
   const nombre = me.name || me.username || '';
   const msg = encodeURIComponent(
-    `⚽ QUINIELA LuAn ⚽\n\n` +
-    `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante:\n\n` +
-    `🏆 La quiniela de los campeones\n` +
-    `⚡ ¡Predice los partidos y gana! 🎯\n` +
-    `⚽ Demuestra que sabes de fútbol\n` +
-    `🎉 Participa y divierte con: familia, amigos, panas, compañeros de trabajo...\n\n` +
-    `🌐 ¿Cómo participar?\n\n` +
-    `1. Entra al enlace:\n` +
-    `      🔗 ${appUrl}\n` +
-    `2. Regístrate en la plataforma\n` +
-    `3. Usa mi código de invitación:\n` +
-    `      🔐 *CÓDIGO: ${code}*\n\n` +
-    `✅ ¡Listo! Ya estás compitiendo.\n\n` +
+    `⚽ *QUINIELA LuAn* ⚽\n\n` +
+    `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante.\n\n` +
+    `🏆 Predice los marcadores de los mejores partidos del fútbol europeo y compite con amigos, familia y panas.\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `✅ *¿Cómo registrarse?*\n` +
+    `1️⃣ Abre: ${appUrl}\n` +
+    `2️⃣ Toca "Registrarse"\n` +
+    `3️⃣ Llena: Nombre, apodo (máx 8 letras), teléfono y contraseña\n` +
+    `4️⃣ Usa mi código de invitación: 🔐 *${code}*\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `🎯 *¿Cómo predecir?*\n` +
+    `Toca *"⚡ Predecir este partido"* en cada match:\n\n` +
+    `▶️ *Con ganador:* toca tu equipo favorito → elige sus goles → elige los del perdedor\n` +
+    `💡 _Si marcas 1 al ganador, el sistema pone 0 al perdedor automáticamente_\n\n` +
+    `🤝 *Empate:* toca Empate → elige los goles ¡y listo!\n\n` +
+    `⚠️ Si no predices antes del pitazo, se registra 0-0 en todos los partidos.\n\n` +
+    `━━━━━━━━━━━━━━━━━━\n` +
     `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
-    `— luislárez`
+    `_— luislárez_`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
@@ -2235,65 +2235,70 @@ async function enterApp() {
   scheduleNextSync();
 
   // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
-  // Solo muestra tiempo cuando la API confirma '1H' o '2H'
-  // HT/ET/P muestran su label sin cronómetro
-  setInterval(() => {
-    _dM.forEach(m => {
-      if (!isLive(m.status)) return;
-      const badge = document.getElementById(`badge_${m.id}`);
-      if (!badge) return;
+  // 1H: 00:01 → 44:59 → 45:00 → 45+0:01 → 45+1:00 → ... sigue hasta HT
+  // 2H: 45:01 → 89:59 → 90:00 → 90+0:01 → 90+1:00 → ... sigue hasta FT
+  // Al pasar el tope sigue contando el tiempo añadido en formato 45+M:SS
+  if (!window._cronInterval) {
+    window._cronInterval = setInterval(() => {
+      _dM.forEach(m => {
+        if (!isLive(m.status)) return;
+        const badge = document.getElementById(`badge_${m.id}`);
+        if (!badge) return;
 
-      const phase = badge.dataset.phase || '';
-      const kickoffMs = +badge.dataset.kickoff || 0;
-      const statusTxt = statusLabel(m.status);
+        // Sincronizar fase con el status real del partido
+        const st = (m.status || '').toUpperCase();
+        let phase = badge.dataset.phase || '';
+        if      (st === '1H' && phase !== '1H') { badge.dataset.phase = '1H'; phase = '1H'; }
+        else if (st === 'HT' && phase !== 'HT') { badge.dataset.phase = 'HT'; phase = 'HT'; }
+        else if (st === '2H' && phase !== '2H') { badge.dataset.phase = '2H'; phase = '2H'; }
+        else if (st === 'ET' && phase !== 'ET') { badge.dataset.phase = 'ET'; phase = 'ET'; }
+        else if (st === 'P'  && phase !== 'P')  { badge.dataset.phase = 'P';  phase = 'P';  }
 
-      // Descanso / penales / prórroga sin cronómetro
-      if (phase === 'HT') { badge.textContent = `⏸ Descanso`; return; }
-      if (phase === 'P')  { badge.textContent = `⚡ Penales`; return; }
-      if (phase === 'ET') { badge.textContent = `🔴 Prórroga`; return; }
+        // Estados sin cronómetro numérico
+        if (phase === 'HT') { badge.textContent = `⏸ Descanso`;  return; }
+        if (phase === 'P')  { badge.textContent = `⚡ Penales`;   return; }
+        if (phase === 'ET') { badge.textContent = `🔴 Prórroga`;  return; }
 
-      // Sin kickoff o sin fase 1H/2H → solo el label
-      if (!kickoffMs || (phase !== '1H' && phase !== '2H')) {
-        badge.textContent = `🔴 ${statusTxt}`;
-        return;
-      }
+        const kickoffMs = +badge.dataset.kickoff || 0;
+        if (!kickoffMs || (phase !== '1H' && phase !== '2H')) {
+          badge.textContent = `🔴 En Vivo`; return;
+        }
 
-      const nowMs  = Date.now();
-      const elapsedMs = nowMs - kickoffMs;
+        const elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000));
 
-      let totalSec, baseMin, capMin;
-      if (phase === '1H') {
-        // Primer tiempo: 0 → 45'+
-        totalSec = Math.floor(elapsedMs / 1000);
-        baseMin  = 0;
-        capMin   = 45;
-      } else {
-        // Segundo tiempo: 45 → 90'+
-        // Asumimos 15 min de descanso después del kickoff
-        totalSec = Math.floor((elapsedMs - 60 * 60 * 1000) / 1000); // restamos ~60 min (45' + 15' DT)
-        if (totalSec < 0) totalSec = 0;
-        baseMin  = 45;
-        capMin   = 90;
-      }
+        let dispSec, capMin;
+        if (phase === '1H') {
+          // 1er tiempo: arranca desde el kickoff, 00:01 en adelante
+          dispSec = elapsedSec;
+          capMin  = 45;
+        } else {
+          // 2do tiempo: el kickoff fue ~60 min antes (45' juego + ~15' descanso)
+          // Restamos 3600 seg y sumamos 45*60 para arrancar en 45:01
+          dispSec = Math.max(1, elapsedSec - 3600) + 45 * 60;
+          capMin  = 90;
+        }
 
-      const rawMin = Math.floor(totalSec / 60);
-      const sec    = totalSec % 60;
-      const secStr = String(sec).padStart(2, '0');
+        const totalMin = Math.floor(dispSec / 60);
+        const sec      = dispSec % 60;
+        const ss       = String(sec).padStart(2, '0');
 
-      let cronText;
-      if (rawMin <= capMin) {
-        const minStr = String(baseMin + rawMin).padStart(2, '0');
-        cronText = `${minStr}:${secStr}`;
-      } else {
-        // Tiempo añadido
-        const extra = rawMin - capMin;
-        const extSec = String(sec).padStart(2, '0');
-        cronText = `${capMin}+${extra}:${extSec}`;
-      }
+        let cronText;
+        if (totalMin < capMin) {
+          // Tiempo reglamentario normal: 00:01 → 44:59  /  45:01 → 89:59
+          cronText = `${String(totalMin).padStart(2,'0')}:${ss}`;
+        } else if (totalMin === capMin && sec === 0) {
+          // Justo en el límite: 45:00 o 90:00
+          cronText = `${capMin}:00`;
+        } else {
+          // Tiempo añadido — sigue contando: 45+0:01, 45+1:00, 45+7:59...
+          const extraMin = totalMin - capMin;
+          cronText = `${capMin}+${extraMin}:${ss}`;
+        }
 
-      badge.textContent = `🔴 ${cronText}`;
-    });
-  }, 1000);
+        badge.textContent = `🔴 ${cronText}`;
+      });
+    }, 1000);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -2916,7 +2921,11 @@ function buildMatchCard(m, closed) {
   const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
-  const statsBtn = showScore ? `<button onclick="openStats('${m.id}')" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>` : '';
+  const statsBtn = showScore ? `
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
+      <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
+    </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
@@ -3074,25 +3083,59 @@ async function openStats(matchId) {
       }
     }
 
-    // ── Cabecera marcador ─────────────────────────────────────
+    // ── Parciales por tiempo ──────────────────────────────────
+    let partialsHtml = '';
+    try {
+      const rp = await fetchV2(`/lookup/event_results/${matchId}`);
+      const res = rp?.results || rp?.result || [];
+      if (res.length) {
+        // Buscar 1er y 2do tiempo
+        const h1 = res.find(r => (r.strResult||r.strPeriod||'').toLowerCase().includes('1'));
+        const h2 = res.find(r => (r.strResult||r.strPeriod||'').toLowerCase().includes('2'));
+        const parts = [];
+        if (h1) parts.push({ label:'1er Tiempo', h: h1.intHomeScore??h1.intHome??'?', a: h1.intAwayScore??h1.intAway??'?' });
+        if (h2) parts.push({ label:'2do Tiempo', h: h2.intHomeScore??h2.intHome??'?', a: h2.intAwayScore??h2.intAway??'?' });
+        if (parts.length) {
+          partialsHtml = `
+            <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
+              ${parts.map(p => `
+                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
+                  padding:5px 14px;text-align:center;">
+                  <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">${p.label}</div>
+                  <div style="font-family:var(--font-h);font-size:1.1em;font-weight:900;color:var(--text);margin-top:2px;">${p.h} — ${p.a}</div>
+                </div>`).join('')}
+            </div>`;
+        }
+      }
+    } catch(e) {}
+
+    // ── Cabecera marcador — estilo FlashScore ─────────────────
+    // Leer el cronómetro actual del badge si el partido está en vivo
+    const liveBadge = document.getElementById(`badge_${matchId}`);
+    const liveCronText = (isMatchLive && liveBadge) ? liveBadge.textContent.replace('🔴','').trim() : '';
+    const minuteLabel = liveCronText || (minuteDisplay ? `${minuteDisplay}'` : '');
+
     let html = `
-      <div style="text-align:center;margin-bottom:18px;">
-        <div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-          ${leagueName}
+      <div style="margin-bottom:16px;">
+        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;
+          letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <span>${leagueName}</span>
           ${isMatchLive
-            ? `<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>
-               <button onclick="openStats('${matchId}')" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>`
+            ? `<span style="color:var(--red);animation:pulse 2s infinite;">🔴 EN VIVO</span>
+               <button onclick="openStats('${matchId}')" style="padding:2px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.9em;cursor:pointer;font-weight:700;">🔄</button>`
             : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;">
-          <div style="text-align:right;font-weight:800;font-size:0.88em;line-height:1.4;">${home}</div>
-          <div style="font-family:var(--font-h);font-size:2.4em;color:var(--primary2);padding:0 14px;white-space:nowrap;">${scoreH} — ${scoreA}</div>
-          <div style="text-align:left;font-weight:800;font-size:0.88em;line-height:1.4;">${away}</div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;">
+          <div style="text-align:right;font-weight:900;font-size:0.9em;line-height:1.3;color:var(--primary2);">${home}</div>
+          <div style="text-align:center;">
+            <div style="font-family:var(--font-h);font-size:2.6em;font-weight:900;color:var(--text);letter-spacing:2px;line-height:1;">${scoreH} — ${scoreA}</div>
+            ${minuteLabel ? `<div style="color:var(--gold);font-size:0.78em;font-weight:800;margin-top:4px;">⏱ ${minuteLabel}</div>` : ''}
+            ${!isMatchLive ? `<div style="color:var(--muted2);font-size:0.68em;margin-top:2px;">Finalizado</div>` : ''}
+          </div>
+          <div style="text-align:left;font-weight:900;font-size:0.9em;line-height:1.3;color:var(--green);">${away}</div>
         </div>
-        ${isMatchLive && minuteDisplay
-          ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ ${minuteDisplay}'</div>`
-          : ''}
-        ${venue ? `<div style="color:var(--muted2);font-size:0.7em;margin-top:4px;">🏟 ${venue}</div>` : ''}
+        ${partialsHtml}
+        ${venue ? `<div style="color:var(--muted2);font-size:0.68em;text-align:center;margin-top:6px;">🏟 ${venue}</div>` : ''}
       </div>`;
 
     // ── Timeline: 3 fuentes en orden ─────────────────────────
@@ -3214,30 +3257,33 @@ async function openStats(matchId) {
       else return '';
 
       // ── Layout FlashScore: local izquierda, visitante derecha ──
-      const timeEl   = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.82em;font-weight:800;white-space:nowrap;">${minStr}</span>`;
-      const iconEl   = `<span style="font-size:1.1em;">${icon}</span>`;
-      const textBlock = `<div style="line-height:1.4;">
-        <div style="font-weight:800;font-size:0.88em;color:${color};">${mainLine}</div>
-        ${subLine ? `<div style="margin-top:1px;">${subLine}</div>` : ''}
+      // Minuto en el centro como eje divisor
+      const timeEl    = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.78em;font-weight:900;white-space:nowrap;flex-shrink:0;">${minStr}</span>`;
+      const iconEl    = `<span style="font-size:1.05em;flex-shrink:0;">${icon}</span>`;
+      const textBlock = `<div style="line-height:1.35;min-width:0;">
+        <div style="font-weight:800;font-size:0.85em;color:${color};white-space:normal;">${mainLine}</div>
+        ${subLine ? `<div style="margin-top:1px;font-size:0.8em;">${subLine}</div>` : ''}
       </div>`;
 
       if (isHome) {
-        // Local → izquierda: tiempo | ícono | texto
+        // Local → izquierda: [tiempo · ícono · nombre]  |  [vacío]
         return `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
-            <div style="display:flex;align-items:flex-start;gap:7px;">
+          <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:flex-start;gap:6px;padding-right:8px;">
               ${timeEl}
               ${iconEl}
               ${textBlock}
             </div>
+            <div style="background:var(--border2);"></div>
             <div></div>
           </div>`;
       } else {
-        // Visitante → derecha: texto | ícono | tiempo
+        // Visitante → derecha: [vacío]  |  [nombre · ícono · tiempo]
         return `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
             <div></div>
-            <div style="display:flex;align-items:flex-start;gap:7px;justify-content:flex-end;text-align:right;">
+            <div style="background:var(--border2);"></div>
+            <div style="display:flex;align-items:flex-start;gap:6px;justify-content:flex-end;text-align:right;padding-left:8px;">
               ${textBlock}
               ${iconEl}
               ${timeEl}
@@ -3248,11 +3294,12 @@ async function openStats(matchId) {
 
     // ── Mostrar timeline O fallback con strings V1 ────────────
     if (timelineEvents.length > 0) {
-      // Header con nombres de equipos — estilo FlashScore
+      // Header con nombres de equipos — línea central igual que los eventos
       html += `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 0 10px;border-bottom:2px solid var(--border2);margin-bottom:4px;">
-          <div style="font-size:0.75em;font-weight:800;color:var(--primary2);">🏠 ${home}</div>
-          <div style="font-size:0.75em;font-weight:800;color:var(--green);text-align:right;">✈️ ${away}</div>
+        <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:8px 0 10px;margin-bottom:2px;border-bottom:2px solid var(--primary2);">
+          <div style="font-size:0.78em;font-weight:900;color:var(--primary2);padding-right:8px;">🏠 ${home}</div>
+          <div style="background:var(--primary2);"></div>
+          <div style="font-size:0.78em;font-weight:900;color:var(--green);text-align:right;padding-left:8px;">✈️ ${away}</div>
         </div>`;
       const sorted = [...timelineEvents].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
       sorted.forEach(t => { html += renderTimelineEvent(t) || ''; });
@@ -3287,29 +3334,32 @@ async function openStats(matchId) {
 
       if (allTextEvents.length) {
         html += `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px 0 10px;border-bottom:2px solid var(--border2);margin-bottom:4px;">
-            <div style="font-size:0.75em;font-weight:800;color:var(--primary2);">🏠 ${home}</div>
-            <div style="font-size:0.75em;font-weight:800;color:var(--green);text-align:right;">✈️ ${away}</div>
+          <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:8px 0 10px;margin-bottom:2px;border-bottom:2px solid var(--primary2);">
+            <div style="font-size:0.78em;font-weight:900;color:var(--primary2);padding-right:8px;">🏠 ${home}</div>
+            <div style="background:var(--primary2);"></div>
+            <div style="font-size:0.78em;font-weight:900;color:var(--green);text-align:right;padding-left:8px;">✈️ ${away}</div>
           </div>`;
         allTextEvents.forEach(({g, icon, color, side}) => {
           const isHome = side === home;
           const minM   = g.match(/(\d+)\+?(\d+)?'/);
           const min    = minM ? minM[0] : "?'";
           const player = g.replace(/\(?\d+\+?\d*'\)?/g, '').replace(/[()]/g, '').trim() || g;
-          const timeEl = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.82em;font-weight:800;white-space:nowrap;">${min}</span>`;
-          const iconEl = `<span style="font-size:1.1em;">${icon}</span>`;
-          const textEl = `<div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>`;
+          const timeEl = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.78em;font-weight:900;white-space:nowrap;flex-shrink:0;">${min}</span>`;
+          const iconEl = `<span style="font-size:1.05em;flex-shrink:0;">${icon}</span>`;
+          const textEl = `<div style="font-weight:800;font-size:0.85em;color:${color};">${player}</div>`;
           if (isHome) {
             html += `
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
-                <div style="display:flex;align-items:flex-start;gap:7px;">${timeEl}${iconEl}${textEl}</div>
+              <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:flex-start;gap:6px;padding-right:8px;">${timeEl}${iconEl}${textEl}</div>
+                <div style="background:var(--border2);"></div>
                 <div></div>
               </div>`;
           } else {
             html += `
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);">
+              <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
                 <div></div>
-                <div style="display:flex;align-items:flex-start;gap:7px;justify-content:flex-end;text-align:right;">${textEl}${iconEl}${timeEl}</div>
+                <div style="background:var(--border2);"></div>
+                <div style="display:flex;align-items:flex-start;gap:6px;justify-content:flex-end;text-align:right;padding-left:8px;">${textEl}${iconEl}${timeEl}</div>
               </div>`;
           }
         });
@@ -3417,6 +3467,40 @@ async function openStats(matchId) {
 
     $('statsContent').innerHTML = html;
 
+    // ── Auto-refresh del timeline si el partido está en vivo ──
+    if (isMatchLive) {
+      if (window._statsRefreshInterval) clearInterval(window._statsRefreshInterval);
+      window._statsRefreshMatchId = String(matchId);
+      window._statsRefreshInterval = setInterval(async () => {
+        // Solo refrescar si el modal sigue abierto con el mismo partido
+        const modal = document.getElementById('statsModal');
+        if (!modal || modal.style.display === 'none' || !modal.classList.contains('open')) {
+          clearInterval(window._statsRefreshInterval);
+          window._statsRefreshInterval = null;
+          return;
+        }
+        if (window._statsRefreshMatchId !== String(matchId)) {
+          clearInterval(window._statsRefreshInterval);
+          return;
+        }
+        // Refrescar silenciosamente — solo timeline y marcador
+        try {
+          const lr = await fetchV2('/livescore/soccer');
+          const lives = lr?.livescore || lr?.events || [];
+          const lv = lives.find(e => String(e.idEvent||e.id) === String(matchId));
+          if (lv) {
+            // Actualizar marcador en el header del modal
+            const scoreEl = document.querySelector('#statsContent .stats-score-main');
+            if (scoreEl) scoreEl.textContent = `${lv.intHomeScore ?? '–'} — ${lv.intAwayScore ?? '–'}`;
+            // Guardar en cache de eventos para la tarjeta
+            _lEC[String(matchId)] = _lEC[String(matchId)] || { events:[], possession:{home:0,away:0} };
+            const evs = lv.timeline || lv.events || [];
+            if (evs.length) _lEC[String(matchId)].events = evs;
+          }
+        } catch(e) {}
+      }, 60000);
+    }
+
   } catch(e) {
     console.error('openStats error:', e);
     const is429 = e.message?.includes('429') || e.status === 429;
@@ -3428,6 +3512,94 @@ async function openStats(matchId) {
             ? 'Demasiadas solicitudes — espera unos segundos y vuelve a intentarlo'
             : 'Error: ' + e.message}
         </span>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// MODAL ALINEACIONES
+// ═══════════════════════════════════════════
+async function openLineup(matchId, home, away) {
+  // Reusar el statsModal con contenido de alineaciones
+  openModal('statsModal');
+  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando alineaciones...</span></div>';
+
+  try {
+    const lr     = await fetchV2(`/lookup/event_lineup/${matchId}`);
+    const lineup = lr?.lineup || [];
+
+    if (!lineup.length) {
+      $('statsContent').innerHTML = `
+        <div class="empty">
+          <span class="empty-icon">📋</span>
+          <span class="empty-text">Alineaciones no disponibles todavía</span>
+          <span class="empty-sub">TheSportsDB las publica poco antes del partido</span>
+        </div>`;
+      return;
+    }
+
+    const homePlayers = lineup.filter(p => (p.strHome||p.strSide||'').toLowerCase() === 'home');
+    const awayPlayers = lineup.filter(p => (p.strHome||p.strSide||'').toLowerCase() === 'away');
+
+    const posOrder = { goalkeeper:0, goalie:0, defender:1, back:1, midfielder:2, mid:2, forward:3, striker:3, winger:3 };
+    const sortByPos = arr => [...arr].sort((a,b) =>
+      (posOrder[(a.strPosition||'').toLowerCase().split(' ')[0]] ?? 5) -
+      (posOrder[(b.strPosition||'').toLowerCase().split(' ')[0]] ?? 5));
+
+    const posIcon = pos => {
+      pos = (pos||'').toLowerCase();
+      if (pos.includes('goal')||pos.includes('keep')) return '🧤';
+      if (pos.includes('def')||pos.includes('back'))  return '🛡';
+      if (pos.includes('mid'))                         return '⚙️';
+      if (pos.includes('for')||pos.includes('strik')||pos.includes('wing')) return '⚡';
+      return '👤';
+    };
+
+    const renderTeam = (players, tname, color) => {
+      const starters  = sortByPos(players.filter(p => (p.strSubstitute||'').toLowerCase() !== 'yes'));
+      const subs      = sortByPos(players.filter(p => (p.strSubstitute||'').toLowerCase() === 'yes'));
+      const renderRow = p => `
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:0.95em;">${posIcon(p.strPosition)}</span>
+          <span style="color:var(--gold);font-family:var(--font-h);font-size:0.78em;font-weight:900;min-width:22px;">${p.strNumber||'—'}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.82em;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.strPlayer||'—'}</div>
+            ${p.strPosition ? `<div style="font-size:0.62em;color:var(--muted2);">${p.strPosition}</div>` : ''}
+          </div>
+        </div>`;
+
+      return `
+        <div>
+          <div style="font-size:0.72em;font-weight:900;color:${color};margin-bottom:6px;
+            border-bottom:2px solid ${color};padding-bottom:4px;overflow:hidden;
+            text-overflow:ellipsis;white-space:nowrap;">${tname}</div>
+          ${starters.length ? `
+            <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;
+              letter-spacing:1px;margin:4px 0 3px;">Titulares (${starters.length})</div>
+            ${starters.map(renderRow).join('')}` : ''}
+          ${subs.length ? `
+            <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;
+              letter-spacing:1px;margin:8px 0 3px;">Suplentes (${subs.length})</div>
+            ${subs.map(renderRow).join('')}` : ''}
+        </div>`;
+    };
+
+    const html = `
+      <div style="text-align:center;font-size:0.68em;color:var(--muted2);font-weight:700;
+        text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📋 Alineaciones</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${renderTeam(homePlayers, home, 'var(--primary2)')}
+        ${renderTeam(awayPlayers, away, 'var(--green)')}
+      </div>`;
+
+    $('statsContent').innerHTML = html;
+
+  } catch(e) {
+    const is429 = e.message?.includes('429');
+    $('statsContent').innerHTML = `
+      <div class="empty">
+        <span class="empty-icon">${is429?'⏳':'❌'}</span>
+        <span class="empty-text">${is429?'Límite de solicitudes — espera un momento':'Error cargando alineaciones'}</span>
       </div>`;
   }
 }
@@ -4199,13 +4371,13 @@ function openGroupWAMenu(code, gname) {
   const quickMsgs = [
     {
       icon: '📣',
-      label: 'Invitar al grupo de WhatsApp',
-      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola a todos 👋 Estamos organizando la quiniela del grupo *"${gname}"*.\n\n📲 Entra a la app, únete al grupo *"${gname}"* directo desde la pantalla de Partidos — un toque y listo.\n\n🔗 ${appUrl}\n\n¡Que empiece la competencia! 🏆\n_— ${nombre}_`
+      label: 'Invitar + cómo registrarse',
+      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola a todos 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre este enlace: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n4️⃣ Una vez dentro, ve a *Partidos* y toca el grupo *"${gname}"* en el cintillo superior para unirte con un toque\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado. ¡Así de fácil!\n\n⚠️ Predice antes del pitazo inicial o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
     },
     {
       icon: '📅',
-      label: 'Recordatorio: predice antes del pitazo',
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
+      label: 'Recordatorio + tutorial cómo predecir',
+      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
     },
     {
       icon: '⏰',
