@@ -2017,6 +2017,7 @@ function openHowToPredict() {
 // ── Control admin de tiempo añadido ────────────────────────
 window._adminExtraTime  = window._adminExtraTime  || {};  // { matchId: minutes }
 window._adminExtraAsked = window._adminExtraAsked || {};  // { matchId: true }
+window._adminCronOffset = window._adminCronOffset || {};  // { matchId: seconds offset }
 
 function _askAdminExtraTime(m) {
   if (!me?.isAdmin) return;
@@ -2082,7 +2083,73 @@ function _setAdminExtra(matchId, val, home, away) {
   renderMatches();
 }
 
-// Generate unique color per user based on their username
+// Admin: ajustar cronómetro del 2do tiempo manualmente
+function _askAdminCronAdjust(matchId, home, away) {
+  if (!me?.isAdmin) return;
+  const existing = document.getElementById('adminCronModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'adminCronModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '9001';
+  const cur = +(window._adminCronOffset?.[matchId] || 0);
+  const curMin = cur > 0 ? `+${Math.round(cur/60)}min` : cur < 0 ? `${Math.round(cur/60)}min` : '0';
+
+  const btnDefs = [-10,-5,-3,-2,-1,1,2,3,5,10,'0','OK'];
+  const btnsHtml = btnDefs.map(n => {
+    const label = n === '0' ? 'Reset' : n === 'OK' ? '✅ OK' : (n > 0 ? `+${n}min` : `${n}min`);
+    const color = n === 'OK' ? 'var(--green)' : n === '0' ? 'var(--muted2)' : n > 0 ? 'var(--primary2)' : 'var(--red)';
+    const bg = n === 'OK' ? 'rgba(0,229,160,0.1)' : 'var(--surface2)';
+    return `<button class="admin-cron-btn" data-mid="${matchId}" data-val="${n}"
+      style="padding:10px 4px;border-radius:10px;font-family:var(--font-h);font-weight:800;
+      font-size:0.82em;cursor:pointer;background:${bg};color:${color};
+      border:1px solid ${color};">${label}</button>`;
+  }).join('');
+
+  modal.innerHTML = `
+    <div class="modal-box" style="padding:24px 20px;text-align:center;max-width:340px;">
+      <div class="modal-handle"></div>
+      <div style="font-size:1.4em;margin-bottom:6px;">⏱️ Ajustar Cronómetro</div>
+      <div style="font-size:0.8em;color:var(--muted2);margin-bottom:4px;">${home} vs ${away}</div>
+      <div style="font-size:0.72em;color:var(--gold);margin-bottom:16px;">Ajuste actual: ${curMin}</div>
+      <div style="font-size:0.72em;color:var(--muted2);margin-bottom:10px;">
+        ¿El crono está adelantado o atrasado respecto al partido real?
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
+        ${btnsHtml}
+      </div>
+      <div style="font-size:0.65em;color:var(--muted2);margin-bottom:12px;">
+        Si el crono muestra 47' pero el real va en 50' → toca <span style="color:var(--primary2)">+3min</span><br>
+        Si muestra 52' pero el real va en 48' → toca <span style="color:var(--red)">-4min</span>
+      </div>
+      <button class="btn btn-ghost" onclick="document.getElementById('adminCronModal').remove()"
+        style="width:100%;font-size:0.82em;">Cancelar</button>
+    </div>`;
+
+  modal.querySelectorAll('.admin-cron-btn').forEach(btn => {
+    btn.addEventListener('click', () => _setCronOffset(btn.dataset.mid, btn.dataset.val));
+  });
+  document.body.appendChild(modal);
+}
+
+function _setCronOffset(matchId, val) {
+  document.getElementById('adminCronModal')?.remove();
+  window._adminCronOffset = window._adminCronOffset || {};
+  if (val === '0') {
+    delete window._adminCronOffset[matchId];
+    toast('⏱ Cronómetro reseteado', 'info');
+  } else if (val === '✓') {
+    return; // solo cerrar
+  } else {
+    const prev = +(window._adminCronOffset[matchId] || 0);
+    window._adminCronOffset[matchId] = prev + (+val * 60);
+    const total = Math.round(window._adminCronOffset[matchId] / 60);
+    toast(`⏱ Cronómetro ajustado ${total > 0 ? '+' : ''}${total} minutos`, 'success');
+  }
+}
+
+
 function userColor(username) {
   const colors = [
     '#f59e0b','#10b981','#3b9eff','#f472b6','#a78bfa',
@@ -2428,9 +2495,6 @@ async function enterApp() {
   }
 
   // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
-  // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
-  // Chip añadido:    [+? | 00:01] arranca automático al pasar 45:00 / 90:00
-  //                 Si la API manda el tiempo añadido, reemplaza '?' con el número
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
       _dM.forEach(m => {
@@ -2438,75 +2502,99 @@ async function enterApp() {
         const wrap = document.getElementById(`badge_${m.id}`);
         if (!wrap) return;
 
-        // Sincronizar fase con el status real
         const st = (m.status || '').toUpperCase();
         let phase = wrap.dataset.phase || '';
-        if      (st === '1H' && phase !== '1H') { wrap.dataset.phase = '1H'; phase = '1H'; }
-        else if (st === 'HT' && phase !== 'HT') { wrap.dataset.phase = 'HT'; phase = 'HT'; }
-        else if (st === '2H' && phase !== '2H') { wrap.dataset.phase = '2H'; phase = '2H'; }
-        else if (st === 'ET' && phase !== 'ET') { wrap.dataset.phase = 'ET'; phase = 'ET'; }
-        else if (st === 'P'  && phase !== 'P')  { wrap.dataset.phase = 'P';  phase = 'P';  }
+
+        // Detectar transición de fase y guardar timestamp real
+        if (st !== phase) {
+          if (st === '1H') {
+            wrap.dataset.phase = '1H'; phase = '1H';
+          } else if (st === 'HT') {
+            wrap.dataset.phase = 'HT'; phase = 'HT';
+          } else if (st === '2H') {
+            wrap.dataset.phase = '2H'; phase = '2H';
+            // Guardar kickoff REAL del 2do tiempo cuando la API lo confirma
+            if (!wrap.dataset.kickoff2H) wrap.dataset.kickoff2H = Date.now();
+          } else if (st === 'ET') {
+            wrap.dataset.phase = 'ET'; phase = 'ET';
+            if (!wrap.dataset.kickoffET) wrap.dataset.kickoffET = Date.now();
+          } else if (st === 'P') {
+            wrap.dataset.phase = 'P'; phase = 'P';
+          } else if (st === 'BT') {
+            wrap.dataset.phase = 'BT'; phase = 'BT';
+          } else {
+            wrap.dataset.phase = st; phase = st;
+          }
+        }
 
         const mainEl  = document.getElementById(`badge_main_${m.id}`);
         const extraEl = document.getElementById(`badge_extra_${m.id}`);
         if (!mainEl || !extraEl) return;
 
-        // Estados especiales — sin cronómetro numérico
         if (phase === 'HT') { mainEl.textContent = `⏸ Descanso`; extraEl.style.display='none'; return; }
         if (phase === 'P')  { mainEl.textContent = `⚡ Penales`;  extraEl.style.display='none'; return; }
-        if (phase === 'ET') { mainEl.textContent = `🔴 Prórroga`; extraEl.style.display='none'; return; }
+        if (phase === 'BT') { mainEl.textContent = `⏸ Desc.Prórr`; extraEl.style.display='none'; return; }
+
+        // Ajuste manual del admin (offset en segundos)
+        const adminOffset = +(window._adminCronOffset?.[m.id] || 0);
 
         const kickoffMs = +wrap.dataset.kickoff || 0;
-        if (!kickoffMs || (phase !== '1H' && phase !== '2H')) {
+        let elapsedSec, capMin;
+
+        if (phase === '1H') {
+          if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
+          elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000)) + adminOffset;
+          capMin = 45;
+
+        } else if (phase === '2H') {
+          const k2H = +wrap.dataset.kickoff2H || 0;
+          if (k2H) {
+            // Kickoff real del 2do tiempo: cada partido a su propio ritmo
+            elapsedSec = Math.max(1, Math.floor((Date.now() - k2H) / 1000)) + 45 * 60 + adminOffset;
+          } else if (kickoffMs) {
+            // Fallback: estimación (kickoff original + 60min fijos)
+            elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000) - 3600) + 45 * 60 + adminOffset;
+          } else {
+            mainEl.textContent = `🔴 2do Tiempo`; extraEl.style.display='none'; return;
+          }
+          capMin = 90;
+
+        } else if (phase === 'ET') {
+          const kET = +wrap.dataset.kickoffET || 0;
+          if (kET) {
+            elapsedSec = Math.max(1, Math.floor((Date.now() - kET) / 1000)) + 90 * 60 + adminOffset;
+          } else {
+            mainEl.textContent = `🔴 Prórroga`; extraEl.style.display='none'; return;
+          }
+          capMin = 105;
+
+        } else {
           mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
         }
 
-        const elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000));
-
-        let dispSec, capMin;
-        if (phase === '1H') {
-          dispSec = elapsedSec;
-          capMin  = 45;
-        } else {
-          // 2H: restar ~60 min del kickoff (45' juego + 15' descanso) y sumar 45*60 base
-          dispSec = Math.max(1, elapsedSec - 3600) + 45 * 60;
-          capMin  = 90;
-        }
-
-        const totalMin = Math.floor(dispSec / 60);
-        const sec      = dispSec % 60;
+        const totalMin = Math.floor(elapsedSec / 60);
+        const sec      = elapsedSec % 60;
         const ss       = String(sec).padStart(2, '0');
 
         if (totalMin < capMin) {
-          // ── Tiempo reglamentario: chip único, sin chip de añadido ──
           mainEl.textContent = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
           extraEl.style.display = 'none';
-
         } else {
-          // ── Pasó el límite: chip principal fijo + chip de tiempo añadido corriendo ──
           mainEl.textContent = `🔴 ${capMin}:00`;
-
           const extraMin = totalMin - capMin;
           const extraSS  = String(sec).padStart(2, '0');
-
-          // Tiempo añadido oficial: API > admin override > desconocido
-          const adminExtra = window._adminExtraTime?.[m.id];       // set por admin
+          const adminExtra = window._adminExtraTime?.[m.id];
           const officialExtra = adminExtra ?? m.intExtraTime ?? m.strExtraTime ?? null;
-          const addedLabel    = officialExtra ? `+${officialExtra}` : '+?';
-
+          const addedLabel = officialExtra ? `+${officialExtra}` : '+?';
           extraEl.textContent  = `${addedLabel} | ${String(extraMin).padStart(2,'0')}:${extraSS}`;
           extraEl.style.display = 'inline-block';
-
-          // ── Límite de prórroga: auto-finalizar o pedir al admin ────────────
-          const extraCap = officialExtra ? +officialExtra : 10; // si no se sabe, cap en 10
+          const extraCap = officialExtra ? +officialExtra : 10;
           if (extraMin >= extraCap) {
-            // Marcar partido como finalizado localmente
             if (m.status !== '_FT_LOCAL') {
               m.status = '_FT_LOCAL';
               mainEl.className = 'badge-done';
-              mainEl.textContent = `✅ Final`;
+              mainEl.textContent = '✅ Final';
               extraEl.style.display = 'none';
-              // Si es admin y no había tiempo oficial → preguntarle cuánto fue
               if (me?.isAdmin && !officialExtra && !window._adminExtraAsked?.[m.id]) {
                 window._adminExtraAsked = window._adminExtraAsked || {};
                 window._adminExtraAsked[m.id] = true;
@@ -2515,7 +2603,6 @@ async function enterApp() {
             }
           } else if (extraMin >= 8 && me?.isAdmin && !officialExtra
                      && !window._adminExtraAsked?.[m.id]) {
-            // A 8 min de prórroga sin dato oficial → preguntar al admin
             window._adminExtraAsked = window._adminExtraAsked || {};
             window._adminExtraAsked[m.id] = true;
             setTimeout(() => _askAdminExtraTime(m), 200);
@@ -2524,7 +2611,7 @@ async function enterApp() {
       });
     }, 1000);
   }
-}
+
 
 // ═══════════════════════════════════════════
 // SCREEN NAVIGATION
@@ -3283,6 +3370,7 @@ function buildMatchCard(m, closed) {
     <div style="display:flex;gap:6px;margin-top:8px;">
       <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
       <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
+      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,200,0,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
     </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
