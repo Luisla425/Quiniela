@@ -1910,7 +1910,7 @@ async function inviteToApp() {
     `━━━━━━━━━━━━━━━━━━\n` +
     `👆 *¿Cómo unirte al grupo?*\n` +
     `Una vez dentro, ve a *Partidos* y en el cintillo de arriba verás los grupos disponibles.\n` +
-    `Toca el nombre del grupo y luego *✅ Sí, unirme* — ¡listo!\n` +
+    `Toca el nombre del grupo — aparece una confirmación y con un toque quedas dentro. ¡Así de fácil! 🎯\n` +
     groupsLine +
     `━━━━━━━━━━━━━━━━━━\n` +
     `🎯 *¿Cómo predecir?*\n` +
@@ -1926,8 +1926,73 @@ async function inviteToApp() {
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
-// Generate unique color per user based on their username
-function userColor(username) {
+function openHowToPredict() {
+  const existing = document.getElementById('howToPredictModal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'howToPredictModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '7000';
+  modal.innerHTML = `
+    <div class="modal-box" style="padding:24px 20px;max-height:85vh;overflow-y:auto;">
+      <div class="modal-handle"></div>
+      <div style="font-family:var(--font-h);font-size:1.2em;font-weight:900;margin-bottom:16px;text-align:center;">
+        🎯 ¿Cómo predecir?
+      </div>
+
+      <div style="font-size:0.82em;line-height:1.7;color:var(--text);">
+
+        <div style="background:rgba(108,71,255,0.1);border-left:3px solid var(--primary2);
+          border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+          <strong style="color:var(--primary2);">⚡ Toca "Predecir este partido"</strong><br>
+          en cada match antes de que empiece.
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:800;color:var(--gold);margin-bottom:6px;">▶️ Si hay un ganador:</div>
+          <div style="color:var(--muted2);padding-left:8px;">
+            1️⃣ Toca primero el nombre de tu equipo favorito<br>
+            <span style="font-size:0.85em;opacity:0.8;">(no importa si es local —izquierda— o visitante —derecha—)</span><br>
+            2️⃣ Elige cuántos goles va a hacer<br>
+            3️⃣ Elige los goles del perdedor<br><br>
+            💡 <em>Si marcas 1 gol al ganador, el sistema pone 0 al perdedor automáticamente.</em>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:800;color:var(--green);margin-bottom:6px;">🤝 Si es empate:</div>
+          <div style="color:var(--muted2);padding-left:8px;">
+            Toca el botón <strong>Empate</strong>, elige la cantidad de goles ¡y listo!
+          </div>
+        </div>
+
+        <div style="background:rgba(255,77,109,0.08);border-left:3px solid var(--red);
+          border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+          ⚠️ <strong>Si no predices antes del pitazo inicial</strong>, se registra
+          <strong>0-0 automáticamente</strong> en todos los partidos donde no hayas predicho.
+        </div>
+
+        <div style="background:rgba(0,229,160,0.08);border-left:3px solid var(--green);
+          border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+          <strong style="color:var(--green);">🏆 Puntuación:</strong><br>
+          <span style="color:var(--muted2);">
+            ⭐ <strong>5 pts</strong> — Marcador exacto<br>
+            🎯 <strong>3 pts</strong> — Resultado correcto (ganador o empate)<br>
+            ❌ <strong>0 pts</strong> — Resultado incorrecto
+          </span>
+        </div>
+
+      </div>
+
+      <button class="btn btn-primary" onclick="document.getElementById('howToPredictModal').remove()"
+        style="width:100%;margin-top:4px;">
+        ✅ Entendido
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+
   const colors = [
     '#f59e0b','#10b981','#3b9eff','#f472b6','#a78bfa',
     '#34d399','#fb923c','#38bdf8','#e879f9','#4ade80',
@@ -2753,6 +2818,7 @@ function renderMatches() {
     <div class="section-header">
       <span class="section-title">⚽ Partidos</span>
       <div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" style="font-size:0.75em;">❓ ¿Cómo predecir?</button>
         <button class="btn btn-ghost btn-sm" onclick="openStandings()" style="font-size:0.75em;">📊 Tablas</button>
         <button class="btn btn-ghost btn-sm" onclick="doSync()">🔄 Sync</button>
       </div>
@@ -2780,8 +2846,9 @@ function renderMatches() {
             ¡Únete a un grupo para predecir!
           </div>
           <div style="font-size:0.76em;color:var(--muted2);line-height:1.5;">
-            Toca el nombre del grupo en el cintillo de arriba y luego <strong style="color:var(--text);">✅ Sí, unirme</strong>.<br>
-            Después ya puedes predecir los partidos y competir con todos.
+            Toca el nombre del grupo en el cintillo de arriba — con ese solo toque quedas dentro 👌<br>
+            <span style="color:var(--text);">¿No sabes predecir?</span> Toca el botón 
+            <strong style="color:var(--gold);">❓ ¿Cómo predecir?</strong> para ver el tutorial.
           </div>
         </div>
       </div>`;
@@ -4534,7 +4601,7 @@ async function openGroupWAMenu(code, gname) {
     {
       icon: '📣',
       label: 'Invitar + cómo registrarse',
-      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n\n👆 *¿Cómo unirte al grupo?*\nUna vez dentro, ve a *Partidos* y en el cintillo de arriba verás los grupos. Toca el que quieras y luego *✅ Sí, unirme*.\n\n👥 *Grupos disponibles:*\n${gruposLista}\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado.\n\n⚠️ Predice antes del pitazo o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
+      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n\n👆 *¿Cómo unirte al grupo?*\nUna vez dentro, ve a *Partidos* y toca el nombre del grupo en el cintillo de arriba — con ese solo toque ya quedas dentro 👌\n\n👥 *Grupos disponibles:*\n${gruposLista}\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado.\n\n⚠️ Predice antes del pitazo o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
     },
     {
       icon: '📅',
