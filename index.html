@@ -1878,24 +1878,44 @@ function sendRankWA(idx) {
   if (modal) modal.remove();
 }
 
-function inviteToApp() {
+async function inviteToApp() {
   const appUrl = 'https://luisla425.github.io/Quiniela/';
-  const code = me.personalInviteCode || '';
+  const code   = me.personalInviteCode || '';
   const nombre = me.name || me.username || '';
+
+  // Leer grupos actuales para incluirlos en el mensaje
+  let groupsLine = '';
+  try {
+    const snap = await db.collection('groups').get();
+    const grupos = snap.docs.map(d => d.data());
+    if (grupos.length) {
+      const lista = grupos.map(g => {
+        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
+        return `  ${flag} *${g.name}*`;
+      }).join('\n');
+      groupsLine = `\n👥 *Grupos disponibles:*\n${lista}\n\n`;
+    }
+  } catch(e) {}
+
   const msg = encodeURIComponent(
     `⚽ *QUINIELA LuAn* ⚽\n\n` +
     `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante.\n\n` +
-    `🏆 Predice los marcadores de los mejores partidos del fútbol europeo y compite con amigos, familia y panas.\n\n` +
+    `🏆 Predice marcadores del mejor fútbol europeo y compite con amigos, familia y panas.\n\n` +
     `━━━━━━━━━━━━━━━━━━\n` +
     `✅ *¿Cómo registrarse?*\n` +
     `1️⃣ Abre: ${appUrl}\n` +
-    `2️⃣ Toca "Registrarse"\n` +
+    `2️⃣ Toca *"Registrarse"*\n` +
     `3️⃣ Llena: Nombre, apodo (máx 8 letras), teléfono y contraseña\n` +
-    `4️⃣ Usa mi código de invitación: 🔐 *${code}*\n\n` +
+    (code ? `4️⃣ Usa mi código: 🔐 *${code}*\n\n` : `\n`) +
+    `━━━━━━━━━━━━━━━━━━\n` +
+    `👆 *¿Cómo unirte al grupo?*\n` +
+    `Una vez dentro, ve a *Partidos* y en el cintillo de arriba verás los grupos disponibles.\n` +
+    `Toca el nombre del grupo y luego *✅ Sí, unirme* — ¡listo!\n` +
+    groupsLine +
     `━━━━━━━━━━━━━━━━━━\n` +
     `🎯 *¿Cómo predecir?*\n` +
     `Toca *"⚡ Predecir este partido"* en cada match:\n\n` +
-    `▶️ *Con ganador:* toca tu equipo favorito → elige sus goles → elige los del perdedor\n` +
+    `▶️ *Con ganador:* toca tu equipo → elige sus goles → elige los del perdedor\n` +
     `💡 _Si marcas 1 al ganador, el sistema pone 0 al perdedor automáticamente_\n\n` +
     `🤝 *Empate:* toca Empate → elige los goles ¡y listo!\n\n` +
     `⚠️ Si no predices antes del pitazo, se registra 0-0 en todos los partidos.\n\n` +
@@ -2574,22 +2594,54 @@ async function _loadPublicGroupsStrip() {
     const strip = $('publicGroupsStrip');
     if (!strip) return;
     if (!all.length) { strip.innerHTML = `<span style="font-size:0.75em;color:var(--muted2);">Sin grupos disponibles</span>`; return; }
+
+    const isInAny = all.some(g => g.members?.some(m=>m.userId===me.uid));
+
+    // Ocultar banner de bienvenida si ya está en algún grupo
+    if (isInAny) {
+      const banner = $('noGroupBanner');
+      if (banner) banner.style.display = 'none';
+    }
+
     let extra = '';
     all.forEach(g => {
-      const isMine = g.members?.some(m=>m.userId===me.uid);
+      const isMine   = g.members?.some(m=>m.userId===me.uid);
       const isActive = g.id === activeGroupId;
-      const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,2).join('');
-      const borderColor = isActive ? 'var(--primary)' : isMine ? 'var(--green)' : 'var(--border2)';
-      const bgColor = isActive ? 'rgba(108,71,255,0.2)' : isMine ? 'rgba(0,229,160,0.1)' : 'var(--surface2)';
-      const txtColor = isActive ? 'var(--primary2)' : isMine ? 'var(--green)' : 'var(--muted2)';
-      extra += `<button onclick="${isMine?`setActiveGroup('${g.id}')`:`promptJoinGroup('${g.id}','${g.name.replace(/'/g,"\\'")}')`}"
-        style="flex-shrink:0;padding:6px 12px;border-radius:20px;border:2px solid ${borderColor};
-        background:${bgColor};color:${txtColor};
-        font-family:var(--font-b);font-weight:700;font-size:0.78em;cursor:pointer;white-space:nowrap;transition:all 0.2s;">
-        ${flag} ${g.name}${isMine?'':' ＋'}
-      </button>`;
+      const flag     = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,2).join('');
+      const memberCount = g.members?.length || 0;
+      const maxCount    = g.maxMembers || '?';
+
+      if (isActive) {
+        // Activo: morado con borde fuerte
+        extra += `<button onclick="setActiveGroup('${g.id}')"
+          style="flex-shrink:0;padding:6px 12px;border-radius:20px;
+          border:2px solid var(--primary);background:rgba(108,71,255,0.2);
+          color:var(--primary2);font-family:var(--font-b);font-weight:700;
+          font-size:0.78em;cursor:pointer;white-space:nowrap;">
+          ✅ ${flag} ${g.name}
+        </button>`;
+      } else if (isMine) {
+        // Propio pero no activo: verde
+        extra += `<button onclick="setActiveGroup('${g.id}')"
+          style="flex-shrink:0;padding:6px 12px;border-radius:20px;
+          border:2px solid var(--green);background:rgba(0,229,160,0.1);
+          color:var(--green);font-family:var(--font-b);font-weight:700;
+          font-size:0.78em;cursor:pointer;white-space:nowrap;">
+          ${flag} ${g.name}
+        </button>`;
+      } else {
+        // Ajeno — chip destacado con animación de pulso para llamar la atención
+        extra += `<button onclick="promptJoinGroup('${g.id}','${g.name.replace(/'/g,"\\'")}')"
+          style="flex-shrink:0;padding:6px 12px;border-radius:20px;
+          border:2px dashed var(--orange);background:rgba(255,140,66,0.08);
+          color:var(--orange);font-family:var(--font-b);font-weight:700;
+          font-size:0.78em;cursor:pointer;white-space:nowrap;
+          animation:pulse 2s infinite;">
+          ${flag} ${g.name} <span style="font-size:0.85em;opacity:0.8;">(${memberCount}/${maxCount})</span> ＋
+        </button>`;
+      }
     });
-    strip.innerHTML = `<span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">Grupos:</span>` + extra;
+    strip.innerHTML = `<span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;white-space:nowrap;">Grupos:</span>` + extra;
   } catch(e) {}
 }
 
@@ -2709,9 +2761,31 @@ function renderMatches() {
   // ── SELECTOR DE GRUPO ACTIVO ──────────────
   // Siempre se cargan todos los grupos públicos — los propios como chips activos,
   // los ajenos con "+" para unirse con 1 tap
-  html += `<div id="publicGroupsStrip" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;">
+  html += `<div id="publicGroupsStrip" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:4px;scrollbar-width:none;">
     <span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">Grupos:</span>
   </div>`;
+
+  // ── Banner de bienvenida si el jugador no está en ningún grupo ──
+  const isInAnyGroup = myGroupsList && myGroupsList.length > 0;
+  if (!isInAnyGroup) {
+    html += `
+      <div id="noGroupBanner" style="
+        background:linear-gradient(135deg,rgba(108,71,255,0.15),rgba(0,229,160,0.08));
+        border:1.5px solid rgba(108,71,255,0.4);
+        border-radius:12px;padding:12px 14px;margin-bottom:10px;
+        display:flex;align-items:flex-start;gap:10px;">
+        <span style="font-size:1.6em;flex-shrink:0;">👆</span>
+        <div>
+          <div style="font-weight:800;font-size:0.88em;color:var(--primary2);margin-bottom:3px;">
+            ¡Únete a un grupo para predecir!
+          </div>
+          <div style="font-size:0.76em;color:var(--muted2);line-height:1.5;">
+            Toca el nombre del grupo en el cintillo de arriba y luego <strong style="color:var(--text);">✅ Sí, unirme</strong>.<br>
+            Después ya puedes predecir los partidos y competir con todos.
+          </div>
+        </div>
+      </div>`;
+  }
 
   // Countdown banner with time remaining
   if (nextClose) {
@@ -4435,18 +4509,32 @@ function shareGroup(code, name) {
 }
 
 // ── Menú WA directo (sin clasificación cargada) ─────────────
-function openGroupWAMenu(code, gname) {
+async function openGroupWAMenu(code, gname) {
   const existing = document.getElementById('groupWAModal');
   if (existing) existing.remove();
 
   const nombre = me.name || me.username || '';
   const appUrl = 'https://luisla425.github.io/Quiniela/';
 
+  // Leer todos los grupos para listarlos en el mensaje de invitación
+  let todosLosGrupos = [];
+  try {
+    const snap = await db.collection('groups').get();
+    todosLosGrupos = snap.docs.map(d => d.data());
+  } catch(e) {}
+
+  const gruposLista = todosLosGrupos.length
+    ? todosLosGrupos.map(g => {
+        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
+        return `  ${flag} *${g.name}*`;
+      }).join('\n')
+    : `  *${gname}*`;
+
   const quickMsgs = [
     {
       icon: '📣',
       label: 'Invitar + cómo registrarse',
-      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola a todos 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre este enlace: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n4️⃣ Una vez dentro, ve a *Partidos* y toca el grupo *"${gname}"* en el cintillo superior para unirte con un toque\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado. ¡Así de fácil!\n\n⚠️ Predice antes del pitazo inicial o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
+      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n\n👆 *¿Cómo unirte al grupo?*\nUna vez dentro, ve a *Partidos* y en el cintillo de arriba verás los grupos. Toca el que quieras y luego *✅ Sí, unirme*.\n\n👥 *Grupos disponibles:*\n${gruposLista}\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado.\n\n⚠️ Predice antes del pitazo o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
     },
     {
       icon: '📅',
