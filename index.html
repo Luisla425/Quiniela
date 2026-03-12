@@ -2149,8 +2149,65 @@ function _setCronOffset(matchId, val) {
   }
 }
 
+// ══════════════════════════════════════════════
+// DEBUG ADMIN — ver JSON crudo TheSportsDB
+// ══════════════════════════════════════════════
+async function _debugTimeline(matchId) {
+  if (!me?.isAdmin) return;
+  const out = document.createElement('div');
+  out.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.95);overflow:auto;padding:16px;font-family:monospace;font-size:0.7em;color:#0f0;';
+  out.innerHTML = '<div style="color:#ff0;font-weight:bold;margin-bottom:12px;">🔍 DEBUG — ID: ' + matchId +
+    ' <button onclick="this.closest(\'[style]\').remove()" style="float:right;background:#c0392b;color:white;border:none;padding:4px 10px;cursor:pointer;border-radius:4px;">✕ Cerrar</button></div>' +
+    '<div id="dbgOut">Cargando...</div>';
+  document.body.appendChild(out);
+  const dbgOut = out.querySelector('#dbgOut');
+  dbgOut.textContent = '';
 
-function userColor(username) {
+  const log = (title, data) => {
+    const s = document.createElement('div');
+    s.style.cssText = 'margin-bottom:14px;border:1px solid #333;padding:8px;border-radius:4px;';
+    s.innerHTML = `<div style="color:#ff0;font-weight:bold;margin-bottom:5px;">── ${title} ──</div>
+      <pre style="white-space:pre-wrap;word-break:break-all;color:#0f0;margin:0;font-size:0.95em;">${
+        typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+      }</pre>`;
+    dbgOut.appendChild(s);
+  };
+
+  // 1. V2 Timeline
+  try {
+    const r = await fetchV2(`/lookup/event_timeline/${matchId}`);
+    const tl = r?.timeline || [];
+    log(`V2 timeline (${tl.length} eventos)`, tl.length ? tl.slice(0,4) : r);
+    if (tl.length) log('V2 campos del primer evento', Object.keys(tl[0]));
+  } catch(e) { log('V2 Timeline ERROR', e.message); }
+
+  // 2. V1 Timeline
+  try {
+    const r   = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
+    const txt = await r.text();
+    if (txt && !txt.trim().startsWith('<')) {
+      const d  = JSON.parse(txt);
+      const tl = d?.timeline || d?.events || [];
+      log(`V1 timeline (${tl.length} eventos)`, tl.length ? tl.slice(0,4) : d);
+      if (tl.length) log('V1 campos del primer evento', Object.keys(tl[0]));
+    } else {
+      log('V1 Timeline respuesta vacía/HTML', txt.substring(0,100));
+    }
+  } catch(e) { log('V1 Timeline ERROR', e.message); }
+
+  // 3. V1 lookupevent — campos strHomeYellowCards, strHomeGoalDetails etc.
+  try {
+    const r  = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
+    const d  = await r.json();
+    const ev = d?.events?.[0] || {};
+    const relevant = Object.entries(ev)
+      .filter(([k]) => /yellow|red|goal|score|card/i.test(k))
+      .reduce((acc,[k,v]) => ({...acc,[k]:v}), {});
+    log('V1 lookupevent — tarjetas/goles', relevant);
+  } catch(e) { log('V1 lookupevent ERROR', e.message); }
+}
+
+
   const colors = [
     '#f59e0b','#10b981','#3b9eff','#f472b6','#a78bfa',
     '#34d399','#fb923c','#38bdf8','#e879f9','#4ade80',
@@ -3895,6 +3952,20 @@ async function openStats(matchId) {
         }
       }
     } catch(e) {}
+
+    // ── Debug admin: ver JSON crudo del timeline ──────────────
+    if (me?.isAdmin) {
+      html += `
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border2);">
+          <button onclick="_debugTimeline('${matchId}')"
+            style="width:100%;padding:8px;border-radius:10px;cursor:pointer;
+            font-family:var(--font-h);font-size:0.72em;font-weight:800;
+            background:rgba(255,200,0,0.08);color:var(--gold);
+            border:1px solid rgba(255,200,0,0.3);">
+            🔍 Debug: ver datos raw TheSportsDB
+          </button>
+        </div>`;
+    }
 
     $('statsContent').innerHTML = html;
 
