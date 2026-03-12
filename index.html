@@ -953,7 +953,6 @@ body::before {
       <div style="display:flex;gap:1px;align-items:center;margin-top:2px;">
         <button class="header-logout" id="themeBtn" onclick="cycleTheme()" title="Tema" style="font-size:0.9em;padding:4px;">🌙</button>
         <button class="header-logout" id="langBtn" onclick="cycleLang()" title="Idioma" style="font-size:0.9em;padding:4px;">🇻🇪</button>
-        <button class="header-logout" onclick="abrirManualLuan()" title="Manual / Ayuda" style="font-size:0.9em;padding:4px;color:#9d7dff;">❓</button>
         <button class="header-logout" onclick="inviteToApp()" title="Invitar" style="font-size:0.9em;padding:4px;">📲</button>
         <button class="header-logout" onclick="openModal('changePassModal')" title="Contraseña" style="font-size:0.9em;padding:4px;">🔑</button>
         <button class="header-logout" onclick="doLogout()" title="Salir" style="font-size:0.9em;padding:4px;">🚪</button>
@@ -1009,6 +1008,21 @@ body::before {
   </div>
 </div>
 
+<!-- Join Group -->
+<div class="modal-overlay hidden" id="joinModal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔗 Unirse a Grupo</div>
+    <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">Escribe el código de 6 letras que te compartió el admin</p>
+    <div class="field">
+      <label>Código del grupo</label>
+      <input type="text" id="joinCode" class="code-input" maxlength="6" oninput="this.value=this.value.toUpperCase();document.getElementById('joinStatus').innerHTML=''">
+    </div>
+    <div class="join-status" id="joinStatus"></div>
+    <button class="btn btn-primary" id="joinBtn" onclick="doJoinGroup()">✅ Unirse al Grupo</button>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('joinModal')">Cancelar</button>
+  </div>
+</div>
 
 <!-- Create Group -->
 <div class="modal-overlay hidden" id="createModal">
@@ -2967,11 +2981,11 @@ async function _uLEC() {
         }
       } catch(e) {}
 
-      // Guardar — solo eventos no-gol no-subs para la tarjeta (últimos 4)
+      // Guardar — últimos eventos para la tarjeta (goles + tarjetas + VAR, sin subs)
       const cardEvents = timeline.filter(t => {
         const type = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
-        return !type.includes('goal') && !type.includes('sub');
-      }).slice(-4);
+        return !type.includes('sub') && !type.includes('substitut');
+      }).slice(-5);
 
       _lEC[mid] = { events: cardEvents, possession, lastUpdated: Date.now() };
 
@@ -2998,7 +3012,8 @@ function buildMatchCard(m, closed) {
   let cronPhase = ''; // '1H' | 'HT' | '2H' | 'ET' | 'P'
   if (live && m.date && m.time) {
     try {
-      const ko = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+      // TheSportsDB devuelve el tiempo en UTC → parsear como UTC (Z), no como hora VE
+      const ko = new Date(`${m.date}T${m.time.substring(0,5)}:00Z`);
       kickoffMs = ko.getTime();
     } catch(e) {}
     const st = (m.status || '').toUpperCase();
@@ -3116,13 +3131,19 @@ function buildMatchCard(m, closed) {
       const player  = t.strPlayer || t.strPlayer1 || '';
       const homeRaw = (t.strHome||t.strSide||'').toLowerCase();
       const isHome  = homeRaw==='yes'||homeRaw==='home';
+      const isGoal      = type.includes('goal') && !type.includes('miss');
+      const isOwnGoal   = isGoal && type.includes('own');
+      const isPenGoal   = isGoal && (type.includes('pen') || type.includes('penal'));
       const isYellowRed = type.includes('yellowred')||type.includes('second yellow');
       const isYellow    = !isYellowRed && type.includes('yellow');
       const isRed       = !isYellowRed && !isYellow && type.includes('red');
-      const isPenalty   = type.includes('penalty')||type.includes('penal');
+      const isPenalty   = !isGoal && (type.includes('penalty')||type.includes('penal'));
       const isVar       = type.includes('var');
       let icon='', color='', label='';
-      if (isYellowRed)    { icon='🟨🟥'; color='var(--red)'; }
+      if (isOwnGoal)      { icon='⚽🔴'; color='var(--red)';    label='(Autogol)'; }
+      else if (isPenGoal) { icon='⚽⚡'; color='var(--gold)';   label='(Penal)'; }
+      else if (isGoal)    { icon='⚽';   color='var(--green)';  }
+      else if (isYellowRed) { icon='🟨🟥'; color='var(--red)'; }
       else if (isYellow)  { icon='🟨';   color='var(--gold)'; }
       else if (isRed)     { icon='🟥';   color='var(--red)'; }
       else if (isPenalty) { icon='⚡';   color='var(--orange)'; }
@@ -4344,7 +4365,7 @@ async function renderGroups() {
     <span class="section-title">👥 Grupos</span>
     <div style="display:flex;gap:8px;">
       ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="renderCreatePicker();openModal('createModal')">➕ Crear</button>` : ''}
-      ${me.isAdmin ? `` : ''}
+      ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="openModal('joinModal')">🔗 Unirse</button>` : ''}
     </div>
   </div>
   <!-- SUB-TABS: Mis Grupos / Ligas -->
@@ -4525,6 +4546,32 @@ async function doCreateGroup() {
   finally{btn.disabled=false;}
 }
 
+async function doJoinGroup() {
+  const code=$('joinCode').value.trim().toUpperCase();
+  const statusEl=$('joinStatus');
+  const btn=$('joinBtn');
+  const setS=(msg,t)=>{ statusEl.innerHTML=`<div class="status-box status-${t}">${msg}</div>`; };
+  if(code.length!==6){setS('El código debe tener 6 caracteres','error');return;}
+  btn.disabled=true; setS('🔍 Buscando grupo...','info');
+  try {
+    const snap=await db.collection('groups').where('code','==',code).limit(1).get();
+    if(snap.empty){setS('❌ Código incorrecto. Verifica con el admin.','error');btn.disabled=false;return;}
+    const gdoc=snap.docs[0]; const g=gdoc.data();
+    if(g.members?.some(m=>m.userId===me.uid)){setS(`✅ Ya eres miembro de "${g.name}"`,'success');setTimeout(()=>closeModal('joinModal'),1500);btn.disabled=false;return;}
+    if(g.members?.length>=g.maxMembers){setS(`❌ Grupo lleno (${g.members.length}/${g.maxMembers})`,'error');btn.disabled=false;return;}
+    setS(`✅ Grupo encontrado: "${g.name}" · ${g.members?.length||0}/${g.maxMembers} jugadores`,'success');
+    await gdoc.ref.update({members:firebase.firestore.FieldValue.arrayUnion({userId:me.uid,username:me.username,joinedAt:new Date().toISOString(),isAdmin:false})});
+    $('joinCode').value='';
+    setTimeout(async ()=>{
+      closeModal('joinModal');
+      toast(`🎉 ¡Bienvenido a "${g.name}"!`,'success');
+      // Activar este grupo automáticamente → sus torneos se aplican en Partidos
+      await loadMyGroups();
+      setActiveGroup(gdoc.id);
+      renderGroups();
+    },1500);
+  } catch(e){setS('Error: '+e.message,'error');btn.disabled=false;}
+}
 
 async function deleteGroup(gid, name) {
   if(!confirm(`¿Eliminar el grupo "${name}"?\nSe borrarán TODAS las predicciones y datos. No se puede deshacer.`)) return;
@@ -6767,172 +6814,7 @@ window.addEventListener('online',  ()=>toast('✅ Conexión restaurada','success
 window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
-
-function abrirManualLuan(){
-  const el=document.getElementById('luanManualOverlay');
-  if(el){el.style.display='block';el.scrollTop=0;}
-}
-function cerrarManualLuan(){
-  const el=document.getElementById('luanManualOverlay');
-  if(el)el.style.display='none';
-}
-
 </script>
-
-<!-- ═══════════ MANUAL LUAN ═══════════ -->
-<div id="luanManualOverlay" style="display:none;position:fixed;inset:0;z-index:9999;
-  background:#0d0d14;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 60px;">
-  <button onclick="cerrarManualLuan()" style="position:fixed;top:14px;right:14px;z-index:10000;
-    width:40px;height:40px;border-radius:50%;border:1.5px solid rgba(255,77,109,.5);
-    background:rgba(255,77,109,.15);color:#ff4d6d;font-size:1.2em;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;font-weight:800;">✕</button>
-
-  <div style="max-width:500px;margin:0 auto;padding:20px 16px;">
-    <!-- HEADER -->
-    <div style="text-align:center;padding:30px 0 24px;">
-      <div style="font-size:2.5em;margin-bottom:8px;">⚽</div>
-      <div style="font-family:'Syne',sans-serif;font-size:1.6em;font-weight:800;
-        background:linear-gradient(135deg,#9d7dff,#3b9eff);
-        -webkit-background-clip:text;-webkit-text-fill-color:transparent;">QUINIELA LuAn</div>
-      <div style="color:#5e5e8a;font-size:0.82em;margin-top:4px;">Manual de usuario</div>
-    </div>
-
-    <!-- SECCIÓN 1 — Registro/Login -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>🔐</span> Registro e ingreso
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        <strong style="color:#f0eeff;">Registrarse:</strong> toca "Registrarse", llena Nombre, Apodo (máx 8 letras), Teléfono y Contraseña. Si tienes un código de invitación, introdúcelo.<br><br>
-        <strong style="color:#f0eeff;">Entrar:</strong> usa tu teléfono y contraseña registrados.<br><br>
-        <strong style="color:#f0eeff;">¿Olvidaste tu clave?</strong> Toca "¿Olvidaste tu contraseña?" y te llegará un enlace de restablecimiento.
-      </div>
-    </div>
-
-    <!-- SECCIÓN 2 — Partidos -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>⚽</span> Pantalla Partidos
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Es la pantalla principal. Muestra los partidos del día con su estado: próximo, en vivo o finalizado.<br><br>
-        <strong style="color:#f0eeff;">Cintillo de grupos:</strong> en la parte superior aparecen los grupos disponibles. Toca uno para activarlo — eso filtra los partidos de sus ligas.<br><br>
-        <strong style="color:#f0eeff;">Unirte a un grupo:</strong> toca cualquier grupo del cintillo con <em>+</em>. Aparece una confirmación y con un toque quedas dentro.<br><br>
-        <strong style="color:#f0eeff;">Estadísticas:</strong> en partidos en vivo o finalizados, toca <em>📊 Estadísticas</em> para ver timeline, goles, tarjetas y posesión. Toca <em>📋</em> para ver alineaciones.
-      </div>
-    </div>
-
-    <!-- SECCIÓN 3 — Predecir -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>🎯</span> Cómo predecir
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Toca el botón <strong style="color:#9d7dff;">⚡ Predecir este partido</strong> en cada match antes de que empiece.<br><br>
-        <strong style="color:#f5c542;">▶️ Con ganador:</strong><br>
-        1. Toca el nombre de tu equipo favorito<br>
-        2. Elige cuántos goles va a meter<br>
-        3. Elige los goles del perdedor<br>
-        💡 Si marcas 1 gol al ganador, el sistema pone 0 al perdedor automáticamente.<br><br>
-        <strong style="color:#00e5a0;">🤝 Empate:</strong> toca Empate → elige los goles de ambos.<br><br>
-        <strong style="color:#ff4d6d;">⚠️ Importante:</strong> si no predices antes del pitazo inicial, el sistema guarda 0-0 automáticamente en todos los partidos pendientes.
-      </div>
-    </div>
-
-    <!-- SECCIÓN 4 — Chat -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>💬</span> Chat
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Chat en tiempo real con todos los jugadores de la aplicación. Escribe en el campo inferior y toca <em>➤</em> o presiona Enter para enviar. Los mensajes nuevos aparecen automáticamente.
-      </div>
-    </div>
-
-    <!-- SECCIÓN 5 — Torneos -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>🏆</span> Torneos
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Aquí puedes ver y gestionar las ligas disponibles, así como las <strong style="color:#f5c542;">Predicciones del Mundial 2026</strong> (Campeón, Subcampeón, Tercer lugar y Goleador).<br><br>
-        También puedes ver las tablas de posiciones de cada liga en vivo.
-      </div>
-    </div>
-
-    <!-- SECCIÓN 6 — Grupos -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>👥</span> Grupos
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Muestra los grupos a los que perteneces. Desde aquí puedes:<br><br>
-        • <strong style="color:#f0eeff;">Ver la clasificación</strong> de tu grupo con puntos en tiempo real<br>
-        • <strong style="color:#f0eeff;">Compartir mensajes</strong> al grupo de WhatsApp (recordatorios, felicitaciones, pizarra)<br>
-        • Los grupos se unen desde el cintillo en la pantalla Partidos
-      </div>
-    </div>
-
-    <!-- SECCIÓN 7 — Simulador -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>🎮</span> Simulador
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Herramienta para simular escenarios ficticios. Pon resultados inventados y ve cómo quedaría la pizarra de tu grupo. <strong style="color:#00e5a0;">No afecta los puntos reales.</strong><br><br>
-        Incluye escenarios rápidos: Mi exacto, Mi resultado, Exacto del líder, Nadie acierta, Aleatorio.
-      </div>
-    </div>
-
-    <!-- SECCIÓN 8 — Admin -->
-    <div style="background:#13131f;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-        <span>⚙️</span> Admin (solo administradores)
-      </div>
-      <div style="font-size:0.82em;color:#8888aa;line-height:1.7;">
-        Panel exclusivo para administradores. Permite:<br><br>
-        • Ver todos los jugadores y su estado (si predicaron o no)<br>
-        • Enviar mensajes de WhatsApp individuales<br>
-        • Resetear contraseñas temporalmente<br>
-        • Evaluar partidos y distribuir puntos<br>
-        • Crear grupos y gestionar predicciones<br>
-        • Limpiar datos duplicados
-      </div>
-    </div>
-
-    <!-- SECCIÓN 9 — Sistema de Puntos -->
-    <div style="background:linear-gradient(135deg,rgba(108,71,255,0.15),rgba(0,229,160,0.08));border:1px solid rgba(108,71,255,0.35);border-radius:14px;padding:16px;margin-bottom:12px;">
-      <div style="font-family:'Syne',sans-serif;font-size:1em;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:#9d7dff;">
-        <span>📐</span> Sistema de Puntos
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(245,197,66,0.12);border:1px solid rgba(245,197,66,0.3);border-radius:10px;">
-          <span style="font-size:1.6em;">⭐</span>
-          <div><div style="font-family:'Syne',sans-serif;font-size:1.1em;font-weight:900;color:#f5c542;">5 puntos</div><div style="font-size:0.78em;color:#8888aa;">Marcador exacto (ej: predijiste 2-1 y fue 2-1)</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;">
-          <span style="font-size:1.6em;">🎯</span>
-          <div><div style="font-family:'Syne',sans-serif;font-size:1.1em;font-weight:900;color:#00e5a0;">3 puntos</div><div style="font-size:0.78em;color:#8888aa;">Resultado correcto sin marcador exacto (ganador o empate)</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;">
-          <span style="font-size:1.6em;">❌</span>
-          <div><div style="font-family:'Syne',sans-serif;font-size:1.1em;font-weight:900;color:#ff4d6d;">0 puntos</div><div style="font-size:0.78em;color:#8888aa;">Resultado incorrecto</div></div>
-        </div>
-      </div>
-      <div style="margin-top:14px;padding:10px 12px;background:rgba(245,197,66,0.08);border-radius:10px;font-size:0.78em;color:#8888aa;line-height:1.6;">
-        <strong style="color:#f5c542;">🌍 Bonos Copa del Mundo 2026:</strong><br>
-        🥇 Campeón: 8 pts · 🥈 Subcampeón: 6 pts · 🥉 Tercer lugar: 3 pts · ⚽ Goleador: 5 pts<br>
-        <span style="opacity:0.7;">(configurables por el admin)</span>
-      </div>
-    </div>
-
-    <!-- FOOTER -->
-    <div style="text-align:center;padding:20px 0 10px;color:#5e5e8a;font-size:0.72em;">
-      🌾 Desarrollado por luislárez · Arichuna, Venezuela
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
 
