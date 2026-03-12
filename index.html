@@ -2390,6 +2390,14 @@ async function enterApp() {
 
   loadMatches();
 
+  // Si hay partidos vivos al entrar → cargar eventos inmediatamente
+  setTimeout(async () => {
+    if (_dM.some(m => isLive(m.status))) {
+      await _uLEC();
+      renderMatches();
+    }
+  }, 2000); // 2s después de cargar para que los partidos ya estén en _dM
+
   // Adaptive auto-sync:
   // • Live games: every 45s
   // • No live games today: every 5 minutes (saves reads)
@@ -2402,13 +2410,22 @@ async function enterApp() {
         const hasTodayGames = _dM.length > 0;
         if (hasTodayGames) await doSync();
         else await autoEval();
-        // Actualizar cache de tarjetas/penaltis solo si hay partidos vivos
-        if (_dM.some(m => isLive(m.status))) await _uLEC();
       }
       scheduleNextSync();
     }, interval);
   }
   scheduleNextSync();
+
+  // ── LOOP RÁPIDO DE EVENTOS EN VIVO — cada 30s independiente del sync ──
+  // Goles, tarjetas, VAR aparecen en ≤30s sin esperar el sync completo
+  if (!window._liveEventsInterval) {
+    window._liveEventsInterval = setInterval(async () => {
+      if (_dM.some(m => isLive(m.status)) && !userEnteringPreds) {
+        await _uLEC();
+        renderMatches();  // re-render solo las tarjetas de partidos vivos
+      }
+    }, 30000); // cada 30 segundos
+  }
 
   // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
   // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
@@ -3039,6 +3056,24 @@ async function _uLEC() {
   const lives = _dM.filter(m => isLive(m.status));
   if (!lives.length) return;
 
+  // ── Livescore V2: actualiza marcador EN VIVO (no esperar el doSync de 45s) ──
+  try {
+    const liveData = await fetchV2(`/livescore/soccer`);
+    const liveEvents = liveData?.events || liveData?.livescores || [];
+    liveEvents.forEach(le => {
+      const mid = String(le.idEvent || le.id || '');
+      const m = _dM.find(x => String(x.id) === mid);
+      if (!m) return;
+      // Actualizar score si cambió
+      const hs = le.intHomeScore ?? le.homeScore;
+      const as_ = le.intAwayScore ?? le.awayScore;
+      if (hs !== undefined && hs !== null) m.score.home = +hs;
+      if (as_ !== undefined && as_ !== null) m.score.away = +as_;
+      // Actualizar status si cambió
+      if (le.strStatus) m.status = le.strStatus;
+    });
+  } catch(e) {}
+
   for (const match of lives) {
     const mid = String(match.id);
     try {
@@ -3060,30 +3095,47 @@ async function _uLEC() {
         } catch(e) {}
       }
 
-      // ── Stats: posesión ──────────────────────────────────
-      let possession = null;
-      try {
-        const sr = await fetch(`${API_V1}/lookupeventstats.php?id=${mid}`);
-        const sd = await sr.json();
-        const stats = sd?.eventstats || sd?.stats || [];
-        const possStat = stats.find(s =>
-          (s.strStat || s.strType || '').toLowerCase().includes('possession')
-        );
-        if (possStat) {
-          possession = {
-            home: parseInt(possStat.intHome || possStat.strHome) || 0,
-            away: parseInt(possStat.intAway || possStat.strAway) || 0
-          };
-        }
-      } catch(e) {}
+      // ── Posesión: solo si no tenemos dato reciente (no bloquear el loop rápido) ──
+      let possession = _lEC[mid]?.possession || null;
+      const posAge = _lEC[mid]?.possessionUpdated || 0;
+      if (Date.now() - posAge > 120000) { // actualizar posesión cada 2 min máx
+        try {
+          const sr = await fetch(`${API_V1}/lookupeventstats.php?id=${mid}`);
+          const sd = await sr.json();
+          const stats = sd?.eventstats || sd?.stats || [];
+          const possStat = stats.find(s =>
+            (s.strStat || s.strType || '').toLowerCase().includes('possession')
+          );
+          if (possStat) {
+            possession = {
+              home: parseInt(possStat.intHome || possStat.strHome) || 0,
+              away: parseInt(possStat.intAway || possStat.strAway) || 0
+            };
+            posAge; // update timestamp below
+          }
+        } catch(e) {}
+      }
 
-      // Guardar — últimos eventos para la tarjeta (goles + tarjetas + VAR, sin subs)
-      const cardEvents = timeline.filter(t => {
-        const type = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
-        return !type.includes('sub') && !type.includes('substitut');
-      }).slice(-5);
+      // Filtrar subs, ordenar por tiempo, tomar últimos 5 eventos relevantes
+      const cardEvents = timeline
+        .filter(t => {
+          const type = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
+          return !type.includes('sub') && !type.includes('substitut');
+        })
+        .sort((a, b) => {
+          // Ordenar cronológicamente para que slice(-5) tome los más recientes
+          const tA = (+(a.intTime||0)) * 60 + (+(a.intTimeExtra||0));
+          const tB = (+(b.intTime||0)) * 60 + (+(b.intTimeExtra||0));
+          return tA - tB;
+        })
+        .slice(-5);
 
-      _lEC[mid] = { events: cardEvents, possession, lastUpdated: Date.now() };
+      _lEC[mid] = {
+        events: cardEvents,
+        possession,
+        possessionUpdated: possession ? Date.now() : posAge,
+        lastUpdated: Date.now()
+      };
 
     } catch(e) { console.warn('_lEC error', mid, e); }
   }
@@ -3153,7 +3205,7 @@ function buildMatchCard(m, closed) {
     centerContent = `<span class="vs-divider">VS</span>`;
   }
 
-  // Goles y eventos — mostrar bajo el marcador directamente
+  // ── Goles desde API de partidos (partidos terminados o con datos de goals) ──
   let eventsHtml = '';
   if (showScore) {
     const parseGoals = (str, side, team) => {
@@ -3165,24 +3217,56 @@ function buildMatchCard(m, closed) {
         return {min, player, side, team, icon:'⚽', color: side==='home' ? 'var(--primary2)' : 'var(--green)'};
       });
     };
-    const allGoals = [
-      ...parseGoals(m.homeGoals, 'home', m.home),
-      ...parseGoals(m.awayGoals, 'away', m.away),
-    ].sort((a,b) => parseInt(a.min)||0 - (parseInt(b.min)||0));
+
+    // Para partidos en vivo: priorizar goles del timeline (_lEC) si hay datos
+    const _mid2 = String(m.id);
+    const liveGoals = live && _lEC[_mid2]?.events
+      ? _lEC[_mid2].events.filter(t => {
+          const type = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
+          return type.includes('goal') && !type.includes('miss');
+        })
+      : [];
+
+    let allGoals = [];
+    if (liveGoals.length > 0) {
+      // Usar timeline: tiene jugador + minuto exacto
+      liveGoals.forEach(t => {
+        const type = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
+        const homeRaw = (t.strHome||t.strSide||'').toLowerCase();
+        const isHome = homeRaw==='yes'||homeRaw==='home';
+        const isOwnGoal = type.includes('own');
+        const isPenGoal = type.includes('pen')||type.includes('penal');
+        const min = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
+        const player = t.strPlayer || t.strPlayer1 || '—';
+        allGoals.push({
+          min, player, isHome,
+          icon: isOwnGoal ? '⚽🔴' : isPenGoal ? '⚽⚡' : '⚽',
+          color: isOwnGoal ? 'var(--red)' : isPenGoal ? 'var(--gold)' : (isHome ? 'var(--primary2)' : 'var(--green)'),
+          label: isOwnGoal ? '(OG)' : isPenGoal ? '(P)' : ''
+        });
+      });
+    } else {
+      // Fallback: strings de la API de partidos
+      allGoals = [
+        ...parseGoals(m.homeGoals, 'home', m.home),
+        ...parseGoals(m.awayGoals, 'away', m.away),
+      ].sort((a,b) => (parseInt(a.min)||0) - (parseInt(b.min)||0))
+       .map(g => ({...g, isHome: g.side==='home', label:''}));
+    }
 
     if (allGoals.length > 0) {
       eventsHtml = `<div style="margin-top:8px;padding:0 4px;">`;
       allGoals.forEach(g => {
-        const isHome = g.side === 'home';
         eventsHtml += `
           <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
-            ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
-            ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
-              <span>⚽</span>
-              <span style="color:${g.color};font-weight:700;">${g.player}</span>` :
-              `<span style="color:${g.color};font-weight:700;">${g.player}</span>
-              <span>⚽</span>
-              <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
+            ${g.isHome?'justify-content:flex-start':'justify-content:flex-end'}">
+            ${g.isHome
+              ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
+                 <span>${g.icon}</span>
+                 <span style="color:${g.color};font-weight:700;">${g.player}${g.label?' <span style="opacity:0.75;font-size:0.85em;">'+g.label+'</span>':''}</span>`
+              : `<span style="color:${g.color};font-weight:700;">${g.player}${g.label?' <span style="opacity:0.75;font-size:0.85em;">'+g.label+'</span>':''}</span>
+                 <span>${g.icon}</span>
+                 <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
       eventsHtml += `</div>`;
@@ -3216,51 +3300,8 @@ function buildMatchCard(m, closed) {
       </button>
     </div>` : '';
 
-  // ── Tarjetas/penaltis en vivo desde cache ──────────────
-  let liveEventsHtml = '';
-  const _mid = String(m.id);
-  if (live && _lEC[_mid] && _lEC[_mid].events.length) {
-    liveEventsHtml = '<div style="margin-top:6px;padding:4px 4px 0;border-top:1px solid var(--border2);">';
-    _lEC[_mid].events.forEach(t => {
-      const min  = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
-      const type = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
-      const player  = t.strPlayer || t.strPlayer1 || '';
-      const homeRaw = (t.strHome||t.strSide||'').toLowerCase();
-      const isHome  = homeRaw==='yes'||homeRaw==='home';
-      const isGoal      = type.includes('goal') && !type.includes('miss');
-      const isOwnGoal   = isGoal && type.includes('own');
-      const isPenGoal   = isGoal && (type.includes('pen') || type.includes('penal'));
-      const isYellowRed = type.includes('yellowred')||type.includes('second yellow');
-      const isYellow    = !isYellowRed && type.includes('yellow');
-      const isRed       = !isYellowRed && !isYellow && type.includes('red');
-      const isPenalty   = !isGoal && (type.includes('penalty')||type.includes('penal'));
-      const isVar       = type.includes('var');
-      let icon='', color='', label='';
-      if (isOwnGoal)      { icon='⚽🔴'; color='var(--red)';    label='(Autogol)'; }
-      else if (isPenGoal) { icon='⚽⚡'; color='var(--gold)';   label='(Penal)'; }
-      else if (isGoal)    { icon='⚽';   color='var(--green)';  }
-      else if (isYellowRed) { icon='🟨🟥'; color='var(--red)'; }
-      else if (isYellow)  { icon='🟨';   color='var(--gold)'; }
-      else if (isRed)     { icon='🟥';   color='var(--red)'; }
-      else if (isPenalty) { icon='⚡';   color='var(--orange)'; }
-      else if (isVar)     { const v=varDetail(t); icon=v.icon; color=v.color; label=v.label; }
-      else return;
-      liveEventsHtml += `
-        <div style="display:flex;align-items:flex-start;gap:5px;padding:3px 0;font-size:0.72em;
-          ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
-          ${isHome
-            ? `<span style="color:var(--gold);min-width:28px;font-weight:800;flex-shrink:0;">${min}</span>
-               <span style="flex-shrink:0;">${icon}</span>
-               <span style="color:${color};font-weight:700;">${player}${label?' <span style="opacity:0.75;font-weight:600;">· '+label+'</span>':''}</span>`
-            : `<span style="color:${color};font-weight:700;">${player}${label?' <span style="opacity:0.75;font-weight:600;">· '+label+'</span>':''}</span>
-               <span style="flex-shrink:0;">${icon}</span>
-               <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;flex-shrink:0;">${min}</span>`}
-        </div>`;
-    });
-    liveEventsHtml += '</div>';
-  }
-
   // ── Posesión en vivo ─────────────────────────────────
+  const _mid = String(m.id);
   let possessionHtml = '';
   if (live && _lEC[_mid]?.possession) {
     const p = _lEC[_mid].possession;
@@ -3299,7 +3340,6 @@ function buildMatchCard(m, closed) {
         </div>
       </div>
       ${eventsHtml}
-      ${liveEventsHtml}
       ${possessionHtml}
       ${predRow}
       ${statsBtn}
@@ -3823,13 +3863,26 @@ async function openStats(matchId) {
 // MODAL ALINEACIONES
 // ═══════════════════════════════════════════
 async function openLineup(matchId, home, away) {
-  // Reusar el statsModal con contenido de alineaciones
   openModal('statsModal');
   $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando alineaciones...</span></div>';
 
   try {
-    const lr     = await fetchV2(`/lookup/event_lineup/${matchId}`);
-    const lineup = lr?.lineup || [];
+    let lineup = [];
+
+    // Intento 1: V2
+    try {
+      const lr = await fetchV2(`/lookup/event_lineup/${matchId}`);
+      lineup = lr?.lineup || [];
+    } catch(e) {}
+
+    // Intento 2: V1 fallback si V2 falla o devuelve vacío
+    if (!lineup.length) {
+      try {
+        const r = await fetch(`${API_V1}/lookuplineup.php?id=${matchId}`);
+        const d = await r.json();
+        lineup = d?.lineup || d?.players || [];
+      } catch(e) {}
+    }
 
     if (!lineup.length) {
       $('statsContent').innerHTML = `
@@ -3898,11 +3951,12 @@ async function openLineup(matchId, home, away) {
     $('statsContent').innerHTML = html;
 
   } catch(e) {
-    const is429 = e.message?.includes('429');
+    const is429 = String(e.message||'').includes('429');
     $('statsContent').innerHTML = `
       <div class="empty">
-        <span class="empty-icon">${is429?'⏳':'❌'}</span>
-        <span class="empty-text">${is429?'Límite de solicitudes — espera un momento':'Error cargando alineaciones'}</span>
+        <span class="empty-icon">${is429?'⏳':'📋'}</span>
+        <span class="empty-text">${is429?'Límite de solicitudes — espera un momento':'Alineaciones no disponibles'}</span>
+        <span class="empty-sub">${is429?'Intenta en 30 segundos':'TheSportsDB las publica antes del partido'}</span>
       </div>`;
   }
 }
