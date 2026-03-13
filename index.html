@@ -2301,6 +2301,8 @@ async function enterApp() {
   window._adminCronOffset = window._adminCronOffset || {}; // { matchId: seconds }
   window._adminExtraTime  = window._adminExtraTime  || {}; // { matchId: minutes }
   window._adminExtraAsked = window._adminExtraAsked || {}; // { matchId: true }
+  window._k2H = window._k2H || {}; // { matchId: timestamp } — kickoff real 2do tiempo
+  window._kET = window._kET || {}; // { matchId: timestamp } — kickoff real prórroga
 
   // ── Cronómetro en vivo — 1s, sin API ──────────────────────
   setInterval(() => {
@@ -2309,65 +2311,68 @@ async function enterApp() {
       const badge = document.getElementById(`badge_${m.id}`);
       if (!badge) return;
 
-      const st = (m.status || '').toUpperCase();
-      const adminOffset = (window._adminCronOffset[m.id] || 0); // segundos
+      const mid = String(m.id);
+      const st  = (m.status || '').toUpperCase();
+      const adminOffset = (window._adminCronOffset[mid] || 0); // segundos
 
-      // Estados fijos
-      if (st === 'HT') { badge.textContent = `⏸ Descanso`; return; }
-      if (st === 'P')  { badge.textContent = `⚡ Penales`;  return; }
-      if (st === 'BT') { badge.textContent = `⏸ Desc. Prórroga`; return; }
+      // Registrar kickoff real de fases cuando la API cambia de estado
+      if ((st === '2H') && !window._k2H[mid]) window._k2H[mid] = Date.now();
+      if ((st === 'ET') && !window._kET[mid]) window._kET[mid] = Date.now();
+
+      // Estados fijos sin cronómetro
+      if (st === 'HT') { badge.textContent = `⏸ Descanso`;        return; }
+      if (st === 'P')  { badge.textContent = `⚡ Penales`;         return; }
+      if (st === 'BT') { badge.textContent = `⏸ Desc. Prórroga`;  return; }
 
       if (!m.date || !m.time) { badge.textContent = `🔴 En Vivo`; return; }
 
       try {
         const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
-        const totalSec = Math.max(0, Math.floor((Date.now() - kickoff.getTime()) / 1000)) + adminOffset;
-        const totalMin = Math.floor(totalSec / 60);
-        const ss = String(totalSec % 60).padStart(2,'0');
+        const now = Date.now();
+
+        let elapsedSec, cap, baseMin;
+
+        if (st === 'ET') {
+          // Prórroga: base 90', usa kickoff real si lo tenemos
+          const kET = window._kET[mid];
+          if (kET) {
+            elapsedSec = Math.max(0, Math.floor((now - kET) / 1000)) + 90 * 60 + adminOffset;
+          } else {
+            elapsedSec = Math.max(0, Math.floor((now - kickoff.getTime()) / 1000)) + adminOffset;
+          }
+          // ET1: 90-105, ET2: 105-120
+          const etMin = Math.floor(elapsedSec / 60);
+          cap = etMin < 105 ? 105 : 120;
+          baseMin = 0;
+        } else if (st === '2H') {
+          // 2do tiempo: usa kickoff real del 2H si lo tenemos
+          const k2H = window._k2H[mid];
+          if (k2H) {
+            elapsedSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45 * 60 + adminOffset;
+          } else {
+            // Fallback: kickoff original + 62min estimado de descanso
+            elapsedSec = Math.max(0, Math.floor((now - kickoff.getTime()) / 1000) - 62*60) + 45*60 + adminOffset;
+          }
+          cap = 90; baseMin = 0;
+        } else {
+          // 1er tiempo
+          elapsedSec = Math.max(0, Math.floor((now - kickoff.getTime()) / 1000)) + adminOffset;
+          cap = 45; baseMin = 0;
+        }
+
+        const totalMin = Math.floor(elapsedSec / 60);
+        const ss = String(elapsedSec % 60).padStart(2,'0');
 
         let display = '';
-        if (st === 'ET') {
-          // Prórroga
-          const etMin = Math.max(0, totalMin - 90);
-          const cap   = 105;
-          if (totalMin < cap) {
-            display = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
-          } else {
-            const extra = window._adminExtraTime[m.id] ?? m.intExtraTime ?? null;
-            const extraLabel = extra ? `+${extra}` : '+?';
-            const overMin = totalMin - cap;
-            display = `🔴 ${cap}:00 <small>${extraLabel} | ${String(overMin).padStart(2,'0')}:${ss}</small>`;
-            // Auto-preguntar al admin a los 8+ minutos de prórroga
-            if (overMin >= 8 && me?.isAdmin && !window._adminExtraAsked[m.id]) {
-              window._adminExtraAsked[m.id] = true;
-              setTimeout(() => _askAdminExtraTime(m), 300);
-            }
-          }
-        } else if (totalMin <= 47) {
-          // 1er tiempo
-          const cap = 45;
-          if (totalMin <= cap) {
-            display = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
-          } else {
-            display = `🔴 ${cap}:00 <small>+${totalMin-cap}:${ss}</small>`;
-          }
-        } else if (totalMin <= 62) {
-          display = `⏸ Descanso`;
+        if (totalMin <= cap) {
+          display = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
         } else {
-          // 2do tiempo
-          const t2 = totalMin - 62 + 45;
-          const cap = 90;
-          if (t2 <= cap) {
-            display = `🔴 ${String(t2).padStart(2,'0')}:${ss}`;
-          } else {
-            const extra = window._adminExtraTime[m.id] ?? m.intExtraTime ?? null;
-            const extraLabel = extra ? `+${extra}` : '+?';
-            const overMin = t2 - cap;
-            display = `🔴 ${cap}:00 <small>${extraLabel} | ${String(overMin).padStart(2,'0')}:${ss}</small>`;
-            if (overMin >= 8 && me?.isAdmin && !window._adminExtraAsked[m.id]) {
-              window._adminExtraAsked[m.id] = true;
-              setTimeout(() => _askAdminExtraTime(m), 300);
-            }
+          const extra = window._adminExtraTime[mid] ?? m.intExtraTime ?? null;
+          const overMin = totalMin - cap;
+          display = `🔴 ${cap}:00 <small style="opacity:0.85">${extra?'+'+extra:'+?'} | ${String(overMin).padStart(2,'0')}:${ss}</small>`;
+          if (overMin >= 8 && me?.isAdmin && !window._adminExtraAsked[mid]) {
+            window._adminExtraAsked[mid] = true;
+            setTimeout(() => _askAdminExtraTime(m), 300);
           }
         }
         badge.innerHTML = display;
@@ -2867,33 +2872,58 @@ function buildMatchCard(m, closed) {
   // Goles y eventos — mostrar bajo el marcador directamente
   let eventsHtml = '';
   if (showScore) {
-    const parseGoals = (str, side, team) => {
-      if (!str) return [];
-      return str.split(';').map(g=>g.trim()).filter(Boolean).map(g => {
-        const minM = g.match(/(\d+\+?\d*)'?/);
-        const min = minM ? minM[0] : '';
-        const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').replace(/[()]/g,'').trim() || g;
-        return {min, player, side, team, icon:'⚽', color: side==='home' ? 'var(--primary2)' : 'var(--green)'};
+    const _mid2 = String(m.id);
+    // En vivo: priorizar goles del timeline (_lEC)
+    const liveGoalEvts = live && _lEC[_mid2]?.events
+      ? _lEC[_mid2].events.filter(t => {
+          const tp = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
+          return tp.includes('goal') && !tp.includes('miss');
+        })
+      : [];
+
+    let allGoals = [];
+    if (liveGoalEvts.length > 0) {
+      liveGoalEvts.forEach(t => {
+        const tp = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
+        const homeRaw = (t.strHome||t.strSide||'').toLowerCase();
+        const isHome  = homeRaw==='yes'||homeRaw==='home';
+        const isOG    = tp.includes('own');
+        const isPen   = tp.includes('pen');
+        const min     = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
+        allGoals.push({
+          min, isHome,
+          player: t.strPlayer||t.strPlayer1||'—',
+          icon:  isOG ? '⚽🔴' : isPen ? '⚽⚡' : '⚽',
+          color: isOG ? 'var(--red)' : isHome ? 'var(--primary2)' : 'var(--green)',
+          label: isOG ? ' (OG)' : isPen ? ' (P)' : ''
+        });
       });
-    };
-    const allGoals = [
-      ...parseGoals(m.homeGoals, 'home', m.home),
-      ...parseGoals(m.awayGoals, 'away', m.away),
-    ].sort((a,b) => parseInt(a.min)||0 - (parseInt(b.min)||0));
+    } else {
+      // Fallback: strings de la API
+      const parseGoals = (str, isHome) => {
+        if (!str) return [];
+        return str.split(';').map(g=>g.trim()).filter(Boolean).map(g => {
+          const minM = g.match(/(\d+\+?\d*)'?/);
+          const player = g.replace(/\(?\d+\+?\d*'\)?/g,'').replace(/[()]/g,'').trim() || g;
+          return { min: minM?minM[0]:'', isHome, player, icon:'⚽',
+                   color: isHome?'var(--primary2)':'var(--green)', label:'' };
+        });
+      };
+      allGoals = [
+        ...parseGoals(m.homeGoals, true),
+        ...parseGoals(m.awayGoals, false),
+      ].sort((a,b) => (parseInt(a.min)||0) - (parseInt(b.min)||0));
+    }
 
     if (allGoals.length > 0) {
       eventsHtml = `<div style="margin-top:8px;padding:0 4px;">`;
       allGoals.forEach(g => {
-        const isHome = g.side === 'home';
         eventsHtml += `
           <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
-            ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
-            ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
-              <span>⚽</span>
-              <span style="color:${g.color};font-weight:700;">${g.player}</span>` :
-              `<span style="color:${g.color};font-weight:700;">${g.player}</span>
-              <span>⚽</span>
-              <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
+            ${g.isHome?'justify-content:flex-start':'justify-content:flex-end'}">
+            ${g.isHome
+              ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span><span>${g.icon}</span><span style="color:${g.color};font-weight:700;">${g.player}${g.label}</span>`
+              : `<span style="color:${g.color};font-weight:700;">${g.player}${g.label}</span><span>${g.icon}</span><span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
       eventsHtml += `</div>`;
@@ -2909,6 +2939,7 @@ function buildMatchCard(m, closed) {
   const statsBtn = showScore ? `
     <div style="display:flex;gap:6px;margin-top:8px;">
       <button onclick="openStats('${m.id}')" style="flex:1;padding:12px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
+      <button onclick="openLineup('${m.id}','${escapeHtml(m.home)}','${escapeHtml(m.away)}')" style="padding:12px 12px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
       ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${escapeHtml(m.home)}','${escapeHtml(m.away)}')" style="padding:12px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
     </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
@@ -3352,8 +3383,70 @@ async function openStats(matchId) {
   }
 }
 
+// ── Alineaciones ──────────────────────────────────────────
+async function openLineup(matchId, home, away) {
+  openModal('statsModal');
+  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando alineaciones...</span></div>';
+  try {
+    // V2 primero, luego V1 fallback
+    let lineup = [];
+    try {
+      const r = await fetchV2(`/lookup/event_lineup/${matchId}`);
+      if (Array.isArray(r?.lineup) && r.lineup.length) lineup = r.lineup;
+    } catch(e) {}
+    if (!lineup.length) {
+      try {
+        const r = await fetch(`${API_V1}/lookuplineup.php?id=${matchId}`);
+        const d = await r.json();
+        if (Array.isArray(d?.lineup) && d.lineup.length) lineup = d.lineup;
+      } catch(e) {}
+    }
 
+    if (!lineup.length) {
+      $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">📋</span><span class="empty-text">Alineaciones no disponibles aún</span></div>';
+      return;
+    }
 
+    const home11 = lineup.filter(p => p.strTeam === home || p.strSide === 'home' || p.intSquadNumber);
+    const away11 = lineup.filter(p => p.strTeam === away || p.strSide === 'away');
+    // Si no hay separación clara, dividir en mitades
+    const homeL = home11.length ? home11 : lineup.slice(0, Math.ceil(lineup.length/2));
+    const awayL = away11.length ? away11 : lineup.slice(Math.ceil(lineup.length/2));
+
+    const renderTeam = (players, teamName) => {
+      const starters = players.filter(p => !p.strSubstitute && p.intSquadNumber);
+      const subs = players.filter(p => p.strSubstitute);
+      const all = starters.length ? starters : players;
+      return `
+        <div style="margin-bottom:16px;">
+          <div style="font-family:var(--font-h);font-weight:800;font-size:0.9em;color:var(--primary2);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border2);">${teamName}</div>
+          ${all.map(p=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+              <span style="min-width:24px;text-align:center;font-family:var(--font-h);font-weight:800;font-size:0.85em;color:var(--gold);">${p.intSquadNumber||'—'}</span>
+              <span style="font-size:0.88em;color:var(--text);flex:1;">${p.strPlayer||p.strName||'—'}</span>
+              <span style="font-size:0.72em;color:var(--muted2);">${p.strPosition||''}</span>
+            </div>`).join('')}
+          ${subs.length ? `<div style="margin-top:8px;font-size:0.72em;color:var(--muted2);font-weight:700;">SUPLENTES</div>
+            ${subs.map(p=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;opacity:0.7;">
+              <span style="min-width:24px;text-align:center;font-family:var(--font-h);font-size:0.8em;color:var(--muted2);">${p.intSquadNumber||'—'}</span>
+              <span style="font-size:0.82em;color:var(--text);flex:1;">${p.strPlayer||p.strName||'—'}</span>
+              <span style="font-size:0.7em;color:var(--muted2);">${p.strPosition||''}</span>
+            </div>`).join('')}` : ''}
+        </div>`;
+    };
+
+    $('statsContent').innerHTML = `
+      <div style="padding:4px 0;">
+        <div style="font-family:var(--font-h);font-weight:800;font-size:1em;margin-bottom:12px;text-align:center;">📋 Alineaciones</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>${renderTeam(homeL, home)}</div>
+          <div>${renderTeam(awayL, away)}</div>
+        </div>
+      </div>`;
+  } catch(e) {
+    $('statsContent').innerHTML = `<div class="empty"><span class="empty-icon">❌</span><span class="empty-text">Error: ${e.message}</span></div>`;
+  }
+}
 
 function setDefaultPreds() {
   // Set all pending matches to 0-0
@@ -6096,4 +6189,4 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-</html>
+           </html>
