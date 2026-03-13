@@ -2911,10 +2911,10 @@ function renderMatches() {
   let html = `
     <div class="section-header">
       <span class="section-title">⚽ Partidos</span>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" style="font-size:0.75em;">❓ ¿Cómo predecir?</button>
-        <button class="btn btn-ghost btn-sm" onclick="openStandings()" style="font-size:0.75em;">📊 Tablas</button>
-        <button class="btn btn-ghost btn-sm" onclick="doSync()">🔄 Sync</button>
+      <div style="display:flex;gap:4px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" title="¿Cómo predecir?" style="padding:5px 8px;font-size:0.85em;">❓</button>
+        <button class="btn btn-ghost btn-sm" onclick="openStandings()" title="Tablas de posiciones" style="padding:5px 8px;font-size:0.85em;">📊</button>
+        <button class="btn btn-ghost btn-sm" onclick="doSync()" title="Sincronizar" style="padding:5px 8px;font-size:0.85em;">🔄</button>
       </div>
     </div>`;
 
@@ -4967,7 +4967,6 @@ function renderAdmin() {
       <button class="admin-btn full" onclick="adminSync()">🔄 Sincronizar Partidos Ahora</button>
       <button class="admin-btn full danger" onclick="adminReset()">🗑️ Borrar Datos</button>
       <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">🧹 Limpiar Duplicados</button>
-      <button class="admin-btn full" onclick="migrateMatchIds()" style="background:rgba(61,158,255,0.15);color:var(--blue);">🔢 Migrar matchId a String</button>
       <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">🌍 Evaluar Mundial</button>
       <button class="admin-btn full warn" onclick="cleanOldPreds()">🗑️ Limpiar Predicciones Antiguas</button>
       <button class="admin-btn full danger" onclick="nukeAllPreds()">💣 Borrar TODO (Disolver Grupo)</button>
