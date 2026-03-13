@@ -1176,7 +1176,7 @@ body::before {
               </select>
             </div>
           </div>
-          <button class="btn btn-primary" style="margin-top:12px;" onclick="saveMundialConfig()">💾 Guardar Configuración</button>
+          <button class="btn btn-primary" style="margin-top:12px;" onclick="saveMundialConfig()" id="btnSaveConfig">💾 Guardar Configuración</button>
         </div>
       </div>
 
@@ -1476,6 +1476,31 @@ const LANGS = {
     cleanOld:'🗑️ Limpiar Predicciones Antiguas', nukeAll:'💣 Borrar TODO (Disolver Grupo)',
     selectAction:'Selecciona una acción...',
     greeting:'Bienvenido',
+    groupsLabel:'Grupos:',
+    setZeroAll:'🔮 Poner 0-0 a todos',
+    saveBtn:'💾 Guardar',
+    zeroBetWarning:'💡 Si no predices antes del inicio, se guarda 0-0 automáticamente',
+    vsLabel:'vs',
+    lockedPreds:'Disponible cuando empiece el primer partido',
+    lockedPredsSmall:'Las predicciones de otros jugadores son visibles una vez iniciados los juegos',
+    myGroups:'👥 Mis Grupos',
+    leaguesTab:'🏆 Ligas',
+    viewStandingsBtn:'📊 Ver Tablas de Posiciones',
+    playersCount:'jugadores',
+    codeLabel:'Código',
+    noGroups:'Sin grupos todavía.',
+    noGroupsHint:'Toca un grupo en el cintillo de Partidos para unirte.',
+    simLoadingGroups:'Cargando grupos...',
+    simAllMatches:'Todos los de hoy',
+    simScenarios:'⚡ Escenarios Rápidos',
+    simMyExact:'🎯 Mi exacto', simMyResult:'✅ Mi resultado',
+    simLeaderExact:'🥇 Exacto del líder', simNobody:'❌ Nadie acierta',
+    simRandom:'🎲 Aleatorio', simClear:'🗑️ Limpiar',
+    simRun:'🚀 Ejecutar Simulación',
+    simFakeBoard:'📊 Pizarra Ficticia',
+    simNewSim:'🔄 Nueva Simulación',
+    saveConfig:'💾 Guardar Configuración',
+    selectNation:'Selecciona una selección...',
     mundialDesc:'48 selecciones · 104 partidos · USA/MX/CA',
     mundialChamp:'🥇 Campeón', mundialRunner:'🥈 Subcampeón',
     mundialThird:'🥉 Tercer lugar', mundialScorer:'⚽ Goleador',
@@ -1542,6 +1567,31 @@ const LANGS = {
     cleanOld:'🗑️ Clean Old Predictions', nukeAll:'💣 Delete ALL (Dissolve Group)',
     selectAction:'Select an action...',
     greeting:'Welcome',
+    groupsLabel:'Groups:',
+    setZeroAll:'🔮 Set all to 0-0',
+    saveBtn:'💾 Save',
+    zeroBetWarning:'💡 If you don\'t predict before kick-off, 0-0 is saved automatically',
+    vsLabel:'vs',
+    lockedPreds:'Available when the first match starts',
+    lockedPredsSmall:'Other players\' predictions are visible once matches have started',
+    myGroups:'👥 My Groups',
+    leaguesTab:'🏆 Leagues',
+    viewStandingsBtn:'📊 View Tables',
+    playersCount:'players',
+    codeLabel:'Code',
+    noGroups:'No groups yet.',
+    noGroupsHint:'Tap a group in the Matches strip to join.',
+    simLoadingGroups:'Loading groups...',
+    simAllMatches:'All today\'s matches',
+    simScenarios:'⚡ Quick Scenarios',
+    simMyExact:'🎯 My exact', simMyResult:'✅ My result',
+    simLeaderExact:'🥇 Leader\'s exact', simNobody:'❌ Nobody scores',
+    simRandom:'🎲 Random', simClear:'🗑️ Clear',
+    simRun:'🚀 Run Simulation',
+    simFakeBoard:'📊 Fictional Board',
+    simNewSim:'🔄 New Simulation',
+    saveConfig:'💾 Save Configuration',
+    selectNation:'Select a team...',
     mundialDesc:'48 teams · 104 matches · USA/MX/CA',
     mundialChamp:'🥇 Champion', mundialRunner:'🥈 Runner-up',
     mundialThird:'🥉 Third place', mundialScorer:'⚽ Top Scorer',
@@ -1608,6 +1658,30 @@ const LANGS = {
     cleanOld:'🗑️ Alte Tipps löschen', nukeAll:'💣 ALLES löschen (Gruppe auflösen)',
     selectAction:'Aktion auswählen...',
     greeting:'Willkommen',
+    groupsLabel:'Gruppen:',
+    setZeroAll:'🔮 Alle auf 0-0 setzen',
+    saveBtn:'💾 Speichern',
+    zeroBetWarning:'💡 Wenn du vor dem Anstoß nicht tippst, wird automatisch 0-0 gespeichert',
+    vsLabel:'gegen',
+    lockedPredsSmall:'Tipps anderer Spieler sind sichtbar, sobald die Spiele begonnen haben',
+    myGroups:'👥 Meine Gruppen',
+    leaguesTab:'🏆 Ligen',
+    viewStandingsBtn:'📊 Tabellen anzeigen',
+    playersCount:'Spieler',
+    codeLabel:'Code',
+    noGroups:'Noch keine Gruppen.',
+    noGroupsHint:'Tippe auf eine Gruppe im Partidos-Streifen, um beizutreten.',
+    simLoadingGroups:'Gruppen werden geladen...',
+    simAllMatches:'Alle heutigen Spiele',
+    simScenarios:'⚡ Schnell-Szenarien',
+    simMyExact:'🎯 Mein Exakt', simMyResult:'✅ Mein Ergebnis',
+    simLeaderExact:'🥇 Führender exakt', simNobody:'❌ Niemand trifft',
+    simRandom:'🎲 Zufällig', simClear:'🗑️ Leeren',
+    simRun:'🚀 Simulation starten',
+    simFakeBoard:'📊 Fiktive Tabelle',
+    simNewSim:'🔄 Neue Simulation',
+    saveConfig:'💾 Konfiguration speichern',
+    selectNation:'Mannschaft auswählen...',
     mundialDesc:'48 Mannschaften · 104 Spiele · USA/MX/CA',
     mundialChamp:'🥇 Weltmeister', mundialRunner:'🥈 Vize-Weltmeister',
     mundialThird:'🥉 Dritter Platz', mundialScorer:'⚽ Torschützenkönig',
@@ -1661,10 +1735,18 @@ function setLang(lang) {
     'lbl-mundialWhoRunner': 'mundialWhoRunner',
     'lbl-mundialWhoThird': 'mundialWhoThird',
     'lbl-mundialWhoScorer': 'mundialWhoScorer',
+    'btnSaveConfig': 'saveConfig',
   };
   Object.entries(domLabels).forEach(([id,key])=>{
     const el = document.getElementById(id);
     if(el) el.textContent = t(key);
+  });
+  // Actualizar primera opción vacía de los selects del Mundial
+  ['mCampeon','mSubcampeon','mTercero'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (sel && sel.options[0] && sel.options[0].value === '') {
+      sel.options[0].text = t('selectNation');
+    }
   });
 }
 
@@ -2070,7 +2152,7 @@ function _askAdminCronAdjust(matchId, home, away) {
   modal.innerHTML = `
     <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
       <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Ajustar cronómetro</div>
-      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${home} vs ${away}</div>
+      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${home} ${t('vsLabel')} ${away}</div>
       <div style="color:var(--muted2);font-size:0.82em;margin-bottom:10px;">Offset actual: <strong id="_cronOffsetLbl" style="color:var(--gold)">${cur>0?'+':''}${cur} min</strong></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
         ${[-10,-5,-3,-1,1,3,5,10].map(v=>`<button onclick="_setCronOffset('${matchId}',${v*60})" style="flex:1;min-width:52px;padding:8px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};color:${v<0?'var(--red)':'var(--green)'};border:1px solid ${v<0?'var(--red)':'var(--green)'}">${v>0?'+':''}${v}m</button>`).join('')}
@@ -2103,7 +2185,7 @@ function _askAdminExtraTime(m) {
   modal.innerHTML = `
     <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
       <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Tiempo añadido</div>
-      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${m.home} vs ${m.away}</div>
+      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${m.home} ${t('vsLabel')} ${m.away}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
         ${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button onclick="_setAdminExtra('${m.id}',${v})" style="flex:1;min-width:44px;padding:9px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.9em;font-weight:800;background:rgba(245,197,66,0.12);color:var(--gold);border:1px solid var(--gold);">+${v}</button>`).join('')}
       </div>
@@ -2861,7 +2943,7 @@ async function _loadPublicGroupsStrip() {
         </button>`;
       }
     });
-    strip.innerHTML = `<span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;white-space:nowrap;">Grupos:</span>` + extra;
+    strip.innerHTML = `<span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;white-space:nowrap;">${t('groupsLabel')}</span>` + extra;
   } catch(e) {}
 }
 
@@ -2983,7 +3065,7 @@ function renderMatches() {
   // Siempre se cargan todos los grupos públicos — los propios como chips activos,
   // los ajenos con "+" para unirse con 1 tap
   html += `<div id="publicGroupsStrip" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:4px;scrollbar-width:none;">
-    <span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">Grupos:</span>
+    <span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">${t('groupsLabel')}</span>
   </div>`;
 
   // ── Banner de bienvenida si el jugador no está en ningún grupo ──
@@ -3027,7 +3109,7 @@ function renderMatches() {
     html += `<div class="countdown-banner">
       <div>
         <div class="countdown-label">⏰ Cierre en: <strong style="color:var(--red);">${countdown}</strong></div>
-        <div class="countdown-match" style="font-size:0.82em;margin-top:2px;">${nextClose.home} vs ${nextClose.away}</div>
+        <div class="countdown-match" style="font-size:0.82em;margin-top:2px;">${nextClose.home} ${t('vsLabel')} ${nextClose.away}</div>
       </div>
       <div class="countdown-status">${vzTime(nextClose.time)}</div>
     </div>`;
@@ -3047,14 +3129,14 @@ function renderMatches() {
       html += `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
           <button class="btn btn-ghost" onclick="setDefaultPreds()" style="font-size:0.82em;">
-            🔮 Poner 0-0 a todos
+            ${t('setZeroAll')}
           </button>
           <button class="btn btn-primary" onclick="savePreds()">
-            💾 Guardar
+            ${t('saveBtn')}
           </button>
         </div>
         <div style="font-size:0.7em;color:var(--muted2);text-align:center;margin-top:6px;">
-          💡 Si no predices antes del inicio, se guarda 0-0 automáticamente
+          ${t('zeroBetWarning')}
         </div>`;
     }
   }
@@ -4054,7 +4136,7 @@ async function savePreds() {
         const btn = document.createElement('button');
         btn.className = 'btn btn-ghost';
         btn.style.marginBottom = '8px';
-        btn.innerHTML = `👥 ${g.name} <span style="color:var(--muted2);font-size:0.8em;">· ${g.members?.length||0} jugadores</span>`;
+        btn.innerHTML = `👥 ${g.name} <span style="color:var(--muted2);font-size:0.8em;">· ${g.members?.length||0} ${t('players')}</span>`;
         btn.onclick = async () => {
           closeModal('grpPickModal');
           // Join the group first
@@ -4091,7 +4173,7 @@ async function savePreds() {
       const btn = document.createElement('button');
       btn.className = 'btn btn-ghost';
       btn.style.marginBottom = '8px';
-      btn.innerHTML = `👥 ${g.name} <span style="color:var(--muted2);font-size:0.8em;">· ${g.members?.length||0} jugadores</span>`;
+      btn.innerHTML = `👥 ${g.name} <span style="color:var(--muted2);font-size:0.8em;">· ${g.members?.length||0} ${t('players')}</span>`;
       btn.onclick = async()=>{ closeModal('grpPickModal'); await doSavePreds(preds,jDate,g); };
       list.appendChild(btn);
     });
@@ -4177,8 +4259,8 @@ async function renderPreds() {
   if (!canSearch) {
     html += `<div class="locked-box">
       <span class="lock-icon">🔒</span>
-      <p>Disponible cuando empiece el primer partido</p>
-      <small>Las predicciones de otros jugadores son visibles una vez iniciados los juegos</small>
+      <p>${t('lockedPreds')}</p>
+      <small>${t('lockedPredsSmall')}</small>
     </div>`;
   } else {
     html += `<div class="card" style="margin-bottom:14px;">
@@ -4219,7 +4301,7 @@ async function renderPreds() {
           <div class="pred-item">
             <div>
               <div class="pred-match-name">${p.home}</div>
-              <div class="pred-match-sub">vs ${p.away}</div>
+              <div class="pred-match-sub">${t('vsLabel')} ${p.away}</div>
             </div>
             <div class="pred-score-box">${p.predictedHomeScore}—${p.predictedAwayScore}</div>
             ${hasReal?`<div class="pred-real-box">Real<span class="pred-real-score">${match.homeScore}—${match.awayScore}</span></div>`:'<div></div>'}
@@ -4323,7 +4405,7 @@ async function searchPreds() {
           <div style="display:flex;justify-content:space-between;align-items:center;
             padding:7px 0;border-bottom:1px solid var(--border);font-size:0.82em;">
             <span style="color:${isDefault?'var(--muted2)':'var(--text)'};">
-              ${p.home} vs ${p.away}
+              ${p.home} ${t('vsLabel')} ${p.away}
               ${isDefault ? '<span style="font-size:0.7em;color:var(--muted);"> (auto)</span>' : ''}
             </span>
             <span style="font-family:var(--font-h);color:${isDefault?'var(--muted2)':'var(--primary2)'};">
@@ -4358,7 +4440,7 @@ function initChat() {
     </div>
     <div class="chat-input-bar" id="chatBar">
       <input type="text" class="chat-input" id="chatInput"
-        placeholder="Escribe un mensaje..."
+        placeholder="${t('writeMsg')}"
         autocomplete="off" autocorrect="off"
         onkeydown="if(event.key==='Enter'){event.preventDefault();sendChat();}"
       />
@@ -4434,9 +4516,9 @@ async function sendChat() {
 // ═══════════════════════════════════════════
 function renderTournaments() {
   const el = $('screenTournaments');
-  let html = `<div class="section-header"><span class="section-title">🏆 Torneos</span></div>
+  let html = `<div class="section-header"><span class="section-title">${t('secTournaments')}</span></div>
     <button class="btn btn-ghost" style="width:100%;margin-bottom:12px;" onclick="openStandings()">
-      📊 Ver Tablas de Posiciones
+      ${t('viewStandingsBtn')}
     </button>
     <div class="card-glow" style="margin-bottom:14px;cursor:pointer;" onclick="openMundialModal()">
       <div style="display:flex;align-items:center;gap:12px;">
@@ -4503,13 +4585,13 @@ async function renderGroups() {
       style="flex:1;padding:9px;border-radius:var(--r-sm);border:1px solid var(--primary);
       background:rgba(108,71,255,0.2);color:var(--primary2);
       font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;">
-      👥 Mis Grupos
+      👥 ${t('myGroups').replace('👥 ','')}
     </button>
     <button id="grpTab-ligas" onclick="switchGrpTab('ligas')"
       style="flex:1;padding:9px;border-radius:var(--r-sm);border:1px solid var(--border2);
       background:var(--surface2);color:var(--muted2);
       font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;">
-      🏆 Ligas
+      🏆 ${t('leaguesTab').replace('🏆 ','')}
     </button>
   </div>
   <div id="grpPanel-grupos"></div>
@@ -4522,7 +4604,7 @@ async function renderGroups() {
   try {
     const snap = await db.collection('groups').get();
     let grpHtml = '';
-    if(me.isAdmin) grpHtml+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">👑 Admin — ves todos los grupos</div>`;
+    if(me.isAdmin) grpHtml+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">${t('adminSeeAll')}</div>`;
 
     let found=0;
     snap.docs.forEach(doc=>{
@@ -4534,22 +4616,22 @@ async function renderGroups() {
         <div class="group-card-header">
           <div>
             <div class="group-name">${g.name} ${isMine?'👑':''}</div>
-            <div class="group-meta">👥 ${g.members?.length||0}/${g.maxMembers} jugadores</div>
+            <div class="group-meta">👥 ${g.members?.length||0}/${g.maxMembers} ${t('playersCount')}</div>
           </div>
           <div class="group-code">
-            <span class="group-code-label">Código</span>
+            <span class="group-code-label">${t('codeLabel')}</span>
             <span class="group-code-val">${g.code}</span>
           </div>
         </div>
         <div class="group-actions">
           ${me.isAdmin?`<button class="btn-del" onclick="deleteGroup('${doc.id}','${g.name}')">🗑️</button>`:''}
-          <button class="btn-rank" onclick="openGroupRanking('${doc.id}')">🏆 Ver Clasificación</button>
+          <button class="btn-rank" onclick="openGroupRanking('${doc.id}')">${t('viewRanking')}</button>
           <button class="btn-wa" onclick="shareGroup('${g.code}','${g.name}')">📲</button>
         </div>
       </div>`;
     });
 
-    if(!found) grpHtml+=`<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">Sin grupos todavía.<br><small style="color:var(--muted2);">Toca un grupo en el cintillo de Partidos para unirte.</small></span></div>`;
+    if(!found) grpHtml+=`<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">${t('noGroups')}<br><small style="color:var(--muted2);">${t('noGroupsHint')}</small></span></div>`;
     $('grpPanel-grupos').innerHTML = grpHtml;
   } catch(e) {
     $('grpPanel-grupos').innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
@@ -5014,24 +5096,24 @@ async function autoEval() {
 function renderAdmin() {
   const el=$('screenAdmin');
   el.innerHTML=`
-    <div class="section-header"><span class="section-title">⚙️ Admin</span></div>
+    <div class="section-header"><span class="section-title">⚙️ ${t('admin')}</span></div>
     <div class="card-glow" style="margin-bottom:16px;">
-      <div style="font-family:var(--font-h);font-size:0.8em;color:var(--muted2);margin-bottom:4px;">PANEL ADMIN</div>
+      <div style="font-family:var(--font-h);font-size:0.8em;color:var(--muted2);margin-bottom:4px;">${t('adminPanel')}</div>
       <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
     </div>
     <div class="admin-grid">
-      <button class="admin-btn" onclick="adminUsers()">👥<br>Ver Usuarios</button>
-      <button class="admin-btn" onclick="adminEval()">⚡<br>Evaluar Partidos</button>
-      <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>Evaluar Manual</button>
-      <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>Códigos Grupos</button>
-      <button class="admin-btn full" onclick="adminSync()">🔄 Sincronizar Partidos Ahora</button>
-      <button class="admin-btn full danger" onclick="adminReset()">🗑️ Borrar Datos</button>
-      <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">🧹 Limpiar Duplicados</button>
-      <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">🌍 Evaluar Mundial</button>
-      <button class="admin-btn full warn" onclick="cleanOldPreds()">🗑️ Limpiar Predicciones Antiguas</button>
-      <button class="admin-btn full danger" onclick="nukeAllPreds()">💣 Borrar TODO (Disolver Grupo)</button>
+      <button class="admin-btn" onclick="adminUsers()">👥<br>${t('seeUsers')}</button>
+      <button class="admin-btn" onclick="adminEval()">⚡<br>${t('evalMatches')}</button>
+      <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>${t('evalManual')}</button>
+      <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>${t('groupCodes')}</button>
+      <button class="admin-btn full" onclick="adminSync()">${t('syncNow')}</button>
+      <button class="admin-btn full danger" onclick="adminReset()">${t('deleteData')}</button>
+      <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">${t('cleanDups')}</button>
+      <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">${t('evalMundial')}</button>
+      <button class="admin-btn full warn" onclick="cleanOldPreds()">${t('cleanOld')}</button>
+      <button class="admin-btn full danger" onclick="nukeAllPreds()">${t('nukeAll')}</button>
     </div>
-    <div class="admin-output" id="adminOut"><span style="color:var(--muted2);">Selecciona una acción...</span></div>`;
+    <div class="admin-output" id="adminOut"><span style="color:var(--muted2);">${t('selectAction')}</span></div>`;
 }
 
 async function adminUsers() {
@@ -5447,50 +5529,50 @@ function renderSimulator() {
   const el = $('screenSimulator');
   el.innerHTML = `
     <div class="section-header">
-      <span class="section-title">🎮 Simulador</span>
+      <span class="section-title">${t('simTitle')}</span>
     </div>
     <div class="card-glow" style="margin-bottom:14px;">
       <p style="color:var(--muted2);font-size:0.82em;line-height:1.6;">
-        ¿Qué pasaría si...? Pon resultados ficticios y ve cómo quedaría la pizarra de tu grupo. <strong style="color:var(--gold);">No afecta los puntos reales.</strong>
+        ${t('simDesc')}
       </p>
     </div>
 
     <div class="field">
-      <label>👥 Grupo a simular</label>
+      <label>${t('simGroup')}</label>
       <select id="simGroupSel" style="width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.95em;">
-        <option value="">Cargando grupos...</option>
+        <option value="">${t('simLoadingGroups')}</option>
       </select>
     </div>
 
     <div class="field">
-      <label>📅 Partidos a simular</label>
+      <label>${t('simMatches')}</label>
       <select id="simMatchSel" style="width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.95em;">
-        <option value="pending">Solo pendientes (sin resultado)</option>
-        <option value="all">Todos los de hoy</option>
+        <option value="pending">${t('simPending')}</option>
+        <option value="all">${t('simAllMatches')}</option>
       </select>
     </div>
 
-    <button class="btn btn-primary" onclick="loadSimulation()">🔄 Cargar Simulación</button>
+    <button class="btn btn-primary" onclick="loadSimulation()">${t('loadSim')}</button>
 
     <div id="simSetup" class="hidden" style="margin-top:16px;">
-      <div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">⚡ Escenarios Rápidos</div>
+      <div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">${t('simScenarios')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
-        <span class="scenario-chip" onclick="applyScenario('myExact')">🎯 Mi exacto</span>
-        <span class="scenario-chip" onclick="applyScenario('myResult')">✅ Mi resultado</span>
-        <span class="scenario-chip" onclick="applyScenario('leaderExact')">🥇 Exacto del líder</span>
-        <span class="scenario-chip" onclick="applyScenario('nobody')">❌ Nadie acierta</span>
-        <span class="scenario-chip" onclick="applyScenario('random')">🎲 Aleatorio</span>
-        <span class="scenario-chip" onclick="clearSimInputs()">🗑️ Limpiar</span>
+        <span class="scenario-chip" onclick="applyScenario('myExact')">${t('simMyExact')}</span>
+        <span class="scenario-chip" onclick="applyScenario('myResult')">${t('simMyResult')}</span>
+        <span class="scenario-chip" onclick="applyScenario('leaderExact')">${t('simLeaderExact')}</span>
+        <span class="scenario-chip" onclick="applyScenario('nobody')">${t('simNobody')}</span>
+        <span class="scenario-chip" onclick="applyScenario('random')">${t('simRandom')}</span>
+        <span class="scenario-chip" onclick="clearSimInputs()">${t('simClear')}</span>
       </div>
       <div id="simMatchesList"></div>
-      <button class="btn btn-green" onclick="runSimulation()" style="margin-top:8px;">🚀 Ejecutar Simulación</button>
+      <button class="btn btn-green" onclick="runSimulation()" style="margin-top:8px;">${t('simRun')}</button>
     </div>
 
     <div id="simResults" class="hidden" style="margin-top:16px;">
       <div id="simAnalysis" class="sim-analysis" style="margin-bottom:14px;"></div>
-      <div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">📊 Pizarra Ficticia</div>
+      <div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">${t('simFakeBoard')}</div>
       <div id="simRanking"></div>
-      <button class="btn btn-ghost" onclick="resetSimulation()" style="margin-top:12px;">🔄 Nueva Simulación</button>
+      <button class="btn btn-ghost" onclick="resetSimulation()" style="margin-top:12px;">${t('simNewSim')}</button>
     </div>`;
 
   // Load groups into selector
@@ -5830,7 +5912,7 @@ function displaySimResults(players, fictResults) {
   fictResults.forEach(fr=>{
     const rr = fr.homeScore===fr.awayScore?'empate':fr.homeScore>fr.awayScore?fr.home:fr.away;
     html+=`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
-      <span style="color:var(--muted2);">${fr.home} vs ${fr.away}</span>
+      <span style="color:var(--muted2);">${fr.home} ${t('vsLabel')} ${fr.away}</span>
       <span style="font-family:var(--font-h);color:var(--primary2);">${fr.homeScore}—${fr.awayScore}</span>
     </div>`;
   });
@@ -6058,7 +6140,7 @@ let mundialConfig = { campeon:8, sub:6, tercero:3, goleador:5 };
 
 async function openBetStats(matchId, home, away) {
   openModal('betStatsModal');
-  $('betStatsTitle').textContent = `🎯 ${home} vs ${away}`;
+  $('betStatsTitle').textContent = `🎯 ${home} ${t('vsLabel')} ${away}`;
   const el = $('betStatsContent');
   el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
 
@@ -7082,4 +7164,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-     </html>
+</html>
