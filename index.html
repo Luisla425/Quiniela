@@ -1904,6 +1904,74 @@ function inviteToApp() {
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
+// ── Admin: ajustar cronómetro ──────────────────────────────
+function _askAdminCronAdjust(matchId, home, away) {
+  if (!me?.isAdmin) return;
+  const ex = document.getElementById('_cronAdjModal'); if (ex) ex.remove();
+  const modal = document.createElement('div');
+  modal.id = '_cronAdjModal';
+  modal.className = 'modal-overlay';
+  modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
+  const cur = Math.round((window._adminCronOffset[matchId] || 0) / 60);
+  modal.innerHTML = `
+    <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Ajustar cronómetro</div>
+      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${home} vs ${away}</div>
+      <div style="color:var(--muted2);font-size:0.82em;margin-bottom:10px;">Offset actual: <strong style="color:var(--gold)">${cur > 0 ? '+' : ''}${cur} min</strong></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        ${[-10,-5,-3,-1,1,3,5,10].map(v=>`<button onclick="_setCronOffset('${matchId}',${v*60})" style="flex:1;min-width:52px;padding:8px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};color:${v<0?'var(--red)':'var(--green)'};border:1px solid ${v<0?'var(--red)':'var(--green)'};">${v>0?'+':''}${v}m</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="_setCronOffset('${matchId}',0,'reset')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">↺ Reset</button>
+        <button onclick="document.getElementById('_cronAdjModal').remove()" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">✅ OK</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+function _setCronOffset(matchId, deltaSec, mode) {
+  window._adminCronOffset = window._adminCronOffset || {};
+  if (mode === 'reset') {
+    window._adminCronOffset[matchId] = 0;
+  } else {
+    window._adminCronOffset[matchId] = (window._adminCronOffset[matchId] || 0) + deltaSec;
+  }
+  const cur = Math.round((window._adminCronOffset[matchId] || 0) / 60);
+  const el = document.querySelector('#_cronAdjModal strong');
+  if (el) el.textContent = `${cur > 0 ? '+' : ''}${cur} min`;
+  toast(`⏱ Offset: ${cur > 0 ? '+' : ''}${cur} min`, 'info', 1500);
+}
+
+// ── Admin: tiempo añadido / prórroga ──────────────────────
+function _askAdminExtraTime(m) {
+  if (!me?.isAdmin) return;
+  const ex = document.getElementById('_extraTimeModal'); if (ex) ex.remove();
+  const modal = document.createElement('div');
+  modal.id = '_extraTimeModal';
+  modal.className = 'modal-overlay';
+  modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
+  modal.innerHTML = `
+    <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Tiempo añadido</div>
+      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${m.home} vs ${m.away}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button onclick="_setAdminExtra('${m.id}',${v})" style="flex:1;min-width:44px;padding:9px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.9em;font-weight:800;background:rgba(245,197,66,0.12);color:var(--gold);border:1px solid var(--gold);">+${v}</button>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="_setAdminExtra('${m.id}','?')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">+? (no sé)</button>
+        <button onclick="document.getElementById('_extraTimeModal').remove()" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">Cancelar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+function _setAdminExtra(matchId, val) {
+  window._adminExtraTime = window._adminExtraTime || {};
+  window._adminExtraTime[matchId] = val;
+  document.getElementById('_extraTimeModal')?.remove();
+  toast(`⏱ Tiempo añadido: +${val} min`, 'success', 2000);
+}
+
 // Generate unique color per user based on their username
 function userColor(username) {
   const colors = [
@@ -2229,36 +2297,83 @@ async function enterApp() {
   }
   scheduleNextSync();
 
-  // ── Minuto en vivo — actualiza el badge localmente cada 60s (0 llamadas API) ──
+  // ── Globals admin ─────────────────────────────────────────
+  window._adminCronOffset = window._adminCronOffset || {}; // { matchId: seconds }
+  window._adminExtraTime  = window._adminExtraTime  || {}; // { matchId: minutes }
+  window._adminExtraAsked = window._adminExtraAsked || {}; // { matchId: true }
+
+  // ── Cronómetro en vivo — 1s, sin API ──────────────────────
   setInterval(() => {
     _dM.forEach(m => {
       if (!isLive(m.status)) return;
       const badge = document.getElementById(`badge_${m.id}`);
       if (!badge) return;
-      let min = '';
-      if (m.date && m.time) {
-        try {
-          const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
-          const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
-          if (elapsed >= 0 && elapsed <= 150) {
-            if (m.status === 'HT') {
-              min = 'DT';
-            } else if (elapsed <= 47) {
-              min = elapsed <= 45 ? elapsed : `45+${elapsed - 45}`;
-            } else if (elapsed <= 62) {
-              min = 'DT';
-            } else {
-              const secondHalf = elapsed - 62;
-              const min2 = secondHalf + 45;
-              min = min2 <= 90 ? min2 : `90+${min2 - 90}`;
+
+      const st = (m.status || '').toUpperCase();
+      const adminOffset = (window._adminCronOffset[m.id] || 0); // segundos
+
+      // Estados fijos
+      if (st === 'HT') { badge.textContent = `⏸ Descanso`; return; }
+      if (st === 'P')  { badge.textContent = `⚡ Penales`;  return; }
+      if (st === 'BT') { badge.textContent = `⏸ Desc. Prórroga`; return; }
+
+      if (!m.date || !m.time) { badge.textContent = `🔴 En Vivo`; return; }
+
+      try {
+        const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+        const totalSec = Math.max(0, Math.floor((Date.now() - kickoff.getTime()) / 1000)) + adminOffset;
+        const totalMin = Math.floor(totalSec / 60);
+        const ss = String(totalSec % 60).padStart(2,'0');
+
+        let display = '';
+        if (st === 'ET') {
+          // Prórroga
+          const etMin = Math.max(0, totalMin - 90);
+          const cap   = 105;
+          if (totalMin < cap) {
+            display = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
+          } else {
+            const extra = window._adminExtraTime[m.id] ?? m.intExtraTime ?? null;
+            const extraLabel = extra ? `+${extra}` : '+?';
+            const overMin = totalMin - cap;
+            display = `🔴 ${cap}:00 <small>${extraLabel} | ${String(overMin).padStart(2,'0')}:${ss}</small>`;
+            // Auto-preguntar al admin a los 8+ minutos de prórroga
+            if (overMin >= 8 && me?.isAdmin && !window._adminExtraAsked[m.id]) {
+              window._adminExtraAsked[m.id] = true;
+              setTimeout(() => _askAdminExtraTime(m), 300);
             }
           }
-        } catch(e) {}
-      }
-      const statusTxt = statusLabel(m.status);
-      badge.textContent = `🔴 ${statusTxt}${min ? ' · ' + min + "'" : ''}`;
+        } else if (totalMin <= 47) {
+          // 1er tiempo
+          const cap = 45;
+          if (totalMin <= cap) {
+            display = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
+          } else {
+            display = `🔴 ${cap}:00 <small>+${totalMin-cap}:${ss}</small>`;
+          }
+        } else if (totalMin <= 62) {
+          display = `⏸ Descanso`;
+        } else {
+          // 2do tiempo
+          const t2 = totalMin - 62 + 45;
+          const cap = 90;
+          if (t2 <= cap) {
+            display = `🔴 ${String(t2).padStart(2,'0')}:${ss}`;
+          } else {
+            const extra = window._adminExtraTime[m.id] ?? m.intExtraTime ?? null;
+            const extraLabel = extra ? `+${extra}` : '+?';
+            const overMin = t2 - cap;
+            display = `🔴 ${cap}:00 <small>${extraLabel} | ${String(overMin).padStart(2,'0')}:${ss}</small>`;
+            if (overMin >= 8 && me?.isAdmin && !window._adminExtraAsked[m.id]) {
+              window._adminExtraAsked[m.id] = true;
+              setTimeout(() => _askAdminExtraTime(m), 300);
+            }
+          }
+        }
+        badge.innerHTML = display;
+      } catch(e) {}
     });
-  }, 60000);
+  }, 1000);
 }
 
 // ═══════════════════════════════════════════
@@ -2791,7 +2906,11 @@ function buildMatchCard(m, closed) {
   const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
-  const statsBtn = showScore ? `<button onclick="openStats('${m.id}')" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>` : '';
+  const statsBtn = showScore ? `
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="openStats('${m.id}')" style="flex:1;padding:12px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
+      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${escapeHtml(m.home)}','${escapeHtml(m.away)}')" style="padding:12px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
+    </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
