@@ -910,7 +910,7 @@ body::before {
       <input type="password" id="regPass" placeholder="Mínimo 6 caracteres">
     </div>
     <div class="field">
-      <label>Código de invitación (opcional)</label>
+      <label id="lbl-inviteCodeOpt">Código de invitación (opcional)</label>
       <input type="text" id="regInvite" placeholder="ABC123" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
     </div>
     <button class="btn btn-primary" onclick="doRegister()">Crear cuenta →</button>
@@ -1144,7 +1144,7 @@ body::before {
           <div style="font-weight:800;font-size:0.82em;color:var(--primary2);margin-bottom:10px;">⚙️ CONFIGURAR PUNTOS (Admin)</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div class="field" style="margin:0;">
-              <label>🥇 Campeón (pts)</label>
+              <label id="lbl-mundialPtsChamp">🥇 Campeón (pts)</label>
               <select id="mPtsCampeon" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
                 <option value="5">5 pts</option><option value="6">6 pts</option>
                 <option value="7">7 pts</option><option value="8" selected>8 pts</option>
@@ -1152,7 +1152,7 @@ body::before {
               </select>
             </div>
             <div class="field" style="margin:0;">
-              <label>🥈 Subcampeón (pts)</label>
+              <label id="lbl-mundialPtsRunner">🥈 Subcampeón (pts)</label>
               <select id="mPtsSub" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
                 <option value="4">4 pts</option><option value="5">5 pts</option>
                 <option value="6" selected>6 pts</option><option value="7">7 pts</option>
@@ -1160,7 +1160,7 @@ body::before {
               </select>
             </div>
             <div class="field" style="margin:0;">
-              <label>🥉 Tercer Lugar (pts)</label>
+              <label id="lbl-mundialPtsThird">🥉 Tercer Lugar (pts)</label>
               <select id="mPtsTercero" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
                 <option value="1">1 pt</option><option value="2">2 pts</option>
                 <option value="3" selected>3 pts</option><option value="4">4 pts</option>
@@ -1168,7 +1168,7 @@ body::before {
               </select>
             </div>
             <div class="field" style="margin:0;">
-              <label>⚽ Goleador (pts)</label>
+              <label id="lbl-mundialPtsScorer">⚽ Goleador (pts)</label>
               <select id="mPtsGoleador" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
                 <option value="1">1 pt</option><option value="3">3 pts</option>
                 <option value="5" selected>5 pts</option><option value="7">7 pts</option>
@@ -1183,28 +1183,28 @@ body::before {
       <!-- Player predictions -->
       <div id="mundialPredForm">
         <div class="field">
-          <label>🥇 ¿Quién será el Campeón?</label>
+          <label id="lbl-mundialWhoChamp">🥇 ¿Quién será el Campeón?</label>
           <select id="mCampeon" style="width:100%;padding:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.9em;">
             <option value="">Selecciona una selección...</option>
           </select>
           <div id="mPtsCampeonLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="field">
-          <label>🥈 ¿Quién será el Subcampeón?</label>
+          <label id="lbl-mundialWhoRunner">🥈 ¿Quién será el Subcampeón?</label>
           <select id="mSubcampeon" style="width:100%;padding:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.9em;">
             <option value="">Selecciona una selección...</option>
           </select>
           <div id="mPtsSubLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="field">
-          <label>🥉 ¿Quién quedará Tercero?</label>
+          <label id="lbl-mundialWhoThird">🥉 ¿Quién quedará Tercero?</label>
           <select id="mTercero" style="width:100%;padding:13px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);font-family:var(--font-b);font-size:0.9em;">
             <option value="">Selecciona una selección...</option>
           </select>
           <div id="mPtsTerceroLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
         </div>
         <div class="field">
-          <label>⚽ ¿Quién será el Goleador del Torneo?</label>
+          <label id="lbl-mundialWhoScorer">⚽ ¿Quién será el Goleador del Torneo?</label>
           <input type="text" id="mGoleador" placeholder="Ej: Kylian Mbappé" style="text-transform:capitalize;">
           <div id="mPtsGoleadorLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
         </div>
@@ -1425,7 +1425,8 @@ const LANGS = {
     groups:'Grupos', simulate:'Simular', admin:'Admin',
     login:'Entrar →', register:'Crear cuenta →', logging:'⏳ Entrando...', registering:'⏳ Registrando...',
     phone:'Teléfono', password:'Contraseña', name:'Nombre completo', alias:'Alias (máx 8 letras)',
-    inviteCode:'Código de invitación', joinGroup:'Unirse a un Grupo',
+    inviteCode:'Código de invitación', inviteCodeOpt:'Código de invitación (opcional)',
+    joinGroup:'Unirse a un Grupo',
     createGroup:'Crear Grupo', groupName:'Nombre del grupo', maxPlayers:'Máximo de jugadores',
     groupTournaments:'Ligas de esta quiniela', createBtn:'🎉 Crear Grupo',
     joinBtn:'✅ Unirme al Grupo', cancel:'Cancelar',
@@ -1438,6 +1439,7 @@ const LANGS = {
     goalsEach:'¿Cuántos goles para cada equipo?',
     goalsWinner:'Goles del ganador', goalsLoser:'Goles del perdedor',
     skip:'Saltar ⏭', skipMatch:'⏭ Saltar partido',
+    predictMatch:'⚡ Predecir este partido',
     sendMsg:'Enviar', typeMsg:'Escribe aquí...',
     theme:'Tema', language:'Idioma', myStats:'📊 Mis Stats',
     viewOthers:'🔍 Ver predicciones de otros jugadores', search:'🔍 Buscar',
@@ -1450,11 +1452,14 @@ const LANGS = {
     secTournaments:'🏆 Torneos', secGroups:'👥 Grupos',
     secSimulator:'🎮 Simulador', secAdmin:'⚙️ Admin',
     yourPreds:'📋 Tus Predicciones',
+    viewMyPreds:'📋 Ver mis predicciones',
     viewOthersPreds:'🔍 Ver predicciones de otros jugadores',
     searchUser:'Buscar usuario...',
+    player1:'Jugador 1', player2:'Jugador 2', player3:'Jugador 3',
+    player4:'Jugador 4', player5opt:'Jugador 5 (opcional)',
     chatTitle:'💬 Chat LuAn', writeMsg:'Escribe aquí...',
     viewStandings:'📊 Ver Tablas de Posiciones',
-    selectLeagues:'Selecciona las ligas para predecir:',
+    selectLeagues:'Selecciona las ligas para las que quieres predecir:',
     saveSelection:'💾 Guardar selección',
     adminSeeAll:'👑 Admin — ves todos los grupos',
     joinCode:'Código', players:'jugadores',
@@ -1470,13 +1475,24 @@ const LANGS = {
     migrateIds:'🔢 Migrar matchId a String', evalMundial:'🌍 Evaluar Mundial',
     cleanOld:'🗑️ Limpiar Predicciones Antiguas', nukeAll:'💣 Borrar TODO (Disolver Grupo)',
     selectAction:'Selecciona una acción...',
+    greeting:'Bienvenido',
+    mundialDesc:'48 selecciones · 104 partidos · USA/MX/CA',
+    mundialChamp:'🥇 Campeón', mundialRunner:'🥈 Subcampeón',
+    mundialThird:'🥉 Tercer lugar', mundialScorer:'⚽ Goleador',
+    mundialWhoChamp:'🥇 ¿Quién será el Campeón?',
+    mundialWhoRunner:'🥈 ¿Quién será el Subcampeón?',
+    mundialWhoThird:'🥉 ¿Quién será el Tercer Lugar?',
+    mundialWhoScorer:'⚽ ¿Quién será el Goleador del Torneo?',
+    mundialPtsChamp:'🥇 Campeón (pts)', mundialPtsRunner:'🥈 Subcampeón (pts)',
+    mundialPtsScorer:'⚽ Goleador (pts)',
   },
   en:{
     matches:'Matches', predict:'Predict', chat:'Chat', tournaments:'Leagues',
     groups:'Groups', simulate:'Simulate', admin:'Admin',
     login:'Sign In →', register:'Create account →', logging:'⏳ Signing in...', registering:'⏳ Creating account...',
     phone:'Phone number', password:'Password', name:'Full name', alias:'Username (max 8 chars)',
-    inviteCode:'Invite code', joinGroup:'Join a Group',
+    inviteCode:'Invite code', inviteCodeOpt:'Invite code (optional)',
+    joinGroup:'Join a Group',
     createGroup:'Create Group', groupName:'Group name', maxPlayers:'Maximum players',
     groupTournaments:'Leagues in this pool', createBtn:'🎉 Create Group',
     joinBtn:'✅ Join Group', cancel:'Cancel',
@@ -1489,6 +1505,7 @@ const LANGS = {
     goalsEach:'How many goals for each team?',
     goalsWinner:'Winner goals', goalsLoser:'Loser goals',
     skip:'Skip ⏭', skipMatch:'⏭ Skip match',
+    predictMatch:'⚡ Predict this match',
     sendMsg:'Send', typeMsg:'Type a message...',
     theme:'Theme', language:'Language', myStats:'📊 My Stats',
     viewOthers:"🔍 View other players' predictions", search:'🔍 Search',
@@ -1501,11 +1518,14 @@ const LANGS = {
     secTournaments:'🏆 Leagues', secGroups:'👥 Groups',
     secSimulator:'🎮 Simulator', secAdmin:'⚙️ Admin',
     yourPreds:'📋 Your Predictions',
+    viewMyPreds:'📋 View my predictions',
     viewOthersPreds:"🔍 View other players' predictions",
     searchUser:'Search user...',
+    player1:'Player 1', player2:'Player 2', player3:'Player 3',
+    player4:'Player 4', player5opt:'Player 5 (optional)',
     chatTitle:'💬 LuAn Chat', writeMsg:'Type a message...',
     viewStandings:'📊 View League Tables',
-    selectLeagues:'Select leagues to predict:',
+    selectLeagues:'Select the leagues you want to predict:',
     saveSelection:'💾 Save selection',
     adminSeeAll:'👑 Admin — you see all groups',
     joinCode:'Code', players:'players',
@@ -1521,13 +1541,24 @@ const LANGS = {
     migrateIds:'🔢 Migrate matchId to String', evalMundial:'🌍 Evaluate World Cup',
     cleanOld:'🗑️ Clean Old Predictions', nukeAll:'💣 Delete ALL (Dissolve Group)',
     selectAction:'Select an action...',
+    greeting:'Welcome',
+    mundialDesc:'48 teams · 104 matches · USA/MX/CA',
+    mundialChamp:'🥇 Champion', mundialRunner:'🥈 Runner-up',
+    mundialThird:'🥉 Third place', mundialScorer:'⚽ Top Scorer',
+    mundialWhoChamp:'🥇 Who will be the Champion?',
+    mundialWhoRunner:'🥈 Who will be the Runner-up?',
+    mundialWhoThird:'🥉 Who will finish Third?',
+    mundialWhoScorer:'⚽ Who will be the Top Scorer?',
+    mundialPtsChamp:'🥇 Champion (pts)', mundialPtsRunner:'🥈 Runner-up (pts)',
+    mundialPtsScorer:'⚽ Top Scorer (pts)',
   },
   de:{
     matches:'Spiele', predict:'Tippen', chat:'Chat', tournaments:'Ligen',
     groups:'Gruppen', simulate:'Simulation', admin:'Admin',
     login:'Anmelden →', register:'Konto erstellen →', logging:'⏳ Anmelden...', registering:'⏳ Konto wird erstellt...',
     phone:'Telefonnummer', password:'Passwort', name:'Vollständiger Name', alias:'Benutzername (max 8 Zeichen)',
-    inviteCode:'Einladungscode', joinGroup:'Gruppe beitreten',
+    inviteCode:'Einladungscode', inviteCodeOpt:'Einladungscode (optional)',
+    joinGroup:'Gruppe beitreten',
     createGroup:'Gruppe erstellen', groupName:'Gruppenname', maxPlayers:'Max. Spieleranzahl',
     groupTournaments:'Ligen in diesem Tipp-Spiel', createBtn:'🎉 Gruppe erstellen',
     joinBtn:'✅ Beitreten', cancel:'Abbrechen',
@@ -1540,6 +1571,7 @@ const LANGS = {
     goalsEach:'Wie viele Tore pro Mannschaft?',
     goalsWinner:'Tore des Gewinners', goalsLoser:'Tore des Verlierers',
     skip:'Überspringen ⏭', skipMatch:'⏭ Spiel überspringen',
+    predictMatch:'⚡ Dieses Spiel tippen',
     sendMsg:'Senden', typeMsg:'Nachricht schreiben...',
     theme:'Design', language:'Sprache', myStats:'📊 Meine Stats',
     viewOthers:'🔍 Tipps anderer Spieler anzeigen', search:'🔍 Suchen',
@@ -1552,11 +1584,14 @@ const LANGS = {
     secTournaments:'🏆 Ligen', secGroups:'👥 Gruppen',
     secSimulator:'🎮 Simulation', secAdmin:'⚙️ Admin',
     yourPreds:'📋 Deine Tipps',
+    viewMyPreds:'📋 Meine Tipps ansehen',
     viewOthersPreds:'🔍 Tipps anderer Spieler anzeigen',
     searchUser:'Spieler suchen...',
+    player1:'Spieler 1', player2:'Spieler 2', player3:'Spieler 3',
+    player4:'Spieler 4', player5opt:'Spieler 5 (optional)',
     chatTitle:'💬 LuAn Chat', writeMsg:'Nachricht schreiben...',
     viewStandings:'📊 Tabellen anzeigen',
-    selectLeagues:'Wähle Ligen zum Tippen:',
+    selectLeagues:'Wähle die Ligen aus, für die du tippen möchtest:',
     saveSelection:'💾 Auswahl speichern',
     adminSeeAll:'👑 Admin — du siehst alle Gruppen',
     joinCode:'Code', players:'Spieler',
@@ -1572,6 +1607,16 @@ const LANGS = {
     migrateIds:'🔢 matchId migrieren', evalMundial:'🌍 WM auswerten',
     cleanOld:'🗑️ Alte Tipps löschen', nukeAll:'💣 ALLES löschen (Gruppe auflösen)',
     selectAction:'Aktion auswählen...',
+    greeting:'Willkommen',
+    mundialDesc:'48 Mannschaften · 104 Spiele · USA/MX/CA',
+    mundialChamp:'🥇 Weltmeister', mundialRunner:'🥈 Vize-Weltmeister',
+    mundialThird:'🥉 Dritter Platz', mundialScorer:'⚽ Torschützenkönig',
+    mundialWhoChamp:'🥇 Wer wird Weltmeister?',
+    mundialWhoRunner:'🥈 Wer wird Vize-Weltmeister?',
+    mundialWhoThird:'🥉 Wer wird Dritter?',
+    mundialWhoScorer:'⚽ Wer wird Torschützenkönig?',
+    mundialPtsChamp:'🥇 Weltmeister (Pkt)', mundialPtsRunner:'🥈 Vize (Pkt)',
+    mundialPtsScorer:'⚽ Torschützenkönig (Pkt)',
   }
 };
 
@@ -1601,10 +1646,26 @@ function setLang(lang) {
   if(btn) btn.textContent = flags[lang]||'🌐';
   // Header greeting
   const greet = document.getElementById('hdr-greeting');
-  if(greet) greet.textContent = lang==='de'?'Willkommen':lang==='en'?'Welcome':'Bienvenido';
+  if(greet) greet.textContent = t('greeting');
   // Stats header button text
   const statsHdrBtn = document.getElementById('statsHdrBtn');
   if(statsHdrBtn) statsHdrBtn.textContent = t('myStats');
+  // Static labels traducibles en el DOM
+  const domLabels = {
+    'lbl-inviteCodeOpt'  : 'inviteCodeOpt',
+    'lbl-mundialPtsChamp': 'mundialPtsChamp',
+    'lbl-mundialPtsRunner': 'mundialPtsRunner',
+    'lbl-mundialPtsThird': 'mundialPtsThird',
+    'lbl-mundialPtsScorer': 'mundialPtsScorer',
+    'lbl-mundialWhoChamp': 'mundialWhoChamp',
+    'lbl-mundialWhoRunner': 'mundialWhoRunner',
+    'lbl-mundialWhoThird': 'mundialWhoThird',
+    'lbl-mundialWhoScorer': 'mundialWhoScorer',
+  };
+  Object.entries(domLabels).forEach(([id,key])=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = t(key);
+  });
 }
 
 function t(key) {
@@ -3190,7 +3251,7 @@ function buildMatchCard(m, closed) {
       <button class="btn-express-trigger"
         ontouchend="event.preventDefault();openExpress('${m.id}')"
         onclick="openExpress('${m.id}')">
-        ⚡ ${currentLang==='de'?'Tipp abgeben':currentLang==='en'?'Predict this match':'Predecir este partido'}
+        ⚡ ${t('predictMatch').replace('⚡ ','')}
       </button>
     </div>` : '';
 
@@ -4109,7 +4170,7 @@ async function renderPreds() {
 
   let html = `<div class="section-header">
     <span class="section-title">🎯 Mis Predicciones</span>
-    <button class="btn btn-ghost btn-sm" style="font-size:0.75em;padding:5px 10px;" onclick="openMyPredictions()">📋 Ver mis predicciones</button>
+    <button class="btn btn-ghost btn-sm" style="font-size:0.75em;padding:5px 10px;" onclick="openMyPredictions()">${t('viewMyPreds')}</button>
   </div>`;
 
   // Search section
@@ -4121,20 +4182,20 @@ async function renderPreds() {
     </div>`;
   } else {
     html += `<div class="card" style="margin-bottom:14px;">
-      <p style="font-weight:700;font-size:0.85em;margin-bottom:10px;">🔍 Ver predicciones de otros jugadores</p>
+      <p style="font-weight:700;font-size:0.85em;margin-bottom:10px;">${t('viewOthersPreds')}</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div class="field" style="margin:0;"><input type="text" id="su1" placeholder="Jugador 1" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su2" placeholder="Jugador 2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su3" placeholder="Jugador 3" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su4" placeholder="Jugador 4" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="field" style="margin:0;"><input type="text" id="su1" placeholder="${t('player1')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="field" style="margin:0;"><input type="text" id="su2" placeholder="${t('player2')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="field" style="margin:0;"><input type="text" id="su3" placeholder="${t('player3')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="field" style="margin:0;"><input type="text" id="su4" placeholder="${t('player4')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
       </div>
-      <div class="field" style="margin-bottom:8px;"><input type="text" id="su5" placeholder="Jugador 5 (opcional)" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-      <button class="btn btn-ghost btn-sm" onclick="searchPreds()">🔍 Buscar</button>
+      <div class="field" style="margin-bottom:8px;"><input type="text" id="su5" placeholder="${t('player5opt')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
+      <button class="btn btn-ghost btn-sm" onclick="searchPreds()">${t('search')}</button>
       <div id="searchRes" style="margin-top:12px;"></div>
     </div>`;
   }
 
-  html += `<div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">📋 Tus Predicciones</div>`;
+  html += `<div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">${t('yourPreds')}</div>`;
 
   try {
     // Limit to 30 most recent predictions (reduce reads)
@@ -4382,29 +4443,29 @@ function renderTournaments() {
         <span style="font-size:2em;">🌍🏆</span>
         <div style="flex:1;">
           <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
-          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">48 selecciones · 104 partidos · USA/MX/CA</div>
+          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">${t('mundialDesc')}</div>
         </div>
         <span style="font-size:1.5em;">→</span>
       </div>
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">🥇 Campeón</span>
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">🥈 Subcampeón</span>
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">🥉 Tercer lugar</span>
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">⚽ Goleador</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialChamp')}</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialRunner')}</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialThird')}</span>
+        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialScorer')}</span>
       </div>
     </div>
-    <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">Selecciona las ligas para las que quieres predecir:</p>`;
-  TOURNAMENTS.forEach(t=>{
-    const sel = myTournaments.includes(t.id);
-    html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${t.id}',this)">
+    <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">${t('selectLeagues')}</p>`;
+  TOURNAMENTS.forEach(tr=>{
+    const sel = myTournaments.includes(tr.id);
+    html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${tr.id}',this)">
       <div class="tourn-left">
-        <span style="font-size:1.3em;">${t.flag}</span>
-        <span>${t.name}</span>
+        <span style="font-size:1.3em;">${tr.flag}</span>
+        <span>${tr.name}</span>
       </div>
       <div class="tourn-check">${sel?'✓':''}</div>
     </div>`;
   });
-  html += `<button class="btn btn-primary" style="margin-top:8px;" onclick="saveTournaments()">💾 Guardar selección</button>`;
+  html += `<button class="btn btn-primary" style="margin-top:8px;" onclick="saveTournaments()">${t('saveSelection')}</button>`;
   el.innerHTML = html;
 }
 
@@ -4517,32 +4578,31 @@ function renderLigasPanel() {
         <span style="font-size:2em;">🌍🏆</span>
         <div style="flex:1;">
           <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
-          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">48 selecciones · 104 partidos · USA/MX/CA</div>
+          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">${t('mundialDesc')}</div>
         </div>
         <span style="font-size:1.5em;">→</span>
       </div>
     </div>`;
 
-  // Lista de ligas
-  TOURNAMENTS.filter(t => !t.isMundial).forEach(t => {
-    const sel = myTournaments.includes(t.id);
+  TOURNAMENTS.filter(tr => !tr.isMundial).forEach(tr => {
+    const sel = myTournaments.includes(tr.id);
     if (me.isAdmin) {
       // Admin: puede activar/desactivar
-      html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${t.id}',this)">
-        <div class="tourn-left"><span style="font-size:1.3em;">${t.flag}</span><span>${t.name}</span></div>
+      html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${tr.id}',this)">
+        <div class="tourn-left"><span style="font-size:1.3em;">${tr.flag}</span><span>${tr.name}</span></div>
         <div class="tourn-check">${sel?'✓':''}</div>
       </div>`;
     } else {
       // Jugador: solo lectura
       html += `<div class="tourn-item" style="opacity:${sel?'1':'0.5'};cursor:default;">
-        <div class="tourn-left"><span style="font-size:1.3em;">${t.flag}</span><span>${t.name}</span></div>
+        <div class="tourn-left"><span style="font-size:1.3em;">${tr.flag}</span><span>${tr.name}</span></div>
         <div class="tourn-check" style="color:${sel?'var(--green)':'var(--muted)'};">${sel?'✓':'—'}</div>
       </div>`;
     }
   });
 
   if (me.isAdmin) {
-    html += `<button class="btn btn-primary" style="margin-top:12px;" onclick="saveTournaments()">💾 Guardar selección</button>`;
+    html += `<button class="btn btn-primary" style="margin-top:12px;" onclick="saveTournaments()">${t('saveSelection')}</button>`;
   } else {
     // Botón sugerir al admin por WhatsApp
     const adminWaNum = '584145555555'; // fallback — el admin puede configurar
@@ -7022,4 +7082,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-</html>
+     </html>
