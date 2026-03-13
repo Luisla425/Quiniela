@@ -1254,25 +1254,6 @@ body::before {
 </div>
 
 <script>
-// ── CAPTURA GLOBAL DE ERRORES — muestra cualquier crash en pantalla ──
-window.addEventListener('error', function(e) {
-  const msg = `❌ ERROR: ${e.message}\n📍 ${e.filename?.split('/').pop()}:${e.lineno}`;
-  console.error(msg, e);
-  // Mostrar en pantalla si la app no ha cargado aún
-  const errDiv = document.getElementById('_globalErrDisplay') || (() => {
-    const d = document.createElement('div');
-    d.id = '_globalErrDisplay';
-    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff4d6d;color:#fff;padding:12px 16px;font-size:0.8em;font-family:monospace;white-space:pre-wrap;word-break:break-all;';
-    document.body?.appendChild(d);
-    return d;
-  })();
-  errDiv.textContent = msg;
-});
-window.addEventListener('unhandledrejection', function(e) {
-  const msg = `❌ PROMISE ERROR: ${e.reason?.message || e.reason}`;
-  console.error(msg, e);
-});
-
 // ═══════════════════════════════════════════
 // FIREBASE CONFIG
 // ═══════════════════════════════════════════
@@ -1672,12 +1653,10 @@ function closeModal(id) { $(id).classList.add('hidden'); }
 
 function isLive(status) {
   const s = (status||'').toUpperCase();
-  if (s === '_FT_LOCAL') return false;
   return ['1H','2H','HT','ET','P','BT','IN PLAY','LIVE'].includes(s);
 }
 function isFinished(status) {
   const s = (status||'').toUpperCase();
-  if (status === '_FT_LOCAL') return true;
   return ['FT','AET','AP','PEN','ABD','AWD','WO','MATCH FINISHED','FINISHED'].includes(s);
 }
 
@@ -1706,7 +1685,6 @@ function statusLabel(s) {
     'P':'🥅 Penales','BT':'⏸ Desc. Prórr.',
     'FT':'✅ Final','AET':'✅ Final (Prórr)',
     'AP':'✅ Final (Pen)','PEN':'✅ Final (Pen)',
-    '_FT_LOCAL':'✅ Final',
     'SUSP':'⚠️ Suspendido','INT':'⚠️ Interrumpido',
     'PST':'📅 Pospuesto','CANC':'❌ Cancelado',
     'ABD':'❌ Abandonado','AWD':'🏳 D.Técnica','WO':'🏳 Walkover',
@@ -1755,82 +1733,99 @@ function openRankWAMenu() {
   const p1 = ranked[0];
   const p2 = ranked[1];
   const p3 = ranked[2];
-  const last = ranked[ranked.length - 1];
+  const me_ = ranked.find(r => r.id === me.uid);
   const gname = name || 'Quiniela LuAn';
-  const appUrl = 'https://luisla425.github.io/Quiniela/';
-  const nombre = me.name || me.username || '';
-
-  const pizarraText = _buildPizarraText(gname);
-  const top3Text = _buildTop3Text(gname);
 
   const msgs = [
-    // ── Individuales con teléfono ──────────────────────
     {
+      label: `🥇 Felicitar al líder — ${p1?.username||'?'}`,
       icon: '🥇',
-      label: `Felicitar al líder — ${p1?.username||'?'}`,
       phone: p1?.phone || '',
-      text: `🥇 *¡ERES EL LÍDER DE LA JORNADA!* 🥇\n\n¡Felicidades ${p1?.username||''}! 👏\n\nEstuviste fantástico esta jornada en el grupo *"${gname}"*. Obtuviste *${p1?.grpPts||0} puntos*${p1?.grpExact ? `, con ${p1.grpExact} predicciones exactas ⭐` : ''} y fuiste el mejor de todos. ¡Qué ojo para el fútbol! 🎯\n\nSigue así que la corona te espera 👑\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
+      text: `🥇 *¡LÍDER DEL GRUPO!* 🥇
+
+¡Felicitaciones ${p1?.username||''}! 👏
+
+Estás en la cima del grupo *"${gname}"* con *${p1?.grpPts||0} puntos* esta jornada. ¡Qué ojo para el fútbol! 🎯
+
+Sigue así que la corona te espera 👑
+
+⚽ Quiniela LuAn
+_— Luis Lárez_`
     },
     {
+      label: `🥈 Felicitar al 2do — ${p2?.username||'?'}`,
       icon: '🥈',
-      label: `Felicitar al 2do — ${p2?.username||'?'}`,
       phone: p2?.phone || '',
-      text: `🥈 *¡Gran jornada ${p2?.username||''}!* 🔥\n\nVas en el *2° lugar* del grupo *"${gname}"* con *${p2?.grpPts||0} puntos*. ¡Estás muy cerca de la cima!\n\nUn buen partido puede cambiar todo — no te rindas 💪\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
+      text: `🥈 *¡Gran jornada ${p2?.username||''}!* 
+
+Vas en el *2° lugar* del grupo *"${gname}"* con *${p2?.grpPts||0} puntos*. ¡Estás muy cerca de la cima! 🔥
+
+Un partido te puede cambiar todo, no te rindas 💪
+
+⚽ Quiniela LuAn
+_— Luis Lárez_`
     },
     {
+      label: `🥉 Felicitar al 3ro — ${p3?.username||'?'}`,
       icon: '🥉',
-      label: `Felicitar al 3ro — ${p3?.username||'?'}`,
       phone: p3?.phone || '',
-      text: `🥉 *¡Top 3 ${p3?.username||''}!* 🏆\n\nVas en el *3er lugar* del grupo *"${gname}"* con *${p3?.grpPts||0} puntos*. ¡Estás en el podio!\n\nLa lucha por arriba está apretada, sigue prediciendo con cabeza 🧠⚽\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
+      text: `🥉 *¡Top 3 ${p3?.username||''}!*
+
+Vas en el *3er lugar* del grupo *"${gname}"* con *${p3?.grpPts||0} puntos*. ¡Estás en el podio! 🏆
+
+La lucha por arriba está apretada, sigue prediciendo con cabeza 🧠⚽
+
+⚽ Quiniela LuAn
+_— Luis Lárez_`
     },
     {
-      icon: '💪',
-      label: `Animar al último — ${last?.username||'?'}`,
-      phone: last?.phone || '',
-      text: `💪 *¡Ánimo ${last?.username||''}!* ⚽\n\nEstamos todos en esto juntos y el fútbol siempre da revancha 🔄\n\nCada jornada es una nueva oportunidad. ¡Tú puedes remontar!\n\n_El grupo te apoya — Quiniela LuAn_\n_— ${nombre}_`
-    },
-    // ── Grupales (sin teléfono → copia al portapapeles) ───
-    {
-      icon: '🎉',
-      label: 'Podio completo — Top 3 juntos',
-      phone: '',
-      text: top3Text
-    },
-    {
-      icon: '📊',
-      label: 'Compartir pizarra actual',
-      phone: '',
-      text: pizarraText
-    },
-    {
+      label: '🔥 Motivar a todo el grupo',
       icon: '🔥',
-      label: 'Motivar a todo el grupo',
       phone: '',
-      text: `🔥 *¡Resumen de la jornada!* — *${gname}*\n\n${ranked.slice(0,3).map((r,i)=>{const m=['🥇','🥈','🥉'];return `${m[i]} ${r.username} — ${r.grpPts}pts`;}).join('\n')}\n\n¡Gran jornada para todos! La clasificación está apretada y el fútbol siempre sorprende 🎲\n\nLa próxima jornada viene con todo ⚽💥\n📲 ${appUrl}\n\n_— ${nombre}_`
+      text: `🔥 *¡Resumen de la jornada!* — ${gname}
+
+${ranked.slice(0,3).map((r,i)=>{
+        const medals=['🥇','🥈','🥉'];
+        return `${medals[i]} ${r.username} — ${r.grpPts}pts`;
+      }).join('\n')}
+
+¡Gran jornada para todos! La clasificación está apretada y el fútbol siempre sorprende 🎲
+
+Sigue en la pelea, la próxima jornada viene con todo ⚽💥
+
+📲 Mira la tabla completa en la app
+
+_— Luis Lárez_`
     },
     {
-      icon: '📅',
-      label: 'Recordatorio + tutorial cómo predecir',
+      label: '📣 Anunciar próxima jornada',
+      icon: '📣',
       phone: '',
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
+      text: `📣 *¡Se viene la próxima jornada!* ⚽
+
+Hola a todos en *"${gname}"* 👋
+
+Recuerden predecir los marcadores *antes del inicio del primer partido*.
+
+⚠️ El que no predice antes del pitazo inicial recibe 0-0 en todos los partidos automáticamente.
+
+📲 Entra ya: https://luislarezquiniela.github.io
+
+¡Que empiece el show! 🏆
+
+_— Luis Lárez_`
     },
     {
-      icon: '⏰',
-      label: 'Último aviso — cierre próximo',
-      phone: '',
-      text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta poco para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '🔴',
-      label: 'Los partidos ya empezaron',
-      phone: '',
-      text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar el fútbol ⚽🔥\n\nEntra a la app para ver los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
-    },
-    {
-      icon: '🏁',
-      label: 'Jornada terminada — revisa la pizarra',
-      phone: '',
-      text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
+      label: '😬 Animar al último lugar',
+      icon: '💪',
+      phone: ranked[ranked.length-1]?.phone || '',
+      text: `💪 *¡Ánimo ${ranked[ranked.length-1]?.username||''}!*
+
+Estamos todos en esto juntos y el fútbol siempre da revancha 🔄
+
+Cada jornada es una nueva oportunidad, ¡tú puedes remontar! ⚽🔥
+
+_El grupo te apoya — Quiniela LuAn_`
     },
   ];
 
@@ -1842,41 +1837,26 @@ function openRankWAMenu() {
   modal.className = 'modal-overlay';
   modal.style.zIndex = '6000';
   modal.innerHTML = `
-    <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
+    <div class="modal-box" style="max-height:88vh;">
       <div class="modal-handle"></div>
       <div class="modal-title">💬 Mensajes del Grupo</div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar</div>
-
-      <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personales (abre WhatsApp directo)</div>
-      ${msgs.slice(0,4).map((m,i) => {
+      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar por WhatsApp</div>
+      ${msgs.map((m,i) => {
         const hasPhone = m.phone && m.phone.replace(/[^0-9]/g,'').length > 5;
-        return `<button onclick="sendRankWA(${i})"
+        return `
+        <button onclick="sendRankWA(${i})"
           style="width:100%;margin-bottom:8px;padding:12px 14px;
           background:var(--surface2);border:1px solid var(--border2);
           border-radius:var(--r-sm);cursor:pointer;text-align:left;
           color:var(--text);font-family:var(--font-b);
           display:flex;align-items:center;gap:10px;
-          ${!hasPhone?'opacity:0.5;':''}">
+          ${!hasPhone&&i<3?'opacity:0.5;':''}">
           <span style="font-size:1.4em;flex-shrink:0;">${m.icon}</span>
           <div>
             <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-            ${!hasPhone?'<div style="font-size:0.68em;color:var(--red);">Sin número registrado</div>':''}
+            ${!hasPhone&&i<3?'<div style="font-size:0.68em;color:var(--red);">Sin número de teléfono</div>':''}
           </div>
-        </button>`;
-      }).join('')}
-
-      <div style="font-size:0.7em;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">Para el grupo de WhatsApp (copia y pega)</div>
-      ${msgs.slice(4).map((m,i) => `
-        <button onclick="sendRankWA(${i+4})"
-          style="width:100%;margin-bottom:8px;padding:12px 14px;
-          background:var(--surface2);border:1px solid var(--border2);
-          border-radius:var(--r-sm);cursor:pointer;text-align:left;
-          color:var(--text);font-family:var(--font-b);
-          display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.4em;flex-shrink:0;">${m.icon}</span>
-          <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-        </button>`).join('')}
-
+        </button>`}).join('')}
       <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
     </div>`;
 
@@ -1900,313 +1880,31 @@ function sendRankWA(idx) {
   if (modal) modal.remove();
 }
 
-async function inviteToApp() {
+function inviteToApp() {
   const appUrl = 'https://luisla425.github.io/Quiniela/';
-  const code   = me.personalInviteCode || '';
+  const code = me.personalInviteCode || '';
   const nombre = me.name || me.username || '';
-
-  // Leer grupos actuales para incluirlos en el mensaje
-  let groupsLine = '';
-  try {
-    const snap = await db.collection('groups').get();
-    const grupos = snap.docs.map(d => d.data());
-    if (grupos.length) {
-      const lista = grupos.map(g => {
-        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
-        return `  ${flag} *${g.name}*`;
-      }).join('\n');
-      groupsLine = `\n👥 *Grupos disponibles:*\n${lista}\n\n`;
-    }
-  } catch(e) {}
-
   const msg = encodeURIComponent(
-    `⚽ *QUINIELA LuAn* ⚽\n\n` +
-    `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante.\n\n` +
-    `🏆 Predice marcadores del mejor fútbol europeo y compite con amigos, familia y panas.\n\n` +
-    `━━━━━━━━━━━━━━━━━━\n` +
-    `✅ *¿Cómo registrarse?*\n` +
-    `1️⃣ Abre: ${appUrl}\n` +
-    `2️⃣ Toca *"Registrarse"*\n` +
-    `3️⃣ Llena: Nombre, apodo (máx 8 letras), teléfono y contraseña\n` +
-    (code ? `4️⃣ Usa mi código: 🔐 *${code}*\n\n` : `\n`) +
-    `━━━━━━━━━━━━━━━━━━\n` +
-    `👆 *¿Cómo unirte al grupo?*\n` +
-    `Una vez dentro, ve a *Partidos* y en el cintillo de arriba verás los grupos disponibles.\n` +
-    `Toca el nombre del grupo — aparece una confirmación y con un toque quedas dentro. ¡Así de fácil! 🎯\n` +
-    groupsLine +
-    `━━━━━━━━━━━━━━━━━━\n` +
-    `🎯 *¿Cómo predecir?*\n` +
-    `Toca *"⚡ Predecir este partido"* en cada match:\n\n` +
-    `▶️ *Con ganador:* toca tu equipo → elige sus goles → elige los del perdedor\n` +
-    `💡 _Si marcas 1 al ganador, el sistema pone 0 al perdedor automáticamente_\n\n` +
-    `🤝 *Empate:* toca Empate → elige los goles ¡y listo!\n\n` +
-    `⚠️ Si no predices antes del pitazo, se registra 0-0 en todos los partidos.\n\n` +
-    `━━━━━━━━━━━━━━━━━━\n` +
+    `⚽ QUINIELA LuAn ⚽\n\n` +
+    `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante:\n\n` +
+    `🏆 La quiniela de los campeones\n` +
+    `⚡ ¡Predice los partidos y gana! 🎯\n` +
+    `⚽ Demuestra que sabes de fútbol\n` +
+    `🎉 Participa y divierte con: familia, amigos, panas, compañeros de trabajo...\n\n` +
+    `🌐 ¿Cómo participar?\n\n` +
+    `1. Entra al enlace:\n` +
+    `      🔗 ${appUrl}\n` +
+    `2. Regístrate en la plataforma\n` +
+    `3. Usa mi código de invitación:\n` +
+    `      🔐 *CÓDIGO: ${code}*\n\n` +
+    `✅ ¡Listo! Ya estás compitiendo.\n\n` +
     `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
-    `_— luislárez_`
+    `— luislárez`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
-function openHowToPredict() {
-  const existing = document.getElementById('howToPredictModal');
-  if (existing) existing.remove();
-  const modal = document.createElement('div');
-  modal.id = 'howToPredictModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '7000';
-  modal.innerHTML = `
-    <div class="modal-box" style="padding:24px 20px;max-height:85vh;overflow-y:auto;">
-      <div class="modal-handle"></div>
-      <div style="font-family:var(--font-h);font-size:1.2em;font-weight:900;margin-bottom:16px;text-align:center;">
-        🎯 ¿Cómo predecir?
-      </div>
-
-      <div style="font-size:0.82em;line-height:1.7;color:var(--text);">
-
-        <div style="background:rgba(108,71,255,0.1);border-left:3px solid var(--primary2);
-          border-radius:8px;padding:10px 12px;margin-bottom:14px;">
-          <strong style="color:var(--primary2);">⚡ Toca "Predecir este partido"</strong><br>
-          en cada match antes de que empiece.
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <div style="font-weight:800;color:var(--gold);margin-bottom:6px;">▶️ Si hay un ganador:</div>
-          <div style="color:var(--muted2);padding-left:8px;">
-            1️⃣ Toca primero el nombre de tu equipo favorito<br>
-            <span style="font-size:0.85em;opacity:0.8;">(no importa si es local —izquierda— o visitante —derecha—)</span><br>
-            2️⃣ Elige cuántos goles va a hacer<br>
-            3️⃣ Elige los goles del perdedor<br><br>
-            💡 <em>Si marcas 1 gol al ganador, el sistema pone 0 al perdedor automáticamente.</em>
-          </div>
-        </div>
-
-        <div style="margin-bottom:14px;">
-          <div style="font-weight:800;color:var(--green);margin-bottom:6px;">🤝 Si es empate:</div>
-          <div style="color:var(--muted2);padding-left:8px;">
-            Toca el botón <strong>Empate</strong>, elige la cantidad de goles ¡y listo!
-          </div>
-        </div>
-
-        <div style="background:rgba(255,77,109,0.08);border-left:3px solid var(--red);
-          border-radius:8px;padding:10px 12px;margin-bottom:16px;">
-          ⚠️ <strong>Si no predices antes del pitazo inicial</strong>, se registra
-          <strong>0-0 automáticamente</strong> en todos los partidos donde no hayas predicho.
-        </div>
-
-        <div style="background:rgba(0,229,160,0.08);border-left:3px solid var(--green);
-          border-radius:8px;padding:10px 12px;margin-bottom:16px;">
-          <strong style="color:var(--green);">🏆 Puntuación:</strong><br>
-          <span style="color:var(--muted2);">
-            ⭐ <strong>5 pts</strong> — Marcador exacto<br>
-            🎯 <strong>3 pts</strong> — Resultado correcto (ganador o empate)<br>
-            ❌ <strong>0 pts</strong> — Resultado incorrecto
-          </span>
-        </div>
-
-      </div>
-
-      <button class="btn btn-primary" onclick="document.getElementById('howToPredictModal').remove()"
-        style="width:100%;margin-top:4px;">
-        ✅ Entendido
-      </button>
-    </div>`;
-  document.body.appendChild(modal);
-}
-
-// ── Control admin de tiempo añadido ────────────────────────
-window._adminExtraTime  = window._adminExtraTime  || {};  // { matchId: minutes }
-window._adminExtraAsked = window._adminExtraAsked || {};  // { matchId: true }
-window._adminCronOffset = window._adminCronOffset || {};  // { matchId: seconds offset }
-
-function _askAdminExtraTime(m) {
-  if (!me?.isAdmin) return;
-  const existing = document.getElementById('adminExtraModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'adminExtraModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9000';
-  modal.innerHTML = `
-    <div class="modal-box" style="padding:24px 20px;text-align:center;max-width:340px;">
-      <div class="modal-handle"></div>
-      <div style="font-size:1.5em;margin-bottom:8px;">⏱️</div>
-      <div style="font-family:var(--font-h);font-weight:900;font-size:1.1em;margin-bottom:6px;">
-        ¿Cuántos minutos de prórroga?
-      </div>
-      <div style="font-size:0.82em;color:var(--muted2);margin-bottom:16px;">
-        ${m.home} vs ${m.away}
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px;">
-        ${[1,2,3,4,5,6,7,8,9,10,'?','FT'].map(n => `
-          <button onclick="_setAdminExtra('${m.id}','${n}','${m.home}','${m.away}')"
-            style="padding:10px 4px;border-radius:10px;font-family:var(--font-h);
-            font-weight:800;font-size:${n==='FT'?'0.7em':'0.95em'};cursor:pointer;
-            background:${n==='FT'?'rgba(0,229,160,0.15)':n==='?'?'rgba(255,200,0,0.15)':'var(--surface2)'};
-            color:${n==='FT'?'var(--green)':n==='?'?'var(--gold)':'var(--text)'};
-            border:1px solid ${n==='FT'?'var(--green)':n==='?'?'var(--gold)':'var(--border2)'};">
-            ${n==='FT'?'✅ FT':n==='?'?'+?':'+'+n}
-          </button>`).join('')}
-      </div>
-      <button class="btn btn-ghost" onclick="document.getElementById('adminExtraModal').remove()"
-        style="width:100%;font-size:0.82em;">Ignorar por ahora</button>
-    </div>`;
-  document.body.appendChild(modal);
-}
-
-function _setAdminExtra(matchId, val, home, away) {
-  document.getElementById('adminExtraModal')?.remove();
-  window._adminExtraTime  = window._adminExtraTime  || {};
-  window._adminExtraAsked = window._adminExtraAsked || {};
-
-  if (val === 'FT') {
-    // Forzar finalización inmediata
-    const m = _dM.find(x => String(x.id) === String(matchId));
-    if (m) {
-      m.status = '_FT_LOCAL';
-      const mainEl = document.getElementById(`badge_main_${matchId}`);
-      const extraEl = document.getElementById(`badge_extra_${matchId}`);
-      if (mainEl) { mainEl.className = 'badge-done'; mainEl.textContent = '✅ Final'; }
-      if (extraEl) extraEl.style.display = 'none';
-    }
-    toast(`✅ ${home} vs ${away} marcado como Final`, 'success');
-  } else if (val === '?') {
-    // Desconocido — reiniciar el ? sin cap fijo
-    window._adminExtraTime[matchId] = null;
-    toast(`⏱ ${home} vs ${away} — prórroga desconocida`, 'info');
-  } else {
-    // Guardar minutos y el crono usará ese cap
-    window._adminExtraTime[matchId] = +val;
-    toast(`⏱ ${home} vs ${away} — +${val} minutos`, 'success');
-  }
-  renderMatches();
-}
-
-// Admin: ajustar cronómetro del 2do tiempo manualmente
-function _askAdminCronAdjust(matchId, home, away) {
-  if (!me?.isAdmin) return;
-  const existing = document.getElementById('adminCronModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'adminCronModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9001';
-  const cur = +(window._adminCronOffset?.[matchId] || 0);
-  const curMin = cur > 0 ? `+${Math.round(cur/60)}min` : cur < 0 ? `${Math.round(cur/60)}min` : '0';
-
-  const btnDefs = [-10,-5,-3,-2,-1,1,2,3,5,10,'0','OK'];
-  const btnsHtml = btnDefs.map(n => {
-    const label = n === '0' ? 'Reset' : n === 'OK' ? '✅ OK' : (n > 0 ? `+${n}min` : `${n}min`);
-    const color = n === 'OK' ? 'var(--green)' : n === '0' ? 'var(--muted2)' : n > 0 ? 'var(--primary2)' : 'var(--red)';
-    const bg = n === 'OK' ? 'rgba(0,229,160,0.1)' : 'var(--surface2)';
-    return `<button class="admin-cron-btn" data-mid="${matchId}" data-val="${n}"
-      style="padding:10px 4px;border-radius:10px;font-family:var(--font-h);font-weight:800;
-      font-size:0.82em;cursor:pointer;background:${bg};color:${color};
-      border:1px solid ${color};">${label}</button>`;
-  }).join('');
-
-  modal.innerHTML = `
-    <div class="modal-box" style="padding:24px 20px;text-align:center;max-width:340px;">
-      <div class="modal-handle"></div>
-      <div style="font-size:1.4em;margin-bottom:6px;">⏱️ Ajustar Cronómetro</div>
-      <div style="font-size:0.8em;color:var(--muted2);margin-bottom:4px;">${home} vs ${away}</div>
-      <div style="font-size:0.72em;color:var(--gold);margin-bottom:16px;">Ajuste actual: ${curMin}</div>
-      <div style="font-size:0.72em;color:var(--muted2);margin-bottom:10px;">
-        ¿El crono está adelantado o atrasado respecto al partido real?
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
-        ${btnsHtml}
-      </div>
-      <div style="font-size:0.65em;color:var(--muted2);margin-bottom:12px;">
-        Si el crono muestra 47' pero el real va en 50' → toca <span style="color:var(--primary2)">+3min</span><br>
-        Si muestra 52' pero el real va en 48' → toca <span style="color:var(--red)">-4min</span>
-      </div>
-      <button class="btn btn-ghost" onclick="document.getElementById('adminCronModal').remove()"
-        style="width:100%;font-size:0.82em;">Cancelar</button>
-    </div>`;
-
-  modal.querySelectorAll('.admin-cron-btn').forEach(btn => {
-    btn.addEventListener('click', () => _setCronOffset(btn.dataset.mid, btn.dataset.val));
-  });
-  document.body.appendChild(modal);
-}
-
-function _setCronOffset(matchId, val) {
-  document.getElementById('adminCronModal')?.remove();
-  window._adminCronOffset = window._adminCronOffset || {};
-  if (val === '0') {
-    delete window._adminCronOffset[matchId];
-    toast('⏱ Cronómetro reseteado', 'info');
-  } else if (val === '✓') {
-    return; // solo cerrar
-  } else {
-    const prev = +(window._adminCronOffset[matchId] || 0);
-    window._adminCronOffset[matchId] = prev + (+val * 60);
-    const total = Math.round(window._adminCronOffset[matchId] / 60);
-    toast(`⏱ Cronómetro ajustado ${total > 0 ? '+' : ''}${total} minutos`, 'success');
-  }
-}
-
-// ══════════════════════════════════════════════
-// DEBUG ADMIN — ver JSON crudo TheSportsDB
-// ══════════════════════════════════════════════
-async function _debugTimeline(matchId) {
-  if (!me?.isAdmin) return;
-  const out = document.createElement('div');
-  out.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,0.95);overflow:auto;padding:16px;font-family:monospace;font-size:0.7em;color:#0f0;';
-  out.innerHTML = '<div style="color:#ff0;font-weight:bold;margin-bottom:12px;">🔍 DEBUG — ID: ' + matchId +
-    ' <button onclick="this.closest(\'[style]\').remove()" style="float:right;background:#c0392b;color:white;border:none;padding:4px 10px;cursor:pointer;border-radius:4px;">✕ Cerrar</button></div>' +
-    '<div id="dbgOut">Cargando...</div>';
-  document.body.appendChild(out);
-  const dbgOut = out.querySelector('#dbgOut');
-  dbgOut.textContent = '';
-
-  const log = (title, data) => {
-    const s = document.createElement('div');
-    s.style.cssText = 'margin-bottom:14px;border:1px solid #333;padding:8px;border-radius:4px;';
-    s.innerHTML = `<div style="color:#ff0;font-weight:bold;margin-bottom:5px;">── ${title} ──</div>
-      <pre style="white-space:pre-wrap;word-break:break-all;color:#0f0;margin:0;font-size:0.95em;">${
-        typeof data === 'string' ? data : JSON.stringify(data, null, 2)
-      }</pre>`;
-    dbgOut.appendChild(s);
-  };
-
-  // 1. V2 Timeline
-  try {
-    const r = await fetchV2(`/lookup/event_timeline/${matchId}`);
-    const tl = r?.timeline || [];
-    log(`V2 timeline (${tl.length} eventos)`, tl.length ? tl.slice(0,4) : r);
-    if (tl.length) log('V2 campos del primer evento', Object.keys(tl[0]));
-  } catch(e) { log('V2 Timeline ERROR', e.message); }
-
-  // 2. V1 Timeline
-  try {
-    const r   = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
-    const txt = await r.text();
-    if (txt && !txt.trim().startsWith('<')) {
-      const d  = JSON.parse(txt);
-      const tl = d?.timeline || d?.events || [];
-      log(`V1 timeline (${tl.length} eventos)`, tl.length ? tl.slice(0,4) : d);
-      if (tl.length) log('V1 campos del primer evento', Object.keys(tl[0]));
-    } else {
-      log('V1 Timeline respuesta vacía/HTML', txt.substring(0,100));
-    }
-  } catch(e) { log('V1 Timeline ERROR', e.message); }
-
-  // 3. V1 lookupevent — campos strHomeYellowCards, strHomeGoalDetails etc.
-  try {
-    const r  = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
-    const d  = await r.json();
-    const ev = d?.events?.[0] || {};
-    const relevant = Object.entries(ev)
-      .filter(([k]) => /yellow|red|goal|score|card/i.test(k))
-      .reduce((acc,[k,v]) => ({...acc,[k]:v}), {});
-    log('V1 lookupevent — tarjetas/goles', relevant);
-  } catch(e) { log('V1 lookupevent ERROR', e.message); }
-}
-
+// Generate unique color per user based on their username
 function userColor(username) {
   const colors = [
     '#f59e0b','#10b981','#3b9eff','#f472b6','#a78bfa',
@@ -2499,9 +2197,6 @@ async function enterApp() {
   if (me.isAdmin) {
     $('hdrAdminBadge').classList.remove('hidden');
     $('nav-admin').classList.remove('hidden');
-  } else {
-    // Jugadores no necesitan la pestaña Torneos — las ligas las gestiona el Admin
-    $('nav-tournaments')?.classList.add('hidden');
   }
 
   startClock();
@@ -2513,14 +2208,6 @@ async function enterApp() {
   await loadMyGroups();
 
   loadMatches();
-
-  // Si hay partidos vivos al entrar → cargar eventos inmediatamente
-  setTimeout(async () => {
-    if (_dM.some(m => isLive(m.status))) {
-      await _uLEC();
-      renderMatches();
-    }
-  }, 2000); // 2s después de cargar para que los partidos ya estén en _dM
 
   // Adaptive auto-sync:
   // • Live games: every 45s
@@ -2534,141 +2221,45 @@ async function enterApp() {
         const hasTodayGames = _dM.length > 0;
         if (hasTodayGames) await doSync();
         else await autoEval();
+        // Actualizar cache de tarjetas/penaltis solo si hay partidos vivos
+        if (_dM.some(m => isLive(m.status))) await _uLEC();
       }
       scheduleNextSync();
     }, interval);
   }
   scheduleNextSync();
 
-  // ── LOOP RÁPIDO DE EVENTOS EN VIVO — cada 30s independiente del sync ──
-  // Goles, tarjetas, VAR aparecen en ≤30s sin esperar el sync completo
-  if (!window._liveEventsInterval) {
-    window._liveEventsInterval = setInterval(async () => {
-      if (_dM.some(m => isLive(m.status)) && !userEnteringPreds) {
-        await _uLEC();
-        renderMatches();  // re-render solo las tarjetas de partidos vivos
-      }
-    }, 30000); // cada 30 segundos
-  }
-
-  // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
-  if (!window._cronInterval) {
-    window._cronInterval = setInterval(() => {
-      _dM.forEach(m => {
-        if (!isLive(m.status)) return;
-        const wrap = document.getElementById(`badge_${m.id}`);
-        if (!wrap) return;
-
-        const st = (m.status || '').toUpperCase();
-        let phase = wrap.dataset.phase || '';
-
-        // Detectar transición de fase y guardar timestamp real
-        if (st !== phase) {
-          if (st === '1H') {
-            wrap.dataset.phase = '1H'; phase = '1H';
-          } else if (st === 'HT') {
-            wrap.dataset.phase = 'HT'; phase = 'HT';
-          } else if (st === '2H') {
-            wrap.dataset.phase = '2H'; phase = '2H';
-            // Guardar kickoff REAL del 2do tiempo cuando la API lo confirma
-            if (!wrap.dataset.kickoff2H) wrap.dataset.kickoff2H = Date.now();
-          } else if (st === 'ET') {
-            wrap.dataset.phase = 'ET'; phase = 'ET';
-            if (!wrap.dataset.kickoffET) wrap.dataset.kickoffET = Date.now();
-          } else if (st === 'P') {
-            wrap.dataset.phase = 'P'; phase = 'P';
-          } else if (st === 'BT') {
-            wrap.dataset.phase = 'BT'; phase = 'BT';
-          } else {
-            wrap.dataset.phase = st; phase = st;
-          }
-        }
-
-        const mainEl  = document.getElementById(`badge_main_${m.id}`);
-        const extraEl = document.getElementById(`badge_extra_${m.id}`);
-        if (!mainEl || !extraEl) return;
-
-        if (phase === 'HT') { mainEl.textContent = `⏸ Descanso`; extraEl.style.display='none'; return; }
-        if (phase === 'P')  { mainEl.textContent = `⚡ Penales`;  extraEl.style.display='none'; return; }
-        if (phase === 'BT') { mainEl.textContent = `⏸ Desc.Prórr`; extraEl.style.display='none'; return; }
-
-        // Ajuste manual del admin (offset en segundos)
-        const adminOffset = +(window._adminCronOffset?.[m.id] || 0);
-
-        const kickoffMs = +wrap.dataset.kickoff || 0;
-        let elapsedSec, capMin;
-
-        if (phase === '1H') {
-          if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
-          elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000)) + adminOffset;
-          capMin = 45;
-
-        } else if (phase === '2H') {
-          const k2H = +wrap.dataset.kickoff2H || 0;
-          if (k2H) {
-            // Kickoff real del 2do tiempo: cada partido a su propio ritmo
-            elapsedSec = Math.max(1, Math.floor((Date.now() - k2H) / 1000)) + 45 * 60 + adminOffset;
-          } else if (kickoffMs) {
-            // Fallback: estimación (kickoff original + 60min fijos)
-            elapsedSec = Math.max(1, Math.floor((Date.now() - kickoffMs) / 1000) - 3600) + 45 * 60 + adminOffset;
-          } else {
-            mainEl.textContent = `🔴 2do Tiempo`; extraEl.style.display='none'; return;
-          }
-          capMin = 90;
-
-        } else if (phase === 'ET') {
-          const kET = +wrap.dataset.kickoffET || 0;
-          if (kET) {
-            elapsedSec = Math.max(1, Math.floor((Date.now() - kET) / 1000)) + 90 * 60 + adminOffset;
-          } else {
-            mainEl.textContent = `🔴 Prórroga`; extraEl.style.display='none'; return;
-          }
-          capMin = 105;
-
-        } else {
-          mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
-        }
-
-        const totalMin = Math.floor(elapsedSec / 60);
-        const sec      = elapsedSec % 60;
-        const ss       = String(sec).padStart(2, '0');
-
-        if (totalMin < capMin) {
-          mainEl.textContent = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
-          extraEl.style.display = 'none';
-        } else {
-          mainEl.textContent = `🔴 ${capMin}:00`;
-          const extraMin = totalMin - capMin;
-          const extraSS  = String(sec).padStart(2, '0');
-          const adminExtra = window._adminExtraTime?.[m.id];
-          const officialExtra = adminExtra ?? m.intExtraTime ?? m.strExtraTime ?? null;
-          const addedLabel = officialExtra ? `+${officialExtra}` : '+?';
-          extraEl.textContent  = `${addedLabel} | ${String(extraMin).padStart(2,'0')}:${extraSS}`;
-          extraEl.style.display = 'inline-block';
-          const extraCap = officialExtra ? +officialExtra : 10;
-          if (extraMin >= extraCap) {
-            if (m.status !== '_FT_LOCAL') {
-              m.status = '_FT_LOCAL';
-              mainEl.className = 'badge-done';
-              mainEl.textContent = '✅ Final';
-              extraEl.style.display = 'none';
-              if (me?.isAdmin && !officialExtra && !window._adminExtraAsked?.[m.id]) {
-                window._adminExtraAsked = window._adminExtraAsked || {};
-                window._adminExtraAsked[m.id] = true;
-                setTimeout(() => _askAdminExtraTime(m), 200);
-              }
+  // ── Minuto en vivo — actualiza el badge localmente cada 60s (0 llamadas API) ──
+  setInterval(() => {
+    _dM.forEach(m => {
+      if (!isLive(m.status)) return;
+      const badge = document.getElementById(`badge_${m.id}`);
+      if (!badge) return;
+      let min = '';
+      if (m.date && m.time) {
+        try {
+          const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+          const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
+          if (elapsed >= 0 && elapsed <= 150) {
+            if (m.status === 'HT') {
+              min = 'DT';
+            } else if (elapsed <= 47) {
+              min = elapsed <= 45 ? elapsed : `45+${elapsed - 45}`;
+            } else if (elapsed <= 62) {
+              min = 'DT';
+            } else {
+              const secondHalf = elapsed - 62;
+              const min2 = secondHalf + 45;
+              min = min2 <= 90 ? min2 : `90+${min2 - 90}`;
             }
-          } else if (extraMin >= 8 && me?.isAdmin && !officialExtra
-                     && !window._adminExtraAsked?.[m.id]) {
-            window._adminExtraAsked = window._adminExtraAsked || {};
-            window._adminExtraAsked[m.id] = true;
-            setTimeout(() => _askAdminExtraTime(m), 200);
           }
-        }
-      });
-    }, 1000);
-  }
-
+        } catch(e) {}
+      }
+      const statusTxt = statusLabel(m.status);
+      badge.textContent = `🔴 ${statusTxt}${min ? ' · ' + min + "'" : ''}`;
+    });
+  }, 60000);
+}
 
 // ═══════════════════════════════════════════
 // SCREEN NAVIGATION
@@ -2928,149 +2519,6 @@ function clearActiveGroup() {
   doSync();
 }
 
-// Carga grupos públicos disponibles para unirse — muestra chips en el cintillo
-async function _loadPublicGroupsStrip() {
-  try {
-    const snap = await db.collection('groups').get();
-    const all = snap.docs.map(d=>({id:d.id,...d.data()}));
-    const strip = $('publicGroupsStrip');
-    if (!strip) return;
-    if (!all.length) { strip.innerHTML = `<span style="font-size:0.75em;color:var(--muted2);">Sin grupos disponibles</span>`; return; }
-
-    const isInAny = all.some(g => g.members?.some(m=>m.userId===me.uid));
-
-    // Ocultar banner de bienvenida si ya está en algún grupo
-    if (isInAny) {
-      const banner = $('noGroupBanner');
-      if (banner) banner.style.display = 'none';
-    }
-
-    let extra = '';
-    all.forEach(g => {
-      const isMine   = g.members?.some(m=>m.userId===me.uid);
-      const isActive = g.id === activeGroupId;
-      const flag     = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,2).join('');
-      const memberCount = g.members?.length || 0;
-      const maxCount    = g.maxMembers || '?';
-
-      if (isActive) {
-        // Activo: morado con borde fuerte
-        extra += `<button onclick="setActiveGroup('${g.id}')"
-          style="flex-shrink:0;padding:6px 12px;border-radius:20px;
-          border:2px solid var(--primary);background:rgba(108,71,255,0.2);
-          color:var(--primary2);font-family:var(--font-b);font-weight:700;
-          font-size:0.78em;cursor:pointer;white-space:nowrap;">
-          ✅ ${flag} ${g.name}
-        </button>`;
-      } else if (isMine) {
-        // Propio pero no activo: verde
-        extra += `<button onclick="setActiveGroup('${g.id}')"
-          style="flex-shrink:0;padding:6px 12px;border-radius:20px;
-          border:2px solid var(--green);background:rgba(0,229,160,0.1);
-          color:var(--green);font-family:var(--font-b);font-weight:700;
-          font-size:0.78em;cursor:pointer;white-space:nowrap;">
-          ${flag} ${g.name}
-        </button>`;
-      } else {
-        // Ajeno — chip destacado con animación de pulso para llamar la atención
-        extra += `<button onclick="promptJoinGroup('${g.id}','${g.name.replace(/'/g,"\\'")}')"
-          style="flex-shrink:0;padding:6px 12px;border-radius:20px;
-          border:2px dashed var(--orange);background:rgba(255,140,66,0.08);
-          color:var(--orange);font-family:var(--font-b);font-weight:700;
-          font-size:0.78em;cursor:pointer;white-space:nowrap;
-          animation:pulse 2s infinite;">
-          ${flag} ${g.name} <span style="font-size:0.85em;opacity:0.8;">(${memberCount}/${maxCount})</span> ＋
-        </button>`;
-      }
-    });
-    strip.innerHTML = `<span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;white-space:nowrap;">Grupos:</span>` + extra;
-  } catch(e) {}
-}
-
-// Popup de confirmación "¿Unirte a este grupo?"
-function promptJoinGroup(gid, gname) {
-  const existing = document.getElementById('joinTapModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'joinTapModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '6000';
-  modal.innerHTML = `
-    <div class="modal-box" style="padding:28px 24px;text-align:center;">
-      <div class="modal-handle"></div>
-      <div style="font-size:2em;margin-bottom:10px;">👥</div>
-      <div style="font-family:var(--font-h);font-size:1.3em;font-weight:800;margin-bottom:8px;">¿Unirte a este grupo?</div>
-      <div style="font-size:1em;color:var(--primary2);font-weight:700;margin-bottom:18px;">${gname}</div>
-      <div style="font-size:0.82em;color:var(--muted2);margin-bottom:22px;">
-        Podrás predecir partidos y competir con los jugadores de este grupo.
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button class="btn btn-ghost" onclick="document.getElementById('joinTapModal').remove()">No</button>
-        <button class="btn btn-primary" onclick="confirmJoinGroup('${gid}','${gname.replace(/'/g,"\\'")}')">✅ Sí, unirme</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-}
-
-async function confirmJoinGroup(gid, gname) {
-  document.getElementById('joinTapModal')?.remove();
-  try {
-    await db.collection('groups').doc(gid).update({
-      members: firebase.firestore.FieldValue.arrayUnion({
-        userId: me.uid,
-        username: me.username,
-        joinedAt: new Date().toISOString()
-      })
-    });
-    toast(`✅ Te uniste a "${gname}"`, 'success');
-    // Actualizar lista local y re-renderizar
-    await loadMyGroups();
-    renderMatches();
-  } catch(e) {
-    toast('Error al unirse: ' + e.message, 'error');
-  }
-}
-
-// ── VAR detail decoder ─────────────────────────────────────
-// Lee strTimelineDetail / strTimeline y devuelve {icon, label, color}
-function varDetail(t) {
-  // Intentamos leer el campo más detallado primero
-  const raw = (t.strTimelineDetail || t.strTimeline || t.strType || t.strEvent || '').toLowerCase();
-  // Algunos campos alternativos que TheSportsDB puede traer
-  const detail = raw + ' ' + (t.strComment || t.strOutcome || t.strDecision || '').toLowerCase();
-
-  if (detail.includes('goal') && (detail.includes('disallow') || detail.includes('annul') || detail.includes('cancel') || detail.includes('offside'))) {
-    return { icon: '📺❌⚽', color: 'var(--red)',    label: 'Gol anulado (VAR)' };
-  }
-  if (detail.includes('goal') && detail.includes('uphold')) {
-    return { icon: '📺✅⚽', color: 'var(--green)',  label: 'Gol confirmado (VAR)' };
-  }
-  if (detail.includes('offside')) {
-    return { icon: '📺🚩',  color: 'var(--orange)', label: 'Fuera de juego (VAR)' };
-  }
-  if (detail.includes('penalty') || detail.includes('penal')) {
-    if (detail.includes('no') || detail.includes('deny') || detail.includes('overrul')) {
-      return { icon: '📺❌⚡', color: 'var(--orange)', label: 'Penal anulado (VAR)' };
-    }
-    return { icon: '📺⚡',    color: 'var(--orange)', label: 'Penal concedido (VAR)' };
-  }
-  if (detail.includes('red') || detail.includes('roja')) {
-    return { icon: '📺🟥',   color: 'var(--red)',    label: 'Tarjeta roja (VAR)' };
-  }
-  if (detail.includes('yellow') || detail.includes('amarilla')) {
-    return { icon: '📺🟨',   color: 'var(--gold)',   label: 'Tarjeta amarilla (VAR)' };
-  }
-  if (detail.includes('hand') || detail.includes('mano')) {
-    return { icon: '📺✋',   color: 'var(--red)',    label: 'Mano revisada (VAR)' };
-  }
-  if (detail.includes('foul') || detail.includes('falta')) {
-    return { icon: '📺⚠️',   color: 'var(--orange)', label: 'Falta revisada (VAR)' };
-  }
-  // Sin detalle suficiente
-  return { icon: '📺',       color: 'var(--blue)',   label: 'Revisión VAR' };
-}
-
 // ═══════════════════════════════════════════
 // RENDER MATCHES
 // ═══════════════════════════════════════════
@@ -3095,40 +2543,32 @@ function renderMatches() {
     <div class="section-header">
       <span class="section-title">⚽ Partidos</span>
       <div style="display:flex;gap:6px;">
-        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" style="font-size:0.75em;">❓ ¿Cómo predecir?</button>
         <button class="btn btn-ghost btn-sm" onclick="openStandings()" style="font-size:0.75em;">📊 Tablas</button>
         <button class="btn btn-ghost btn-sm" onclick="doSync()">🔄 Sync</button>
       </div>
     </div>`;
 
   // ── SELECTOR DE GRUPO ACTIVO ──────────────
-  // Siempre se cargan todos los grupos públicos — los propios como chips activos,
-  // los ajenos con "+" para unirse con 1 tap
-  html += `<div id="publicGroupsStrip" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:4px;scrollbar-width:none;">
-    <span style="font-size:0.72em;color:var(--muted2);flex-shrink:0;align-self:center;">Grupos:</span>
-  </div>`;
-
-  // ── Banner de bienvenida si el jugador no está en ningún grupo ──
-  const isInAnyGroup = myGroupsList && myGroupsList.length > 0;
-  if (!isInAnyGroup) {
-    html += `
-      <div id="noGroupBanner" style="
-        background:linear-gradient(135deg,rgba(108,71,255,0.15),rgba(0,229,160,0.08));
-        border:1.5px solid rgba(108,71,255,0.4);
-        border-radius:12px;padding:12px 14px;margin-bottom:10px;
-        display:flex;align-items:flex-start;gap:10px;">
-        <span style="font-size:1.6em;flex-shrink:0;">👆</span>
-        <div>
-          <div style="font-weight:800;font-size:0.88em;color:var(--primary2);margin-bottom:3px;">
-            ¡Únete a un grupo para predecir!
-          </div>
-          <div style="font-size:0.76em;color:var(--muted2);line-height:1.5;">
-            Toca el nombre del grupo en el cintillo de arriba — con ese solo toque quedas dentro 👌<br>
-            <span style="color:var(--text);">¿No sabes predecir?</span> Toca el botón 
-            <strong style="color:var(--gold);">❓ ¿Cómo predecir?</strong> para ver el tutorial.
-          </div>
-        </div>
-      </div>`;
+  if (myGroupsList.length > 0) {
+    html += `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;scrollbar-width:none;">`;
+    myGroupsList.forEach(g => {
+      const isActive = g.id === activeGroupId;
+      const flag = (g.tournaments||[]).map(tid => {
+        const t = TOURNAMENTS.find(t=>t.id===tid);
+        return t?.flag || '';
+      }).filter(Boolean).slice(0,2).join('');
+      html += `
+        <button onclick="setActiveGroup('${g.id}')"
+          style="flex-shrink:0;padding:6px 12px;border-radius:20px;border:2px solid ${isActive?'var(--primary)':'var(--border2)'};
+          background:${isActive?'rgba(108,71,255,0.2)':'var(--surface2)'};
+          color:${isActive?'var(--primary2)':'var(--muted2)'};
+          font-family:var(--font-b);font-weight:700;font-size:0.78em;cursor:pointer;white-space:nowrap;
+          transition:all 0.2s;">
+          ${flag} ${g.name}
+        </button>`;
+    });
+    // Opción "Sin grupo" → torneos del perfil — removida (sin valor práctico)
+    html += `</div>`;
   }
 
   // Countdown banner with time remaining
@@ -3183,9 +2623,6 @@ function renderMatches() {
 
   el.innerHTML = html;
 
-  // Cargar el cintillo de grupos (propios activos + ajenos con "+" para unirse)
-  _loadPublicGroupsStrip();
-
   // Restore typed predictions
   Object.entries(saved).forEach(([mid,v])=>{
     const hi=$(`hi_${mid}`),ai=$(`ai_${mid}`);
@@ -3199,24 +2636,6 @@ function renderMatches() {
 async function _uLEC() {
   const lives = _dM.filter(m => isLive(m.status));
   if (!lives.length) return;
-
-  // ── Livescore V2: actualiza marcador EN VIVO (no esperar el doSync de 45s) ──
-  try {
-    const liveData = await fetchV2(`/livescore/soccer`);
-    const liveEvents = liveData?.events || liveData?.livescores || [];
-    liveEvents.forEach(le => {
-      const mid = String(le.idEvent || le.id || '');
-      const m = _dM.find(x => String(x.id) === mid);
-      if (!m) return;
-      // Actualizar score si cambió
-      const hs = le.intHomeScore ?? le.homeScore;
-      const as_ = le.intAwayScore ?? le.awayScore;
-      if (hs !== undefined && hs !== null) m.score.home = +hs;
-      if (as_ !== undefined && as_ !== null) m.score.away = +as_;
-      // Actualizar status si cambió
-      if (le.strStatus) m.status = le.strStatus;
-    });
-  } catch(e) {}
 
   for (const match of lives) {
     const mid = String(match.id);
@@ -3239,47 +2658,30 @@ async function _uLEC() {
         } catch(e) {}
       }
 
-      // ── Posesión: solo si no tenemos dato reciente (no bloquear el loop rápido) ──
-      let possession = _lEC[mid]?.possession || null;
-      const posAge = _lEC[mid]?.possessionUpdated || 0;
-      if (Date.now() - posAge > 120000) { // actualizar posesión cada 2 min máx
-        try {
-          const sr = await fetch(`${API_V1}/lookupeventstats.php?id=${mid}`);
-          const sd = await sr.json();
-          const stats = sd?.eventstats || sd?.stats || [];
-          const possStat = stats.find(s =>
-            (s.strStat || s.strType || '').toLowerCase().includes('possession')
-          );
-          if (possStat) {
-            possession = {
-              home: parseInt(possStat.intHome || possStat.strHome) || 0,
-              away: parseInt(possStat.intAway || possStat.strAway) || 0
-            };
-            posAge; // update timestamp below
-          }
-        } catch(e) {}
-      }
+      // ── Stats: posesión ──────────────────────────────────
+      let possession = null;
+      try {
+        const sr = await fetch(`${API_V1}/lookupeventstats.php?id=${mid}`);
+        const sd = await sr.json();
+        const stats = sd?.eventstats || sd?.stats || [];
+        const possStat = stats.find(s =>
+          (s.strStat || s.strType || '').toLowerCase().includes('possession')
+        );
+        if (possStat) {
+          possession = {
+            home: parseInt(possStat.intHome || possStat.strHome) || 0,
+            away: parseInt(possStat.intAway || possStat.strAway) || 0
+          };
+        }
+      } catch(e) {}
 
-      // Filtrar subs, ordenar por tiempo, tomar últimos 5 eventos relevantes
-      const cardEvents = timeline
-        .filter(t => {
-          const type = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
-          return !type.includes('sub') && !type.includes('substitut');
-        })
-        .sort((a, b) => {
-          // Ordenar cronológicamente para que slice(-5) tome los más recientes
-          const tA = (+(a.intTime||0)) * 60 + (+(a.intTimeExtra||0));
-          const tB = (+(b.intTime||0)) * 60 + (+(b.intTimeExtra||0));
-          return tA - tB;
-        })
-        .slice(-5);
+      // Guardar — solo eventos no-gol no-subs para la tarjeta (últimos 4)
+      const cardEvents = timeline.filter(t => {
+        const type = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
+        return !type.includes('goal') && !type.includes('sub');
+      }).slice(-4);
 
-      _lEC[mid] = {
-        events: cardEvents,
-        possession,
-        possessionUpdated: possession ? Date.now() : posAge,
-        lastUpdated: Date.now()
-      };
+      _lEC[mid] = { events: cardEvents, possession, lastUpdated: Date.now() };
 
     } catch(e) { console.warn('_lEC error', mid, e); }
   }
@@ -3298,42 +2700,40 @@ function buildMatchCard(m, closed) {
   const showScore = live || done;
   const cls = live?'live':done?'finished':'';
 
-  // Cronómetro real — solo cuando la API confirma '1H' o '2H'
-  // El badge tiene id="badge_{id}" y un data-kickoff para que el interval lo actualice
-  let kickoffMs = 0;
-  let cronPhase = ''; // '1H' | 'HT' | '2H' | 'ET' | 'P'
-  if (live && m.date && m.time) {
-    try {
-      // TheSportsDB devuelve el tiempo en UTC → parsear como UTC (Z), no como hora VE
-      const ko = new Date(`${m.date}T${m.time.substring(0,5)}:00Z`);
-      kickoffMs = ko.getTime();
-    } catch(e) {}
-    const st = (m.status || '').toUpperCase();
-    if (st === '1H')  cronPhase = '1H';
-    else if (st === 'HT') cronPhase = 'HT';
-    else if (st === '2H') cronPhase = '2H';
-    else if (st === 'ET') cronPhase = 'ET';
-    else if (st === 'P')  cronPhase = 'P';
+  // Minuto estimado localmente — 0 llamadas extra a la API
+  let minuteDisplay = '';
+  if (live) {
+    if (m.minute && !['FT','AET','HT','MATCH FINISHED'].includes(String(m.minute).toUpperCase())) {
+      minuteDisplay = m.minute; // Si la API ya lo da, úsalo
+    } else if (m.date && m.time) {
+      try {
+        const kickoff = new Date(`${m.date}T${m.time.substring(0,5)}:00-04:00`);
+        const elapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
+        if (elapsed >= 0 && elapsed <= 150) {
+          if (m.status === 'HT') {
+            minuteDisplay = 'DT'; // Descanso
+          } else if (elapsed <= 47) {
+            // 1er tiempo normal
+            minuteDisplay = elapsed <= 45 ? elapsed : `45+${elapsed - 45}`;
+          } else if (elapsed <= 62) {
+            // Descanso estimado (45-60 min)
+            minuteDisplay = 'DT';
+          } else {
+            // 2do tiempo: elapsed - ~15min de descanso
+            const secondHalf = elapsed - 62;
+            const min2 = secondHalf + 45;
+            minuteDisplay = min2 <= 90 ? min2 : `90+${min2 - 90}`;
+          }
+        }
+      } catch(e) {}
+    }
   }
 
   const statusTxt = statusLabel(m.status);
   let badge = '';
-  if (live) {
-    // Dos chips estilo marcador de TV:
-    // [🔴 45:00] [+? | 02:12]  ← chip principal fijo + chip de tiempo añadido corriendo
-    badge = `<span id="badge_${m.id}" data-kickoff="${kickoffMs}" data-phase="${cronPhase}"
-      style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;">
-      <span id="badge_main_${m.id}" class="badge-live">🔴 ${statusTxt}</span>
-      <span id="badge_extra_${m.id}" style="display:none;
-        background:#1a1a2e;color:#ffd700;border:1px solid #ffd700;
-        border-radius:5px;font-size:0.72em;font-family:var(--font-h);
-        font-weight:900;padding:1px 5px;letter-spacing:0.5px;white-space:nowrap;"></span>
-    </span>`;
-  } else if (done) {
-    badge = `<span class="badge-done">${statusTxt}</span>`;
-  } else {
-    badge = `<span class="badge-time">${vzTime(m.time)}</span>`;
-  }
+  if (live) badge = `<span class="badge-live" id="badge_${m.id}">🔴 ${statusTxt}${minuteDisplay ? ' · ' + minuteDisplay + "'" : ''}</span>`;
+  else if (done) badge = `<span class="badge-done">${statusTxt}</span>`;
+  else badge = `<span class="badge-time">${vzTime(m.time)}</span>`;
 
   let centerContent = '';
   if (showScore) {
@@ -3349,7 +2749,7 @@ function buildMatchCard(m, closed) {
     centerContent = `<span class="vs-divider">VS</span>`;
   }
 
-  // ── Goles desde API de partidos (partidos terminados o con datos de goals) ──
+  // Goles y eventos — mostrar bajo el marcador directamente
   let eventsHtml = '';
   if (showScore) {
     const parseGoals = (str, side, team) => {
@@ -3361,56 +2761,24 @@ function buildMatchCard(m, closed) {
         return {min, player, side, team, icon:'⚽', color: side==='home' ? 'var(--primary2)' : 'var(--green)'};
       });
     };
-
-    // Para partidos en vivo: priorizar goles del timeline (_lEC) si hay datos
-    const _mid2 = String(m.id);
-    const liveGoals = live && _lEC[_mid2]?.events
-      ? _lEC[_mid2].events.filter(t => {
-          const type = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
-          return type.includes('goal') && !type.includes('miss');
-        })
-      : [];
-
-    let allGoals = [];
-    if (liveGoals.length > 0) {
-      // Usar timeline: tiene jugador + minuto exacto
-      liveGoals.forEach(t => {
-        const type = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
-        const homeRaw = (t.strHome||t.strSide||'').toLowerCase();
-        const isHome = homeRaw==='yes'||homeRaw==='home';
-        const isOwnGoal = type.includes('own');
-        const isPenGoal = type.includes('pen')||type.includes('penal');
-        const min = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
-        const player = t.strPlayer || t.strPlayer1 || '—';
-        allGoals.push({
-          min, player, isHome,
-          icon: isOwnGoal ? '⚽🔴' : isPenGoal ? '⚽⚡' : '⚽',
-          color: isOwnGoal ? 'var(--red)' : isPenGoal ? 'var(--gold)' : (isHome ? 'var(--primary2)' : 'var(--green)'),
-          label: isOwnGoal ? '(OG)' : isPenGoal ? '(P)' : ''
-        });
-      });
-    } else {
-      // Fallback: strings de la API de partidos
-      allGoals = [
-        ...parseGoals(m.homeGoals, 'home', m.home),
-        ...parseGoals(m.awayGoals, 'away', m.away),
-      ].sort((a,b) => (parseInt(a.min)||0) - (parseInt(b.min)||0))
-       .map(g => ({...g, isHome: g.side==='home', label:''}));
-    }
+    const allGoals = [
+      ...parseGoals(m.homeGoals, 'home', m.home),
+      ...parseGoals(m.awayGoals, 'away', m.away),
+    ].sort((a,b) => parseInt(a.min)||0 - (parseInt(b.min)||0));
 
     if (allGoals.length > 0) {
       eventsHtml = `<div style="margin-top:8px;padding:0 4px;">`;
       allGoals.forEach(g => {
+        const isHome = g.side === 'home';
         eventsHtml += `
           <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
-            ${g.isHome?'justify-content:flex-start':'justify-content:flex-end'}">
-            ${g.isHome
-              ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
-                 <span>${g.icon}</span>
-                 <span style="color:${g.color};font-weight:700;">${g.player}${g.label?' <span style="opacity:0.75;font-size:0.85em;">'+g.label+'</span>':''}</span>`
-              : `<span style="color:${g.color};font-weight:700;">${g.player}${g.label?' <span style="opacity:0.75;font-size:0.85em;">'+g.label+'</span>':''}</span>
-                 <span>${g.icon}</span>
-                 <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
+            ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
+            ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
+              <span>⚽</span>
+              <span style="color:${g.color};font-weight:700;">${g.player}</span>` :
+              `<span style="color:${g.color};font-weight:700;">${g.player}</span>
+              <span>⚽</span>
+              <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
       eventsHtml += `</div>`;
@@ -3423,12 +2791,7 @@ function buildMatchCard(m, closed) {
   const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
-  const statsBtn = showScore ? `
-    <div style="display:flex;gap:6px;margin-top:8px;">
-      <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
-      <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
-      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,200,0,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
-    </div>` : '';
+  const statsBtn = showScore ? `<button onclick="openStats('${m.id}')" style="width:100%;padding:12px;margin-top:8px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.88em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
@@ -3445,8 +2808,41 @@ function buildMatchCard(m, closed) {
       </button>
     </div>` : '';
 
-  // ── Posesión en vivo ─────────────────────────────────
+  // ── Tarjetas/penaltis en vivo desde cache ──────────────
+  let liveEventsHtml = '';
   const _mid = String(m.id);
+  if (live && _lEC[_mid] && _lEC[_mid].events.length) {
+    liveEventsHtml = '<div style="margin-top:6px;padding:4px 4px 0;border-top:1px solid var(--border2);">';
+    _lEC[_mid].events.forEach(t => {
+      const min  = t.intTime ? `${t.intTime}${t.intTimeExtra?'+'+t.intTimeExtra:''}'` : "?'";
+      const type = (t.strTimeline||t.strTimelineDetail||t.strType||t.strEvent||'').toLowerCase();
+      const player  = t.strPlayer || t.strPlayer1 || '';
+      const homeRaw = (t.strHome||t.strSide||'').toLowerCase();
+      const isHome  = homeRaw==='yes'||homeRaw==='home';
+      const isYellowRed = type.includes('yellowred')||type.includes('second yellow');
+      const isYellow    = !isYellowRed && type.includes('yellow');
+      const isRed       = !isYellowRed && !isYellow && type.includes('red');
+      const isPenalty   = type.includes('penalty')||type.includes('penal');
+      const isVar       = type.includes('var');
+      let icon='', color='';
+      if (isYellowRed)    { icon='🟨🟥'; color='var(--red)'; }
+      else if (isYellow)  { icon='🟨';   color='var(--gold)'; }
+      else if (isRed)     { icon='🟥';   color='var(--red)'; }
+      else if (isPenalty) { icon='⚡';   color='var(--orange)'; }
+      else if (isVar)     { icon='📺';   color='var(--blue)'; }
+      else return;
+      liveEventsHtml += `
+        <div style="display:flex;align-items:center;gap:5px;padding:2px 0;font-size:0.72em;
+          ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
+          ${isHome
+            ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${min}</span><span>${icon}</span><span style="color:${color};font-weight:700;">${player}</span>`
+            : `<span style="color:${color};font-weight:700;">${player}</span><span>${icon}</span><span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${min}</span>`}
+        </div>`;
+    });
+    liveEventsHtml += '</div>';
+  }
+
+  // ── Posesión en vivo ─────────────────────────────────
   let possessionHtml = '';
   if (live && _lEC[_mid]?.possession) {
     const p = _lEC[_mid].possession;
@@ -3485,6 +2881,7 @@ function buildMatchCard(m, closed) {
         </div>
       </div>
       ${eventsHtml}
+      ${liveEventsHtml}
       ${possessionHtml}
       ${predRow}
       ${statsBtn}
@@ -3548,59 +2945,25 @@ async function openStats(matchId) {
       }
     }
 
-    // ── Parciales por tiempo ──────────────────────────────────
-    let partialsHtml = '';
-    try {
-      const rp = await fetchV2(`/lookup/event_results/${matchId}`);
-      const res = rp?.results || rp?.result || [];
-      if (res.length) {
-        // Buscar 1er y 2do tiempo
-        const h1 = res.find(r => (r.strResult||r.strPeriod||'').toLowerCase().includes('1'));
-        const h2 = res.find(r => (r.strResult||r.strPeriod||'').toLowerCase().includes('2'));
-        const parts = [];
-        if (h1) parts.push({ label:'1er Tiempo', h: h1.intHomeScore??h1.intHome??'?', a: h1.intAwayScore??h1.intAway??'?' });
-        if (h2) parts.push({ label:'2do Tiempo', h: h2.intHomeScore??h2.intHome??'?', a: h2.intAwayScore??h2.intAway??'?' });
-        if (parts.length) {
-          partialsHtml = `
-            <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
-              ${parts.map(p => `
-                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
-                  padding:5px 14px;text-align:center;">
-                  <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">${p.label}</div>
-                  <div style="font-family:var(--font-h);font-size:1.1em;font-weight:900;color:var(--text);margin-top:2px;">${p.h} — ${p.a}</div>
-                </div>`).join('')}
-            </div>`;
-        }
-      }
-    } catch(e) {}
-
-    // ── Cabecera marcador — estilo FlashScore ─────────────────
-    // Leer el cronómetro actual del badge si el partido está en vivo
-    const liveBadge = document.getElementById(`badge_main_${matchId}`) || document.getElementById(`badge_${matchId}`);
-    const liveCronText = (isMatchLive && liveBadge) ? liveBadge.textContent.replace('🔴','').trim() : '';
-    const minuteLabel = liveCronText || (minuteDisplay ? `${minuteDisplay}'` : '');
-
+    // ── Cabecera marcador ─────────────────────────────────────
     let html = `
-      <div style="margin-bottom:16px;">
-        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-          letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
-          <span>${leagueName}</span>
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          ${leagueName}
           ${isMatchLive
-            ? `<span style="color:var(--red);animation:pulse 2s infinite;">🔴 EN VIVO</span>
-               <button onclick="openStats('${matchId}')" style="padding:2px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.9em;cursor:pointer;font-weight:700;">🔄</button>`
+            ? `<span style="color:var(--red);margin-left:8px;animation:pulse 2s infinite;">🔴 EN VIVO</span>
+               <button onclick="openStats('${matchId}')" style="margin-left:8px;padding:3px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.75em;cursor:pointer;font-weight:700;">🔄 Actualizar</button>`
             : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;">
-          <div style="text-align:right;font-weight:900;font-size:0.9em;line-height:1.3;color:var(--primary2);">${home}</div>
-          <div style="text-align:center;">
-            <div style="font-family:var(--font-h);font-size:2.6em;font-weight:900;color:var(--text);letter-spacing:2px;line-height:1;">${scoreH} — ${scoreA}</div>
-            ${minuteLabel ? `<div style="color:var(--gold);font-size:0.78em;font-weight:800;margin-top:4px;">⏱ ${minuteLabel}</div>` : ''}
-            ${!isMatchLive ? `<div style="color:var(--muted2);font-size:0.68em;margin-top:2px;">Finalizado</div>` : ''}
-          </div>
-          <div style="text-align:left;font-weight:900;font-size:0.9em;line-height:1.3;color:var(--green);">${away}</div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;">
+          <div style="text-align:right;font-weight:800;font-size:0.88em;line-height:1.4;">${home}</div>
+          <div style="font-family:var(--font-h);font-size:2.4em;color:var(--primary2);padding:0 14px;white-space:nowrap;">${scoreH} — ${scoreA}</div>
+          <div style="text-align:left;font-weight:800;font-size:0.88em;line-height:1.4;">${away}</div>
         </div>
-        ${partialsHtml}
-        ${venue ? `<div style="color:var(--muted2);font-size:0.68em;text-align:center;margin-top:6px;">🏟 ${venue}</div>` : ''}
+        ${isMatchLive && minuteDisplay
+          ? `<div style="color:var(--gold);font-size:0.88em;margin-top:8px;font-weight:800;">⏱ ${minuteDisplay}'</div>`
+          : ''}
+        ${venue ? `<div style="color:var(--muted2);font-size:0.7em;margin-top:4px;">🏟 ${venue}</div>` : ''}
       </div>`;
 
     // ── Timeline: 3 fuentes en orden ─────────────────────────
@@ -3634,161 +2997,74 @@ async function openStats(matchId) {
       if (tl.length > 0) timelineEvents = tl;
     }
 
-    // ── Render de cada evento — estilo FlashScore ────────────
+    // ── Render de cada evento ─────────────────────────────────
     const renderTimelineEvent = (t) => {
-      const minRaw  = t.intTime ? +t.intTime : null;
-      const minExtra = t.intTimeExtra ? '+' + t.intTimeExtra : '';
-      const minStr  = minRaw !== null ? `${minRaw}${minExtra}'` : "?'";
+      // Minuto con tiempo añadido: 45+3', 90+8'
+      const min     = t.intTime ? `${t.intTime}${t.intTimeExtra ? '+' + t.intTimeExtra : ''}'` : "?'";
+      // TheSportsDB usa distintos campos según versión
       const type    = (t.strTimeline || t.strTimelineDetail || t.strType || t.strEvent || '').toLowerCase();
       const player  = t.strPlayer  || t.strPlayer1 || '';
-      // Para sustituciones: player = entra, player2 = sale
       const player2 = t.strAssist  || t.strPlayer2 || '';
+      // V1 usa "yes/no" en strHome; V2 usa "home/away"
       const homeRaw = (t.strHome || t.strSide || '').toLowerCase();
       const isHome  = homeRaw === 'yes' || homeRaw === 'home';
+      const side    = isHome ? home : away;
 
-      // ── Clasificar tipo de evento ────────────────────────
+      let icon = '', color = 'var(--text)', extra = '';
+
+      // Tarjetas: cubrir yellowcard / redcard / yellowredcard / "Second Yellow Card"
       const isYellowRed = type.includes('yellowred') || type.includes('second yellow')
                        || (type.includes('yellow') && type.includes('red'));
       const isYellow    = !isYellowRed && type.includes('yellow');
       const isRed       = !isYellowRed && !isYellow &&
                           (type.includes('redcard') || type === 'red' ||
-                           (type.includes('red') && !type.includes('score')));
-      const isSub       = type.includes('sub') || type.includes('substitut');
-      const isVAR       = type.includes('var');
-      const isGoal      = type.includes('goal');
-      const isPenalty   = !isGoal && (type.includes('penalty') || type.includes('penal'));
+                           (type.includes('red') && !type.includes('score') && !type.includes('card')==false));
 
-      let icon = '', color = 'var(--text)', mainLine = '', subLine = '';
-
-      if (isGoal) {
-        // Marcador parcial en el momento del gol — viene en intScore o intHomeScore/intAwayScore del evento
-        const gScoreH = t.intHomeScore ?? t.intScore?.split('-')?.[0] ?? null;
-        const gScoreA = t.intAwayScore ?? t.intScore?.split('-')?.[1] ?? null;
-        const scoreChip = (gScoreH !== null && gScoreA !== null)
-          ? `<span style="font-family:var(--font-h);font-size:0.82em;font-weight:900;
-              background:var(--surface2);border:1px solid var(--border2);
-              border-radius:6px;padding:1px 6px;margin-left:4px;color:var(--text);">
-              ${gScoreH}-${gScoreA}
-            </span>`
-          : '';
-
-        // Causa del penal si la API la manda
-        const foulRaw  = (t.strFoul || t.strComment || t.strReason || '').trim();
-        const foulMap  = {
-          'hand': 'mano', 'handball': 'mano', 'hand ball': 'mano',
-          'foul': 'falta', 'tackle': 'entrada', 'push': 'empujón',
-          'trip': 'zancadilla', 'pulling': 'agarrón', 'shirt': 'agarrón',
-          'offside': 'fuera de juego', 'simulation': 'simulación'
-        };
-        const foulLower = foulRaw.toLowerCase();
-        const foulEs = Object.entries(foulMap).find(([k]) => foulLower.includes(k))?.[1] || foulRaw;
-        const penalDetail = foulEs ? ` · ${foulEs}` : '';
-
+      if (type.includes('goal')) {
         if (type.includes('own')) {
           icon='⚽🔴'; color='var(--red)';
-          mainLine = `${player}${scoreChip} <span style="color:var(--red);font-size:0.78em;">(Autogol)</span>`;
+          extra=' <span style="color:var(--red);font-size:0.75em;">(Autogol)</span>';
         } else if (type.includes('pen') && !type.includes('miss')) {
           icon='⚽⚡'; color='var(--gold)';
-          mainLine = `${player}${scoreChip} <span style="color:var(--gold);font-size:0.78em;">(Penal${penalDetail})</span>`;
+          extra=' <span style="color:var(--gold);font-size:0.75em;">(Penal)</span>';
+          if (t.strFoul) extra += ` <span style="color:var(--muted2);font-size:0.72em;">· falta: ${t.strFoul}</span>`;
         } else if (type.includes('miss')) {
           icon='❌'; color='var(--muted2)';
-          mainLine = `${player} <span style="color:var(--muted2);font-size:0.78em;">(Penal fallado${penalDetail})</span>`;
+          extra=' <span style="color:var(--muted2);font-size:0.75em;">(Penal fallado)</span>';
         } else {
           icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)';
-          mainLine = `${player}${scoreChip}`;
         }
         if (player2 && !type.includes('miss'))
-          subLine = `<span style="color:var(--muted2);">🅰 ${player2}</span>`;
+          extra += ` <span style="color:var(--muted2);font-size:0.72em;">🅰 ${player2}</span>`;
       }
       else if (isYellowRed) {
         icon='🟨🟥'; color='var(--red)';
-        mainLine = `${player} <span style="color:var(--red);font-size:0.78em;">(2ª Amarilla)</span>`;
+        extra=' <span style="color:var(--red);font-size:0.72em;">(2ª Amarilla)</span>';
       }
-      else if (isYellow) {
-        icon='🟨'; color='var(--gold)';
-        // Acumulación: la API a veces lo pone en strComment o strFoul
-        const comment = (t.strComment || t.strFoul || t.strReason || '').trim();
-        const isAccum = comment.toLowerCase().includes('accumul') ||
-                        comment.toLowerCase().includes('next match') ||
-                        comment.toLowerCase().includes('pierde') ||
-                        comment.toLowerCase().includes('suspend');
-        mainLine = player;
-        if (comment) subLine = `<span style="color:var(--gold);font-size:0.78em;">· ${comment}</span>`;
-        else if (isAccum) subLine = `<span style="color:var(--orange);font-size:0.78em;">⚠️ Se pierde el próximo partido</span>`;
-      }
-      else if (isRed) {
-        icon='🟥'; color='var(--red)';
-        mainLine = player;
-        const reason = (t.strComment || t.strFoul || '').trim();
-        if (reason) subLine = `<span style="color:var(--red);font-size:0.78em;">· ${reason}</span>`;
-      }
-      else if (isSub) {
+      else if (isYellow) { icon='🟨'; color='var(--gold)'; }
+      else if (isRed)    { icon='🟥'; color='var(--red)'; }
+      else if (type.includes('sub') || type.includes('substitut')) {
         icon='🔄'; color='var(--muted2)';
-        // player = entra (verde), player2 = sale (rojo)
-        if (player2) {
-          mainLine = `<span style="color:var(--green);font-weight:800;">▲ ${player}</span>`;
-          subLine  = `<span style="color:var(--red);font-size:0.82em;">▼ ${player2}</span>`;
-        } else {
-          mainLine = player;
-        }
+        if (player2) extra = ` <span style="color:var(--green);font-size:0.75em;">▲ ${player2}</span>`;
       }
-      else if (isVAR) {
-        const v = varDetail(t);
-        icon  = v.icon; color = v.color;
-        mainLine = `<span style="color:${v.color};font-weight:800;">${v.label}</span>`;
-        if (player) subLine = `<span style="color:var(--muted2);">${player}</span>`;
-      }
-      else if (isPenalty) {
-        icon='⚡'; color='var(--orange)';
-        mainLine = player;
-      }
+      else if (type.includes('var'))                               { icon='📺'; color='var(--blue)'; }
+      else if (type.includes('penalty') || type.includes('penal')) { icon='⚡'; color='var(--orange)'; }
       else return '';
 
-      // ── Layout FlashScore: local izquierda, visitante derecha ──
-      // Minuto en el centro como eje divisor
-      const timeEl    = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.78em;font-weight:900;white-space:nowrap;flex-shrink:0;">${minStr}</span>`;
-      const iconEl    = `<span style="font-size:1.05em;flex-shrink:0;">${icon}</span>`;
-      const textBlock = `<div style="line-height:1.35;min-width:0;">
-        <div style="font-weight:800;font-size:0.85em;color:${color};white-space:normal;">${mainLine}</div>
-        ${subLine ? `<div style="margin-top:1px;font-size:0.8em;">${subLine}</div>` : ''}
-      </div>`;
-
-      if (isHome) {
-        // Local → izquierda: [tiempo · ícono · nombre]  |  [vacío]
-        return `
-          <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
-            <div style="display:flex;align-items:flex-start;gap:6px;padding-right:8px;">
-              ${timeEl}
-              ${iconEl}
-              ${textBlock}
-            </div>
-            <div style="background:var(--border2);"></div>
-            <div></div>
-          </div>`;
-      } else {
-        // Visitante → derecha: [vacío]  |  [nombre · ícono · tiempo]
-        return `
-          <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
-            <div></div>
-            <div style="background:var(--border2);"></div>
-            <div style="display:flex;align-items:flex-start;gap:6px;justify-content:flex-end;text-align:right;padding-left:8px;">
-              ${textBlock}
-              ${iconEl}
-              ${timeEl}
-            </div>
-          </div>`;
-      }
+      return `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+          <span style="font-family:var(--font-h);color:var(--gold);min-width:44px;font-size:0.82em;font-weight:800;padding-top:2px;flex-shrink:0;">${min}</span>
+          <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:800;font-size:0.88em;color:${color};">${player || '—'}${extra}</div>
+            <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">${isHome ? '🏠 ' : '✈️ '}${side}</div>
+          </div>
+        </div>`;
     };
 
     // ── Mostrar timeline O fallback con strings V1 ────────────
     if (timelineEvents.length > 0) {
-      // Header con nombres de equipos — línea central igual que los eventos
-      html += `
-        <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:8px 0 10px;margin-bottom:2px;border-bottom:2px solid var(--primary2);">
-          <div style="font-size:0.78em;font-weight:900;color:var(--primary2);padding-right:8px;">🏠 ${home}</div>
-          <div style="background:var(--primary2);"></div>
-          <div style="font-size:0.78em;font-weight:900;color:var(--green);text-align:right;padding-left:8px;">✈️ ${away}</div>
-        </div>`;
+      html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Cronología del Partido</div>`;
       const sorted = [...timelineEvents].sort((a,b) => (+a.intTime||0) - (+b.intTime||0));
       sorted.forEach(t => { html += renderTimelineEvent(t) || ''; });
 
@@ -3821,35 +3097,22 @@ async function openStats(matchId) {
       });
 
       if (allTextEvents.length) {
-        html += `
-          <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:8px 0 10px;margin-bottom:2px;border-bottom:2px solid var(--primary2);">
-            <div style="font-size:0.78em;font-weight:900;color:var(--primary2);padding-right:8px;">🏠 ${home}</div>
-            <div style="background:var(--primary2);"></div>
-            <div style="font-size:0.78em;font-weight:900;color:var(--green);text-align:right;padding-left:8px;">✈️ ${away}</div>
-          </div>`;
+        html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📋 Eventos del Partido</div>`;
         allTextEvents.forEach(({g, icon, color, side}) => {
-          const isHome = side === home;
+          // Extraer minuto: soporta "45'", "45+2'", "(90')"
           const minM   = g.match(/(\d+)\+?(\d+)?'/);
           const min    = minM ? minM[0] : "?'";
+          // Extraer nombre: quitar todo el patrón del minuto
           const player = g.replace(/\(?\d+\+?\d*'\)?/g, '').replace(/[()]/g, '').trim() || g;
-          const timeEl = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.78em;font-weight:900;white-space:nowrap;flex-shrink:0;">${min}</span>`;
-          const iconEl = `<span style="font-size:1.05em;flex-shrink:0;">${icon}</span>`;
-          const textEl = `<div style="font-weight:800;font-size:0.85em;color:${color};">${player}</div>`;
-          if (isHome) {
-            html += `
-              <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
-                <div style="display:flex;align-items:flex-start;gap:6px;padding-right:8px;">${timeEl}${iconEl}${textEl}</div>
-                <div style="background:var(--border2);"></div>
-                <div></div>
-              </div>`;
-          } else {
-            html += `
-              <div style="display:grid;grid-template-columns:1fr 1px 1fr;gap:0;padding:7px 0;border-bottom:1px solid var(--border);">
-                <div></div>
-                <div style="background:var(--border2);"></div>
-                <div style="display:flex;align-items:flex-start;gap:6px;justify-content:flex-end;text-align:right;padding-left:8px;">${textEl}${iconEl}${timeEl}</div>
-              </div>`;
-          }
+          html += `
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">
+              <span style="font-family:var(--font-h);color:var(--gold);min-width:44px;font-size:0.82em;font-weight:800;flex-shrink:0;">${min}</span>
+              <span style="font-size:1.15em;flex-shrink:0;">${icon}</span>
+              <div style="flex:1;">
+                <div style="font-weight:800;font-size:0.88em;color:${color};">${player}</div>
+                <div style="font-size:0.7em;color:var(--muted2);">${side}</div>
+              </div>
+            </div>`;
         });
       } else {
         html += `
@@ -3953,55 +3216,7 @@ async function openStats(matchId) {
       }
     } catch(e) {}
 
-    // ── Debug admin: ver JSON crudo del timeline ──────────────
-    if (me?.isAdmin) {
-      html += `
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border2);">
-          <button onclick="_debugTimeline('${matchId}')"
-            style="width:100%;padding:8px;border-radius:10px;cursor:pointer;
-            font-family:var(--font-h);font-size:0.72em;font-weight:800;
-            background:rgba(255,200,0,0.08);color:var(--gold);
-            border:1px solid rgba(255,200,0,0.3);">
-            🔍 Debug: ver datos raw TheSportsDB
-          </button>
-        </div>`;
-    }
-
     $('statsContent').innerHTML = html;
-
-    // ── Auto-refresh del timeline si el partido está en vivo ──
-    if (isMatchLive) {
-      if (window._statsRefreshInterval) clearInterval(window._statsRefreshInterval);
-      window._statsRefreshMatchId = String(matchId);
-      window._statsRefreshInterval = setInterval(async () => {
-        // Solo refrescar si el modal sigue abierto con el mismo partido
-        const modal = document.getElementById('statsModal');
-        if (!modal || modal.style.display === 'none' || !modal.classList.contains('open')) {
-          clearInterval(window._statsRefreshInterval);
-          window._statsRefreshInterval = null;
-          return;
-        }
-        if (window._statsRefreshMatchId !== String(matchId)) {
-          clearInterval(window._statsRefreshInterval);
-          return;
-        }
-        // Refrescar silenciosamente — solo timeline y marcador
-        try {
-          const lr = await fetchV2('/livescore/soccer');
-          const lives = lr?.livescore || lr?.events || [];
-          const lv = lives.find(e => String(e.idEvent||e.id) === String(matchId));
-          if (lv) {
-            // Actualizar marcador en el header del modal
-            const scoreEl = document.querySelector('#statsContent .stats-score-main');
-            if (scoreEl) scoreEl.textContent = `${lv.intHomeScore ?? '–'} — ${lv.intAwayScore ?? '–'}`;
-            // Guardar en cache de eventos para la tarjeta
-            _lEC[String(matchId)] = _lEC[String(matchId)] || { events:[], possession:{home:0,away:0} };
-            const evs = lv.timeline || lv.events || [];
-            if (evs.length) _lEC[String(matchId)].events = evs;
-          }
-        } catch(e) {}
-      }, 60000);
-    }
 
   } catch(e) {
     console.error('openStats error:', e);
@@ -4014,108 +3229,6 @@ async function openStats(matchId) {
             ? 'Demasiadas solicitudes — espera unos segundos y vuelve a intentarlo'
             : 'Error: ' + e.message}
         </span>
-      </div>`;
-  }
-}
-
-// ═══════════════════════════════════════════
-// MODAL ALINEACIONES
-// ═══════════════════════════════════════════
-async function openLineup(matchId, home, away) {
-  openModal('statsModal');
-  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando alineaciones...</span></div>';
-
-  try {
-    let lineup = [];
-
-    // Intento 1: V2
-    try {
-      const lr = await fetchV2(`/lookup/event_lineup/${matchId}`);
-      lineup = lr?.lineup || [];
-    } catch(e) {}
-
-    // Intento 2: V1 fallback si V2 falla o devuelve vacío
-    if (!lineup.length) {
-      try {
-        const r = await fetch(`${API_V1}/lookuplineup.php?id=${matchId}`);
-        const d = await r.json();
-        lineup = d?.lineup || d?.players || [];
-      } catch(e) {}
-    }
-
-    if (!lineup.length) {
-      $('statsContent').innerHTML = `
-        <div class="empty">
-          <span class="empty-icon">📋</span>
-          <span class="empty-text">Alineaciones no disponibles todavía</span>
-          <span class="empty-sub">TheSportsDB las publica poco antes del partido</span>
-        </div>`;
-      return;
-    }
-
-    const homePlayers = lineup.filter(p => (p.strHome||p.strSide||'').toLowerCase() === 'home');
-    const awayPlayers = lineup.filter(p => (p.strHome||p.strSide||'').toLowerCase() === 'away');
-
-    const posOrder = { goalkeeper:0, goalie:0, defender:1, back:1, midfielder:2, mid:2, forward:3, striker:3, winger:3 };
-    const sortByPos = arr => [...arr].sort((a,b) =>
-      (posOrder[(a.strPosition||'').toLowerCase().split(' ')[0]] ?? 5) -
-      (posOrder[(b.strPosition||'').toLowerCase().split(' ')[0]] ?? 5));
-
-    const posIcon = pos => {
-      pos = (pos||'').toLowerCase();
-      if (pos.includes('goal')||pos.includes('keep')) return '🧤';
-      if (pos.includes('def')||pos.includes('back'))  return '🛡';
-      if (pos.includes('mid'))                         return '⚙️';
-      if (pos.includes('for')||pos.includes('strik')||pos.includes('wing')) return '⚡';
-      return '👤';
-    };
-
-    const renderTeam = (players, tname, color) => {
-      const starters  = sortByPos(players.filter(p => (p.strSubstitute||'').toLowerCase() !== 'yes'));
-      const subs      = sortByPos(players.filter(p => (p.strSubstitute||'').toLowerCase() === 'yes'));
-      const renderRow = p => `
-        <div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:0.95em;">${posIcon(p.strPosition)}</span>
-          <span style="color:var(--gold);font-family:var(--font-h);font-size:0.78em;font-weight:900;min-width:22px;">${p.strNumber||'—'}</span>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:0.82em;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.strPlayer||'—'}</div>
-            ${p.strPosition ? `<div style="font-size:0.62em;color:var(--muted2);">${p.strPosition}</div>` : ''}
-          </div>
-        </div>`;
-
-      return `
-        <div>
-          <div style="font-size:0.72em;font-weight:900;color:${color};margin-bottom:6px;
-            border-bottom:2px solid ${color};padding-bottom:4px;overflow:hidden;
-            text-overflow:ellipsis;white-space:nowrap;">${tname}</div>
-          ${starters.length ? `
-            <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-              letter-spacing:1px;margin:4px 0 3px;">Titulares (${starters.length})</div>
-            ${starters.map(renderRow).join('')}` : ''}
-          ${subs.length ? `
-            <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-              letter-spacing:1px;margin:8px 0 3px;">Suplentes (${subs.length})</div>
-            ${subs.map(renderRow).join('')}` : ''}
-        </div>`;
-    };
-
-    const html = `
-      <div style="text-align:center;font-size:0.68em;color:var(--muted2);font-weight:700;
-        text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">📋 Alineaciones</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        ${renderTeam(homePlayers, home, 'var(--primary2)')}
-        ${renderTeam(awayPlayers, away, 'var(--green)')}
-      </div>`;
-
-    $('statsContent').innerHTML = html;
-
-  } catch(e) {
-    const is429 = String(e.message||'').includes('429');
-    $('statsContent').innerHTML = `
-      <div class="empty">
-        <span class="empty-icon">${is429?'⏳':'📋'}</span>
-        <span class="empty-text">${is429?'Límite de solicitudes — espera un momento':'Alineaciones no disponibles'}</span>
-        <span class="empty-sub">${is429?'Intenta en 30 segundos':'TheSportsDB las publica antes del partido'}</span>
       </div>`;
   }
 }
@@ -4422,52 +3535,17 @@ async function searchPreds() {
   const today = vzDate();
   let html = '';
 
-  // Cache de todos los usuarios para búsqueda fuzzy si falla exacta
-  let allUsersCache = null;
-  const getAllUsers = async () => {
-    if (allUsersCache) return allUsersCache;
-    const snap = await db.collection('users').get();
-    allUsersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    return allUsersCache;
-  };
-
-  // Normalizar: quitar espacios extras, todo mayúsculas
-  const normalize = s => (s || '').trim().toUpperCase().replace(/\s+/g, ' ');
-
   for (const uname of names) {
-    // 1) Búsqueda exacta
-    let uDoc = null;
     const uSnap = await db.collection('users').where('username','==',uname).limit(1).get();
-    if (!uSnap.empty) {
-      uDoc = { id: uSnap.docs[0].id, ...uSnap.docs[0].data() };
-    }
-
-    // 2) Si no encontró — búsqueda fuzzy del lado del cliente
-    if (!uDoc) {
-      const all = await getAllUsers();
-      // Buscar coincidencia: normalizar ambos lados, o que uno contenga al otro
-      const unameNorm = normalize(uname);
-      const match = all.find(u => {
-        const uNorm = normalize(u.username || '');
-        return uNorm === unameNorm ||
-               uNorm.replace(/\s/g,'') === unameNorm.replace(/\s/g,'') ||
-               uNorm.includes(unameNorm) ||
-               unameNorm.includes(uNorm);
-      });
-      if (match) uDoc = match;
-    }
-
-    if (!uDoc) {
+    if (uSnap.empty) {
       html += `<div style="color:var(--red);font-size:0.85em;padding:8px 0;">❌ "${uname}" no encontrado</div>`;
       continue;
     }
-
-    // Usar el username real guardado en Firestore para mostrarlo
-    const displayName = uDoc.username || uname;
+    const u = { id: uSnap.docs[0].id, ...uSnap.docs[0].data() };
 
     // Traer predicciones de HOY solamente
     const ps = await db.collection('predictions')
-      .where('userId', '==', uDoc.id)
+      .where('userId', '==', u.id)
       .where('jornadaDate', '==', today)
       .get();
 
@@ -4489,8 +3567,8 @@ async function searchPreds() {
 
     html += `<div class="card" style="margin-bottom:10px;">
       <div style="font-weight:800;margin-bottom:8px;">
-        👤 ${displayName}
-        <span style="color:var(--muted2);font-size:0.8em;">#${uDoc.playerNumber||'?'}</span>
+        👤 ${u.username}
+        <span style="color:var(--muted2);font-size:0.8em;">#${u.playerNumber||'?'}</span>
         <span style="color:var(--green);font-size:0.72em;margin-left:6px;">${unique.length} partidos</span>
       </div>`;
 
@@ -4674,35 +3752,13 @@ async function renderGroups() {
     <span class="section-title">👥 Grupos</span>
     <div style="display:flex;gap:8px;">
       ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="renderCreatePicker();openModal('createModal')">➕ Crear</button>` : ''}
-      ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="openModal('joinModal')">🔗 Unirse</button>` : ''}
+      <button class="btn btn-ghost btn-sm" onclick="openModal('joinModal')">🔗 Unirse</button>
     </div>
-  </div>
-  <!-- SUB-TABS: Mis Grupos / Ligas -->
-  <div style="display:flex;gap:6px;margin-bottom:14px;">
-    <button id="grpTab-grupos" onclick="switchGrpTab('grupos')"
-      style="flex:1;padding:9px;border-radius:var(--r-sm);border:1px solid var(--primary);
-      background:rgba(108,71,255,0.2);color:var(--primary2);
-      font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;">
-      👥 Mis Grupos
-    </button>
-    <button id="grpTab-ligas" onclick="switchGrpTab('ligas')"
-      style="flex:1;padding:9px;border-radius:var(--r-sm);border:1px solid var(--border2);
-      background:var(--surface2);color:var(--muted2);
-      font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;">
-      🏆 Ligas
-    </button>
-  </div>
-  <div id="grpPanel-grupos"></div>
-  <div id="grpPanel-ligas" class="hidden"></div>`;
+  </div>`;
 
-  // Render the shell first so panels exist in DOM
-  el.innerHTML = html;
-
-  // ── PANEL GRUPOS ───────────────────────────
   try {
     const snap = await db.collection('groups').get();
-    let grpHtml = '';
-    if(me.isAdmin) grpHtml+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">👑 Admin — ves todos los grupos</div>`;
+    if(me.isAdmin) html+=`<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--primary2);font-weight:700;">👑 Admin — ves todos los grupos</div>`;
 
     let found=0;
     snap.docs.forEach(doc=>{
@@ -4710,7 +3766,7 @@ async function renderGroups() {
       if(!me.isAdmin&&!g.members?.some(m=>m.userId===me.uid)) return;
       found++;
       const isMine=g.members?.some(m=>m.userId===me.uid);
-      grpHtml+=`<div class="group-card">
+      html+=`<div class="group-card">
         <div class="group-card-header">
           <div>
             <div class="group-name">${g.name} ${isMine?'👑':''}</div>
@@ -4729,97 +3785,11 @@ async function renderGroups() {
       </div>`;
     });
 
-    if(!found) grpHtml+=`<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">Sin grupos todavía.<br><small style="color:var(--muted2);">Toca un grupo en el cintillo de Partidos para unirte.</small></span></div>`;
-    $('grpPanel-grupos').innerHTML = grpHtml;
+    if(!found) html+=`<div class="empty"><span class="empty-icon">👥</span><span class="empty-text">Sin grupos. Crea o únete a uno.</span></div>`;
   } catch(e) {
-    $('grpPanel-grupos').innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+    html+=`<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
-
-  // ── PANEL LIGAS (solo lectura para jugadores, editable para admin) ──
-  renderLigasPanel();
-}
-
-function renderLigasPanel() {
-  const panel = $('grpPanel-ligas');
-  if (!panel) return;
-
-  let html = `
-    <div style="margin-bottom:14px;">
-      <div style="font-size:0.78em;color:var(--muted2);font-weight:600;margin-bottom:12px;">
-        ${me.isAdmin
-          ? '👑 Como Admin puedes activar/desactivar ligas para los grupos.'
-          : '👀 Estas son las ligas disponibles en el sistema. ¿Quieres proponer una quiniela con alguna?'}
-      </div>`;
-
-  // Copa del Mundo — destacada
-  html += `
-    <div class="card-glow" style="margin-bottom:14px;cursor:pointer;" onclick="openMundialModal()">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span style="font-size:2em;">🌍🏆</span>
-        <div style="flex:1;">
-          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
-          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">48 selecciones · 104 partidos · USA/MX/CA</div>
-        </div>
-        <span style="font-size:1.5em;">→</span>
-      </div>
-    </div>`;
-
-  // Lista de ligas
-  TOURNAMENTS.filter(t => !t.isMundial).forEach(t => {
-    const sel = myTournaments.includes(t.id);
-    if (me.isAdmin) {
-      // Admin: puede activar/desactivar
-      html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${t.id}',this)">
-        <div class="tourn-left"><span style="font-size:1.3em;">${t.flag}</span><span>${t.name}</span></div>
-        <div class="tourn-check">${sel?'✓':''}</div>
-      </div>`;
-    } else {
-      // Jugador: solo lectura
-      html += `<div class="tourn-item" style="opacity:${sel?'1':'0.5'};cursor:default;">
-        <div class="tourn-left"><span style="font-size:1.3em;">${t.flag}</span><span>${t.name}</span></div>
-        <div class="tourn-check" style="color:${sel?'var(--green)':'var(--muted)'};">${sel?'✓':'—'}</div>
-      </div>`;
-    }
-  });
-
-  if (me.isAdmin) {
-    html += `<button class="btn btn-primary" style="margin-top:12px;" onclick="saveTournaments()">💾 Guardar selección</button>`;
-  } else {
-    // Botón sugerir al admin por WhatsApp
-    const adminWaNum = '584145555555'; // fallback — el admin puede configurar
-    html += `
-      <div style="margin-top:16px;padding:12px 14px;background:rgba(37,211,102,0.08);border:1px solid rgba(37,211,102,0.25);border-radius:var(--r-sm);">
-        <div style="font-size:0.78em;color:var(--muted2);font-weight:700;margin-bottom:8px;">
-          ¿Quieres proponer una liga? Cuéntaselo al admin:
-        </div>
-        <button class="btn-wa" onclick="suggestLeagueWA()" style="width:100%;padding:11px;font-size:0.85em;">
-          📲 Sugerir liga al Admin por WhatsApp
-        </button>
-      </div>`;
-  }
-
-  html += `</div>`;
-  panel.innerHTML = html;
-}
-
-function suggestLeagueWA() {
-  const text = `⚽ Hola, soy ${me.name||me.username} en Quiniela LuAn.\n\n💡 Quiero sugerir agregar una nueva liga al sistema. ¿Podemos hablar?\n\n_Quiniela LuAn_`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-}
-
-function switchGrpTab(tab) {
-  ['grupos','ligas'].forEach(t => {
-    const panel = $(`grpPanel-${t}`);
-    const btn = $(`grpTab-${t}`);
-    if (!panel || !btn) return;
-    const active = t === tab;
-    panel.classList.toggle('hidden', !active);
-    btn.style.border = active ? '1px solid var(--primary)' : '1px solid var(--border2)';
-    btn.style.background = active ? 'rgba(108,71,255,0.2)' : 'var(--surface2)';
-    btn.style.color = active ? 'var(--primary2)' : 'var(--muted2)';
-  });
-  // Render ligas panel on demand
-  if (tab === 'ligas') renderLigasPanel();
+  el.innerHTML=html;
 }
 
 async function doCreateGroup() {
@@ -4903,140 +3873,22 @@ async function deleteGroup(gid, name) {
 }
 
 function shareGroup(code, name) {
-  // Redirige al menú WA de la clasificación si está cargada, o abre menú directo
-  if (_currentRankData?.ranked?.length) {
-    openRankWAMenu();
-  } else {
-    openGroupWAMenu(code, name);
-  }
-}
-
-// ── Menú WA directo (sin clasificación cargada) ─────────────
-async function openGroupWAMenu(code, gname) {
-  const existing = document.getElementById('groupWAModal');
-  if (existing) existing.remove();
-
   const nombre = me.name || me.username || '';
-  const appUrl = 'https://luisla425.github.io/Quiniela/';
-
-  // Leer todos los grupos para listarlos en el mensaje de invitación
-  let todosLosGrupos = [];
-  try {
-    const snap = await db.collection('groups').get();
-    todosLosGrupos = snap.docs.map(d => d.data());
-  } catch(e) {}
-
-  const gruposLista = todosLosGrupos.length
-    ? todosLosGrupos.map(g => {
-        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
-        return `  ${flag} *${g.name}*`;
-      }).join('\n')
-    : `  *${gname}*`;
-
-  const quickMsgs = [
-    {
-      icon: '📣',
-      label: 'Invitar + cómo registrarse',
-      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n\n👆 *¿Cómo unirte al grupo?*\nUna vez dentro, ve a *Partidos* y toca el nombre del grupo en el cintillo de arriba — con ese solo toque ya quedas dentro 👌\n\n👥 *Grupos disponibles:*\n${gruposLista}\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado.\n\n⚠️ Predice antes del pitazo o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
-    },
-    {
-      icon: '📅',
-      label: 'Recordatorio + tutorial cómo predecir',
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
-    },
-    {
-      icon: '⏰',
-      label: 'Último aviso — 1 hora para el cierre',
-      text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta menos de 1 hora para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '🔴',
-      label: 'Los partidos ya empezaron',
-      text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar y sufrir el fútbol ⚽🔥\n\nEntra a la app para seguir los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
-    },
-    {
-      icon: '🏁',
-      label: 'Jornada terminada — revisa la pizarra',
-      text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
-    },
-    {
-      icon: '📊',
-      label: 'Compartir pizarra actual',
-      text: _buildPizarraText(gname)
-    },
-    {
-      icon: '🎉',
-      label: 'Felicitar a los Top 3 juntos',
-      text: _buildTop3Text(gname)
-    },
-    {
-      icon: '🔥',
-      label: 'Motivar al grupo para la próxima jornada',
-      text: `🔥 *¡La próxima jornada se viene cargada!* — *${gname}*\n\nLa tabla está apretada, cualquiera puede escalar. Un buen ojo en las predicciones lo puede cambiar todo 🎯\n\nPredicción + suerte + conocimiento = Campeón 🏆\n\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '📢',
-      label: 'Anuncio general al grupo',
-      text: `📢 *Aviso del grupo "${gname}"* — Quiniela LuAn ⚽\n\nHola a todos, recuerden estar pendientes de la app para no perderse ninguna jornada.\n\n📲 ${appUrl}\n\n¡Éxito a todos! 💪\n_— ${nombre}_`
-    },
-    {
-      icon: '🌟',
-      label: 'Mensaje de bienvenida al grupo',
-      text: `🌟 *¡Bienvenidos al grupo "${gname}"!* ⚽\n\nYa estamos todos listos para competir en *Quiniela LuAn*.\n\nReglas simples:\n✅ Predice antes del primer partido\n✅ Los puntos se calculan automáticamente\n✅ Exacto = 3pts · Resultado correcto = 1pt\n\n📲 ${appUrl}\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
-    },
-  ];
-
-  const modal = document.createElement('div');
-  modal.id = 'groupWAModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '6000';
-  modal.innerHTML = `
-    <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-      <div class="modal-handle"></div>
-      <div class="modal-title">💬 Mensajes para el grupo</div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar por WhatsApp</div>
-      ${quickMsgs.map((m,i) => `
-        <button onclick="sendGroupWA(${i})"
-          style="width:100%;margin-bottom:8px;padding:12px 14px;
-          background:var(--surface2);border:1px solid var(--border2);
-          border-radius:var(--r-sm);cursor:pointer;text-align:left;
-          color:var(--text);font-family:var(--font-b);
-          display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.5em;flex-shrink:0;">${m.icon}</span>
-          <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-        </button>`).join('')}
-      <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
-    </div>`;
-
-  window._groupWAMsgs = quickMsgs;
-  document.body.appendChild(modal);
-}
-
-function _buildPizarraText(gname) {
-  if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;
-  const medals = ['🥇','🥈','🥉'];
-  const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
-  const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
-  let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;
-  _currentRankData.ranked.forEach((p,i) => {
-    const pos = medals[i] || `  ${i+1}.`;
-    msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;
-  });
-  msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;
-  return msg;
-}
-
-function _buildTop3Text(gname) {
-  if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;
-  const ranked = _currentRankData.ranked;
-  const [p1,p2,p3] = ranked;
-  return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`;
-}
-
-function sendGroupWA(idx) {
-  const msg = window._groupWAMsgs[idx];
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg.text)}`, '_blank');
-  document.getElementById('groupWAModal')?.remove();
+  const msg = encodeURIComponent(
+    `⚽ QUINIELA LuAn ⚽\n\n` +
+    `👋 ¡Hola! Soy ${nombre} y tengo una invitación imperdible para ti:\n\n` +
+    `🔥 AL GRUPO: *"${name}"*\n\n` +
+    `📲 ¿Cómo unirte?\n\n` +
+    `1. Abre la app Quiniela LuAn\n` +
+    `2. Ve a la sección Grupos\n` +
+    `3. Toca "Unirse"\n` +
+    `4. Ingresa el código:\n` +
+    `   🔐 *CÓDIGO: ${code}*\n\n` +
+    `✅ ¡Listo! Ya serás parte de la acción.\n\n` +
+    `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
+    `— luislárez`
+  );
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
 let _currentRankData = { name:'', ranked:[] };
@@ -7125,4 +5977,4 @@ window.addEventListener('offline', ()=>toast('⚠️ Sin conexión','warning'));
 console.log('%c⚽ QUINIELA LuAn V3 — REESCRITURA TOTAL','color:#9d7dff;font-size:16px;font-weight:bold;');
 </script>
 </body>
-   </html>
+</html>
