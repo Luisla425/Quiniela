@@ -2666,135 +2666,85 @@ async function enterApp() {
   }
   scheduleNextSync();
 
-  // ── CRONÓMETRO EN VIVO mejorado (con prórroga completa) ─────
-window._adminCronOffset = window._adminCronOffset || {}; // offset manual (segundos)
-window._adminExtraTime  = window._adminExtraTime  || {}; // minutos de descuento MANUALES { matchId: minutes }
-window._k2H = window._k2H || {}; // timestamp real del inicio del 2do tiempo
-window._kET = window._kET || {}; // timestamp real del inicio de la prórroga
-window._prorrogaPhase = window._prorrogaPhase || {}; // fase actual de la prórroga: 'ET1' o 'ET2'
+  // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
+  // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
+  // Chip añadido:    [+? | 00:01] arranca automático al pasar 45:00 / 90:00
+  //                 Si la API manda el tiempo añadido, reemplaza '?' con el número
+  window._adminCronOffset = window._adminCronOffset || {}; // { matchId: seconds }
+  window._adminExtraTime  = window._adminExtraTime  || {}; // { matchId: minutes }
+  window._adminExtraAsked = window._adminExtraAsked || {}; // { matchId: true }
+  window._k2H = window._k2H || {}; // kickoff real 2do tiempo { matchId: timestamp }
+  window._kET = window._kET || {}; // kickoff real prórroga   { matchId: timestamp }
 
-if (!window._cronInterval) {
-  window._cronInterval = setInterval(() => {
-    _dM.forEach(m => {
-      if (!isLive(m.status)) return;
-      const wrap = document.getElementById(`badge_${m.id}`);
-      if (!wrap) return;
+  if (!window._cronInterval) {
+    window._cronInterval = setInterval(() => {
+      _dM.forEach(m => {
+        if (!isLive(m.status)) return;
+        const wrap = document.getElementById(`badge_${m.id}`);
+        if (!wrap) return;
 
-      const mid = String(m.id);
-      const st  = (m.status || '').toUpperCase();
-      let phase = wrap.dataset.phase || '';
+        const mid = String(m.id);
+        const st  = (m.status || '').toUpperCase();
+        let phase = wrap.dataset.phase || '';
 
-      // Sincronizar fase basado en el estado de la API
-      if (st === '1H' && phase !== '1H') { wrap.dataset.phase = '1H'; phase = '1H'; }
-      else if (st === 'HT' && phase !== 'HT') { wrap.dataset.phase = 'HT'; phase = 'HT'; }
-      else if (st === '2H' && phase !== '2H') {
-        wrap.dataset.phase = '2H'; phase = '2H';
-        if (!window._k2H[mid]) window._k2H[mid] = Date.now(); // guardar inicio del 2H
-      }
-      else if (st === 'ET' && phase !== 'ET') {
-        wrap.dataset.phase = 'ET'; phase = 'ET';
-        // Aquí empieza la prórroga: resetear fase interna
-        window._prorrogaPhase[mid] = 'ET1'; // primer tiempo extra
-        if (!window._kET[mid]) window._kET[mid] = Date.now(); // guardar inicio de prórroga
-      }
-      else if (st === 'BT' && phase !== 'BT') {
-        wrap.dataset.phase = 'BT'; phase = 'BT';
-        // Descanso entre tiempos extra
-      }
-      else if (st === 'P'  && phase !== 'P')  {
-        wrap.dataset.phase = 'P';  phase = 'P';
-      }
-
-      const mainEl  = document.getElementById(`badge_main_${m.id}`);
-      const extraEl = document.getElementById(`badge_extra_${m.id}`);
-      if (!mainEl || !extraEl) return;
-
-      // Estados sin cronómetro
-      if (phase === 'HT') { mainEl.textContent = `⏸ Descanso`; extraEl.style.display='none'; return; }
-      if (phase === 'BT') { mainEl.textContent = `⏸ Desc. Prórroga`; extraEl.style.display='none'; return; }
-      if (phase === 'P')  { mainEl.textContent = `⚡ Penales`; extraEl.style.display='none'; return; }
-
-      const kickoffMs    = +wrap.dataset.kickoff || 0;
-      const adminOffset  = window._adminCronOffset[mid] || 0; // segundos
-      const now          = Date.now();
-
-      let dispSec, capMin;
-      let extraPhase = window._prorrogaPhase[mid] || 'ET1';
-
-      if (phase === 'ET') {
-        // Estamos en PRÓRROGA
-        const kET = window._kET[mid];
-        if (!kET) {
-          mainEl.textContent = `🔴 Prórroga`; extraEl.style.display='none'; return;
+        // Sincronizar fase y grabar kickoff real de 2H/ET
+        if (st === '1H' && phase !== '1H') { wrap.dataset.phase = '1H'; phase = '1H'; }
+        else if (st === 'HT' && phase !== 'HT') { wrap.dataset.phase = 'HT'; phase = 'HT'; }
+        else if (st === '2H' && phase !== '2H') {
+          wrap.dataset.phase = '2H'; phase = '2H';
+          if (!window._k2H[mid]) window._k2H[mid] = Date.now();
         }
+        else if (st === 'ET' && phase !== 'ET') {
+          wrap.dataset.phase = 'ET'; phase = 'ET';
+          if (!window._kET[mid]) window._kET[mid] = Date.now();
+        }
+        else if (st === 'BT' && phase !== 'BT') { wrap.dataset.phase = 'BT'; phase = 'BT'; }
+        else if (st === 'P'  && phase !== 'P')  { wrap.dataset.phase = 'P';  phase = 'P';  }
 
-        // Tiempo transcurrido desde el inicio de la prórroga
-        const elapsedSinceET = Math.max(0, Math.floor((now - kET) / 1000)) + adminOffset;
-        const totalETMinutes = Math.floor(elapsedSinceET / 60);
+        const mainEl  = document.getElementById(`badge_main_${m.id}`);
+        const extraEl = document.getElementById(`badge_extra_${m.id}`);
+        if (!mainEl || !extraEl) return;
 
-        // Determinar en qué tiempo extra estamos
-        if (totalETMinutes < 15) {
-          // Primer tiempo extra (0-15 minutos)
-          extraPhase = 'ET1';
-          window._prorrogaPhase[mid] = 'ET1';
-          capMin = 15;
-          dispSec = elapsedSinceET;
-        } else if (totalETMinutes < 20) {
-          // Descanso de 5 minutos entre tiempos extra
-          window._prorrogaPhase[mid] = 'BT';
-          mainEl.textContent = `⏸ Desc. Prórroga`;
-          extraEl.style.display = 'none';
-          return;
-        } else if (totalETMinutes < 35) {
-          // Segundo tiempo extra (20-35 minutos después del inicio de la prórroga)
-          extraPhase = 'ET2';
-          window._prorrogaPhase[mid] = 'ET2';
-          capMin = 35;
-          dispSec = elapsedSinceET;
+        // Estados sin cronómetro
+        if (phase === 'HT') { mainEl.textContent = `⏸ Descanso`;       extraEl.style.display='none'; return; }
+        if (phase === 'BT') { mainEl.textContent = `⏸ Desc. Prórroga`; extraEl.style.display='none'; return; }
+        if (phase === 'P')  { mainEl.textContent = `⚡ Penales`;        extraEl.style.display='none'; return; }
+
+        const kickoffMs    = +wrap.dataset.kickoff || 0;
+        const adminOffset  = window._adminCronOffset[mid] || 0; // segundos
+        const now          = Date.now();
+
+        let dispSec, capMin;
+
+        if (phase === 'ET') {
+          const kET = window._kET[mid];
+          dispSec = kET
+            ? Math.max(0, Math.floor((now - kET) / 1000)) + 90*60 + adminOffset
+            : Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
+          const totalM = Math.floor(dispSec / 60);
+          capMin = totalM < 105 ? 105 : 120;
+        } else if (phase === '2H') {
+          const k2H = window._k2H[mid];
+          if (k2H) {
+            // Kickoff real del 2do tiempo grabado cuando la API cambió a '2H'
+            dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
+          } else if (kickoffMs) {
+            // Fallback: estimamos que el descanso duró 15 min (kickoff + 45' juego + 15' descanso = 60 min)
+            const elapsed = Math.floor((now - kickoffMs) / 1000);
+            const secondHalfStart = elapsed - 60*60; // segundos desde inicio estimado del 2H
+            dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
+          } else {
+            mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')} `; extraEl.style.display='none'; return;
+          }
+          capMin = 90;
+        } else if (phase === '1H') {
+          if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
+          dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
+          capMin  = 45;
         } else {
-          // Prórroga terminada
-          mainEl.textContent = `✅ Fin Prórroga`;
-          extraEl.style.display = 'none';
-          return;
+          mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
         }
 
-        const min = Math.floor(dispSec / 60);
-        const sec = dispSec % 60;
-        
-        // Mostrar el tiempo dentro del tiempo extra actual
-        if (extraPhase === 'ET1') {
-          // Primer tiempo extra: 0-15 minutos
-          mainEl.textContent = `🔴 ET1 ${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-        } else if (extraPhase === 'ET2') {
-          // Segundo tiempo extra: restamos los 20 minutos base (15' ET1 + 5' descanso)
-          const et2Min = min - 20;
-          mainEl.textContent = `🔴 ET2 ${String(et2Min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-        }
-        extraEl.style.display = 'none';
-
-      } else if (phase === '2H') {
-        const k2H = window._k2H[mid];
-        if (k2H) {
-          dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
-        } else if (kickoffMs) {
-          const elapsed = Math.floor((now - kickoffMs) / 1000);
-          const secondHalfStart = elapsed - 60*60;
-          dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
-        } else {
-          mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')}`; extraEl.style.display='none'; return;
-        }
-        capMin = 90;
-
-      } else if (phase === '1H') {
-        if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
-        dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
-        capMin  = 45;
-      } else {
-        mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
-      }
-
-      // Manejo del tiempo base (1H y 2H) con posibles minutos de descuento
-      if (phase === '1H' || phase === '2H') {
         const totalMin = Math.floor(dispSec / 60);
         const sec      = dispSec % 60;
         const ss       = String(sec).padStart(2, '0');
@@ -2803,25 +2753,23 @@ if (!window._cronInterval) {
           mainEl.textContent = `🔴 ${String(totalMin).padStart(2,'0')}:${ss}`;
           extraEl.style.display = 'none';
         } else {
-          // Hemos llegado al límite (45' o 90')
           mainEl.textContent = `🔴 ${capMin}:00`;
-
           const extraMin     = totalMin - capMin;
           const extraSS      = String(sec).padStart(2, '0');
-
-          // Obtener minutos de descuento (de la API o manual)
-          let officialExtra = m.extraTime; // de la API
-          if (officialExtra == null && window._adminExtraTime[mid]) {
-            officialExtra = window._adminExtraTime[mid]; // override manual
-          }
-
-          const addedLabel = officialExtra ? `+${officialExtra}` : '+?';
+          const adminExtra   = window._adminExtraTime[mid];
+          const officialExtra = adminExtra ?? m.intExtraTime ?? m.strExtraTime ?? null;
+          const addedLabel   = officialExtra ? `+${officialExtra}` : '+?';
           extraEl.textContent  = `${addedLabel} | ${String(extraMin).padStart(2,'0')}:${extraSS}`;
           extraEl.style.display = 'inline-block';
+          // Auto-preguntar al admin a los 8+ min de tiempo añadido
+          if (extraMin >= 8 && me?.isAdmin && !window._adminExtraAsked[mid]) {
+            window._adminExtraAsked[mid] = true;
+            setTimeout(() => _askAdminExtraTime(m), 300);
+          }
         }
-      }
-    });
-  }, 1000);
+      });
+    }, 1000);
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -3503,42 +3451,18 @@ function buildMatchCard(m, closed) {
     }
   }
 
+  const statsBtnLabel = live
+    ? `🔴 ${currentLang==='de'?'LIVE · Tore & Karten':currentLang==='en'?'LIVE · Goals & Cards':'EN VIVO · Goles y Tarjetas'}`
+    : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
+  const statsBtnStyle = live
+    ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
+    : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
   const statsBtn = showScore ? `
-  <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;">
-    <button onclick="openStats('${m.id}')" 
-      style="flex:2;padding:11px 6px;border-radius:12px;cursor:pointer;
-      background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;
-      font-family:var(--font-h);font-size:0.85em;font-weight:800;">
-      📊 Estadísticas
-    </button>
-    <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" 
-      style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;
-      background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);
-      font-family:var(--font-h);font-size:0.85em;font-weight:800;" 
-      title="Alineaciones">📋</button>
-    ${live && me?.isAdmin ? `
-      <button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" 
-        style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;
-        background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);
-        font-family:var(--font-h);font-size:0.85em;font-weight:800;" 
-        title="Ajustar cronómetro">⏱</button>
-      <button onclick="_askAdminExtraTime('${m.id}','${m.home}','${m.away}')" 
-        style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;
-        background:rgba(59,158,255,0.1);color:var(--blue);border:1px solid var(--blue);
-        font-family:var(--font-h);font-size:0.85em;font-weight:800;" 
-        title="Minutos de descuento">➕⏱</button>
-      <button onclick="_askStartET('${m.id}','${m.home}','${m.away}')" 
-        style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;
-        background:rgba(0,229,160,0.1);color:var(--green);border:1px solid var(--green);
-        font-family:var(--font-h);font-size:0.85em;font-weight:800;" 
-        title="Iniciar PRIMER tiempo extra">▶️ ET1</button>
-      <button onclick="_askStartET2('${m.id}','${m.home}','${m.away}')" 
-        style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;
-        background:rgba(245,197,66,0.1);color:var(--gold);border:1px solid var(--gold);
-        font-family:var(--font-h);font-size:0.85em;font-weight:800;" 
-        title="Iniciar SEGUNDO tiempo extra">▶️ ET2</button>
-    ` : ''}
-  </div>` : '';
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
+      <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
+      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
+    </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
@@ -7234,6 +7158,7 @@ function cerrarManualLuan(){
   const el=document.getElementById('luanManualOverlay');
   if(el)el.style.display='none';
 }
+
 </script>
 
 <!-- ═══════════ MANUAL LUAN ═══════════ -->
