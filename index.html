@@ -1260,161 +1260,6 @@ window.addEventListener('unhandledrejection', function(e) {
 });
 
 // ═══════════════════════════════════════════
-// FIREBASE CONFIG
-// ═══════════════════════════════════════════
-const fbConfig = {
-  apiKey:atob("QUl6YVN5Q0dmUElmLVExeDkwaFRuZTF0Q01XTkZ1UzBoaW80Q3RB"),
-  authDomain:atob("cXVpbmllbGEtbHVhbi0yNS5maXJlYmFzZWFwcC5jb20="),
-  projectId:atob("cXVpbmllbGEtbHVhbi0yNQ=="),
-  storageBucket:atob("cXVpbmllbGEtbHVhbi0yNS5maXJlYmFzZXN0b3JhZ2UuYXBw"),
-  messagingSenderId:atob("MzYwMzI1NjA4ODM5"),
-  appId:atob("MTozNjAzMjU2MDg4Mzk6d2ViOjkwMGFmOWJhZmM1NmJiY2JmYWNmMjI=")
-};
-firebase.initializeApp(fbConfig);
-const auth = firebase.auth();
-const db   = firebase.firestore();
-
-// ═══════════════════════════════════════════
-// API CONFIG
-// ═══════════════════════════════════════════
-const API_KEY=atob('MzMzMjg5');
-const API_V1  = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
-const API_V2  = `https://www.thesportsdb.com/api/v2/json`;
-
-// Helper — always sends X-API-KEY header for V2
-async function fetchV2(endpoint) {
-  const res = await fetch(`${API_V2}${endpoint}`, {
-    headers: {
-      'X-API-KEY': API_KEY,
-      'Content-Type': 'application/json'
-    }
-  });
-  if (!res.ok) throw new Error(`V2 HTTP ${res.status}`);
-  return res.json();
-}
-
-// Fetch con timeout — evita q la app se congele si la API no responde
-async function fetchTimeout(url, ms = 6000, opts = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    const r = await fetch(url, { ...opts, signal: ctrl.signal });
-    clearTimeout(timer);
-    return r;
-  } catch(e) {
-    clearTimeout(timer);
-    if (e.name === 'AbortError') return null; // timeout silencioso
-    throw e;
-  }
-}
-
-// TheSportsDB V2 used exclusively via fetchV2()
-const _afCache = {}; // kept for compat
-
-// ═══════════════════════════════════════════
-// TOURNAMENTS
-// ═══════════════════════════════════════════
-const TOURNAMENTS = [
-  { id:'ucl',      name:'Champions League', flag:'⭐', lid:'4480' },
-  { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
-  { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
-  { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
-  { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
-  { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
-  { id:'copadelrey', name:'Copa del Rey', flag:'🏆🇪🇸', lid:'4483', teamBlacklist:['port vale','bristol city','arsenal','chelsea','liverpool','manchester united','manchester city','tottenham','everton','newcastle','brighton','aston villa','wolverhampton','leicester','nottingham forest','brentford','fulham','crystal palace','bournemouth','burnley','west ham','southampton','luton','sheffield united','sheffield wednesday','leeds','sunderland','ipswich','oxford','plymouth','portsmouth','stoke','watford','west brom','coventry','hull','blackburn','swansea','cardiff','middlesbrough','norwich','millwall','derby','preston','blackpool','wigan','bolton','charlton','rotherham','birmingham','reading','huddersfield','peterborough','gillingham','fleetwood','stockport','wrexham','exeter','newport','grimsby','leyton orient','walsall','shrewsbury','northampton','mansfield','bradford','cambridge','swindon','crewe','rochdale','oldham','cheltenham'] },
-  { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
-  { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
-];
-
-// Mundial 2026 — 48 selecciones
-const MUNDIAL_TEAMS = [
-  // CONMEBOL
-  '🇦🇷 Argentina','🇧🇷 Brasil','🇺🇾 Uruguay','🇨🇴 Colombia','🇪🇨 Ecuador',
-  '🇵🇪 Perú','🇻🇪 Venezuela','🇵🇾 Paraguay','🇨🇱 Chile','🇧🇴 Bolivia',
-  // CONCACAF
-  '🇺🇸 Estados Unidos','🇲🇽 México','🇨🇦 Canadá','🇨🇷 Costa Rica','🇵🇦 Panamá',
-  '🇯🇲 Jamaica','🇭🇳 Honduras','🇸🇻 El Salvador','🇬🇹 Guatemala','🇹🇹 Trinidad y Tobago',
-  // UEFA
-  '🇩🇪 Alemania','🇫🇷 Francia','🇪🇸 España','🇵🇹 Portugal','🇬🇧 Inglaterra',
-  '🇳🇱 Países Bajos','🇮🇹 Italia','🇧🇪 Bélgica','🇭🇷 Croacia','🇵🇱 Polonia',
-  '🇷🇸 Serbia','🇦🇹 Austria','🇨🇭 Suiza','🇩🇰 Dinamarca','🇸🇪 Suecia','🇹🇷 Turquía',
-  // CAF
-  '🇲🇦 Marruecos','🇳🇬 Nigeria','🇸🇳 Senegal','🇪🇬 Egipto','🇨🇲 Camerún',
-  '🇿🇦 Sudáfrica','🇬🇭 Ghana','🇨🇮 Costa de Marfil','🇹🇳 Túnez',
-  // AFC
-  '🇯🇵 Japón','🇰🇷 Corea del Sur','🇮🇷 Irán','🇦🇺 Australia','🇸🇦 Arabia Saudita',
-  '🇶🇦 Qatar','🇺🇿 Uzbekistán','🇮🇶 Iraq',
-  // OFC
-  '🇳🇿 Nueva Zelanda',
-];
-
-// ═══════════════════════════════════════════
-// COUNTRIES
-// ═══════════════════════════════════════════
-const COUNTRIES = [
-  {f:'🇻🇪',n:'Venezuela',d:'+58'},{f:'🇺🇸',n:'Estados Unidos',d:'+1'},
-  {f:'🇲🇽',n:'México',d:'+52'},{f:'🇨🇴',n:'Colombia',d:'+57'},
-  {f:'🇵🇪',n:'Perú',d:'+51'},{f:'🇦🇷',n:'Argentina',d:'+54'},
-  {f:'🇨🇱',n:'Chile',d:'+56'},{f:'🇪🇨',n:'Ecuador',d:'+593'},
-  {f:'🇧🇴',n:'Bolivia',d:'+591'},{f:'🇵🇾',n:'Paraguay',d:'+595'},
-  {f:'🇺🇾',n:'Uruguay',d:'+598'},{f:'🇧🇷',n:'Brasil',d:'+55'},
-  {f:'🇵🇦',n:'Panamá',d:'+507'},{f:'🇨🇷',n:'Costa Rica',d:'+506'},
-  {f:'🇬🇹',n:'Guatemala',d:'+502'},{f:'🇭🇳',n:'Honduras',d:'+504'},
-  {f:'🇸🇻',n:'El Salvador',d:'+503'},{f:'🇳🇮',n:'Nicaragua',d:'+505'},
-  {f:'🇩🇴',n:'Rep. Dominicana',d:'+1809'},{f:'🇨🇺',n:'Cuba',d:'+53'},
-  {f:'🇵🇷',n:'Puerto Rico',d:'+1787'},{f:'🇪🇸',n:'España',d:'+34'},
-  {f:'🇬🇧',n:'Reino Unido',d:'+44'},{f:'🇩🇪',n:'Alemania',d:'+49'},
-  {f:'🇫🇷',n:'Francia',d:'+33'},{f:'🇮🇹',n:'Italia',d:'+39'},
-  {f:'🇳🇱',n:'Países Bajos',d:'+31'},{f:'🇵🇹',n:'Portugal',d:'+351'},
-  {f:'🇨🇦',n:'Canadá',d:'+1'},{f:'🇦🇺',n:'Australia',d:'+61'},
-];
-
-// ═══════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════
-let me = null;
-let myTournaments = [];
-let _aM = [];
-let _dM = [];
-let userEnteringPreds = false;
-let syncTimer = null;
-let chatUnsub = null;
-let currentCountryTarget = null;
-let simPlayers = [];
-let simMatches = [];
-let simPredictions = {};
-let simGroup = null;
-let selectedCountry = { login: COUNTRIES[0], reg: COUNTRIES[0], reset: COUNTRIES[0] };
-let activeGroupId = null;      // ID del grupo activo en vista de partidos
-let myGroupsList  = [];        // Cache de grupos del jugador
-let _lEC = {};     // { matchId: { events:[], possession:null, lastUpdated:0 } }
-
-// ═══════════════════════════════════════════
-// TEMAS
-// ═══════════════════════════════════════════
-const THEMES = ['dark','light','auto'];
-let currentTheme = localStorage.getItem('ql_theme') || 'dark';
-
-function applyTheme(theme) {
-  currentTheme = theme;
-  localStorage.setItem('ql_theme', theme);
-  document.body.classList.remove('theme-light');
-  if (theme === 'light') {
-    document.body.classList.add('theme-light');
-  } else if (theme === 'auto') {
-    const h = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'})).getHours();
-    if (h >= 6 && h < 19) document.body.classList.add('theme-light');
-  }
-  const btn = document.getElementById('themeBtn');
-  if (btn) btn.textContent = theme==='dark'?'🌙':theme==='light'?'☀️':'🌓';
-}
-
-function cycleTheme() {
-  const idx = THEMES.indexOf(currentTheme);
-  applyTheme(THEMES[(idx+1) % THEMES.length]);
-}
-
-// ═══════════════════════════════════════════
 // IDIOMAS
 // ═══════════════════════════════════════════
 let currentLang = localStorage.getItem('ql_lang') || 'es';
@@ -1812,6 +1657,163 @@ const LANGS = {
   }
 };
 
+
+
+
+// ═══════════════════════════════════════════
+// FIREBASE CONFIG
+// ═══════════════════════════════════════════
+const fbConfig = {
+  apiKey:atob("QUl6YVN5Q0dmUElmLVExeDkwaFRuZTF0Q01XTkZ1UzBoaW80Q3RB"),
+  authDomain:atob("cXVpbmllbGEtbHVhbi0yNS5maXJlYmFzZWFwcC5jb20="),
+  projectId:atob("cXVpbmllbGEtbHVhbi0yNQ=="),
+  storageBucket:atob("cXVpbmllbGEtbHVhbi0yNS5maXJlYmFzZXN0b3JhZ2UuYXBw"),
+  messagingSenderId:atob("MzYwMzI1NjA4ODM5"),
+  appId:atob("MTozNjAzMjU2MDg4Mzk6d2ViOjkwMGFmOWJhZmM1NmJiY2JmYWNmMjI=")
+};
+firebase.initializeApp(fbConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+// ═══════════════════════════════════════════
+// API CONFIG
+// ═══════════════════════════════════════════
+const API_KEY=atob('MzMzMjg5');
+const API_V1  = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
+const API_V2  = `https://www.thesportsdb.com/api/v2/json`;
+
+// Helper — always sends X-API-KEY header for V2
+async function fetchV2(endpoint) {
+  const res = await fetch(`${API_V2}${endpoint}`, {
+    headers: {
+      'X-API-KEY': API_KEY,
+      'Content-Type': 'application/json'
+    }
+  });
+  if (!res.ok) throw new Error(`V2 HTTP ${res.status}`);
+  return res.json();
+}
+
+// Fetch con timeout — evita q la app se congele si la API no responde
+async function fetchTimeout(url, ms = 6000, opts = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opts, signal: ctrl.signal });
+    clearTimeout(timer);
+    return r;
+  } catch(e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') return null; // timeout silencioso
+    throw e;
+  }
+}
+
+// TheSportsDB V2 used exclusively via fetchV2()
+const _afCache = {}; // kept for compat
+
+// ═══════════════════════════════════════════
+// TOURNAMENTS
+// ═══════════════════════════════════════════
+const TOURNAMENTS = [
+  { id:'ucl',      name:'Champions League', flag:'⭐', lid:'4480' },
+  { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
+  { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
+  { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
+  { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
+  { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
+  { id:'copadelrey', name:'Copa del Rey', flag:'🏆🇪🇸', lid:'4483', teamBlacklist:['port vale','bristol city','arsenal','chelsea','liverpool','manchester united','manchester city','tottenham','everton','newcastle','brighton','aston villa','wolverhampton','leicester','nottingham forest','brentford','fulham','crystal palace','bournemouth','burnley','west ham','southampton','luton','sheffield united','sheffield wednesday','leeds','sunderland','ipswich','oxford','plymouth','portsmouth','stoke','watford','west brom','coventry','hull','blackburn','swansea','cardiff','middlesbrough','norwich','millwall','derby','preston','blackpool','wigan','bolton','charlton','rotherham','birmingham','reading','huddersfield','peterborough','gillingham','fleetwood','stockport','wrexham','exeter','newport','grimsby','leyton orient','walsall','shrewsbury','northampton','mansfield','bradford','cambridge','swindon','crewe','rochdale','oldham','cheltenham'] },
+  { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
+  { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
+];
+
+// Mundial 2026 — 48 selecciones
+const MUNDIAL_TEAMS = [
+  // CONMEBOL
+  '🇦🇷 Argentina','🇧🇷 Brasil','🇺🇾 Uruguay','🇨🇴 Colombia','🇪🇨 Ecuador',
+  '🇵🇪 Perú','🇻🇪 Venezuela','🇵🇾 Paraguay','🇨🇱 Chile','🇧🇴 Bolivia',
+  // CONCACAF
+  '🇺🇸 Estados Unidos','🇲🇽 México','🇨🇦 Canadá','🇨🇷 Costa Rica','🇵🇦 Panamá',
+  '🇯🇲 Jamaica','🇭🇳 Honduras','🇸🇻 El Salvador','🇬🇹 Guatemala','🇹🇹 Trinidad y Tobago',
+  // UEFA
+  '🇩🇪 Alemania','🇫🇷 Francia','🇪🇸 España','🇵🇹 Portugal','🇬🇧 Inglaterra',
+  '🇳🇱 Países Bajos','🇮🇹 Italia','🇧🇪 Bélgica','🇭🇷 Croacia','🇵🇱 Polonia',
+  '🇷🇸 Serbia','🇦🇹 Austria','🇨🇭 Suiza','🇩🇰 Dinamarca','🇸🇪 Suecia','🇹🇷 Turquía',
+  // CAF
+  '🇲🇦 Marruecos','🇳🇬 Nigeria','🇸🇳 Senegal','🇪🇬 Egipto','🇨🇲 Camerún',
+  '🇿🇦 Sudáfrica','🇬🇭 Ghana','🇨🇮 Costa de Marfil','🇹🇳 Túnez',
+  // AFC
+  '🇯🇵 Japón','🇰🇷 Corea del Sur','🇮🇷 Irán','🇦🇺 Australia','🇸🇦 Arabia Saudita',
+  '🇶🇦 Qatar','🇺🇿 Uzbekistán','🇮🇶 Iraq',
+  // OFC
+  '🇳🇿 Nueva Zelanda',
+];
+
+// ═══════════════════════════════════════════
+// COUNTRIES
+// ═══════════════════════════════════════════
+const COUNTRIES = [
+  {f:'🇻🇪',n:'Venezuela',d:'+58'},{f:'🇺🇸',n:'Estados Unidos',d:'+1'},
+  {f:'🇲🇽',n:'México',d:'+52'},{f:'🇨🇴',n:'Colombia',d:'+57'},
+  {f:'🇵🇪',n:'Perú',d:'+51'},{f:'🇦🇷',n:'Argentina',d:'+54'},
+  {f:'🇨🇱',n:'Chile',d:'+56'},{f:'🇪🇨',n:'Ecuador',d:'+593'},
+  {f:'🇧🇴',n:'Bolivia',d:'+591'},{f:'🇵🇾',n:'Paraguay',d:'+595'},
+  {f:'🇺🇾',n:'Uruguay',d:'+598'},{f:'🇧🇷',n:'Brasil',d:'+55'},
+  {f:'🇵🇦',n:'Panamá',d:'+507'},{f:'🇨🇷',n:'Costa Rica',d:'+506'},
+  {f:'🇬🇹',n:'Guatemala',d:'+502'},{f:'🇭🇳',n:'Honduras',d:'+504'},
+  {f:'🇸🇻',n:'El Salvador',d:'+503'},{f:'🇳🇮',n:'Nicaragua',d:'+505'},
+  {f:'🇩🇴',n:'Rep. Dominicana',d:'+1809'},{f:'🇨🇺',n:'Cuba',d:'+53'},
+  {f:'🇵🇷',n:'Puerto Rico',d:'+1787'},{f:'🇪🇸',n:'España',d:'+34'},
+  {f:'🇬🇧',n:'Reino Unido',d:'+44'},{f:'🇩🇪',n:'Alemania',d:'+49'},
+  {f:'🇫🇷',n:'Francia',d:'+33'},{f:'🇮🇹',n:'Italia',d:'+39'},
+  {f:'🇳🇱',n:'Países Bajos',d:'+31'},{f:'🇵🇹',n:'Portugal',d:'+351'},
+  {f:'🇨🇦',n:'Canadá',d:'+1'},{f:'🇦🇺',n:'Australia',d:'+61'},
+];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let me = null;
+let myTournaments = [];
+let _aM = [];
+let _dM = [];
+let userEnteringPreds = false;
+let syncTimer = null;
+let chatUnsub = null;
+let currentCountryTarget = null;
+let simPlayers = [];
+let simMatches = [];
+let simPredictions = {};
+let simGroup = null;
+let selectedCountry = { login: COUNTRIES[0], reg: COUNTRIES[0], reset: COUNTRIES[0] };
+let activeGroupId = null;      // ID del grupo activo en vista de partidos
+let myGroupsList  = [];        // Cache de grupos del jugador
+let _lEC = {};     // { matchId: { events:[], possession:null, lastUpdated:0 } }
+
+// ═══════════════════════════════════════════
+// TEMAS
+// ═══════════════════════════════════════════
+const THEMES = ['dark','light','auto'];
+let currentTheme = localStorage.getItem('ql_theme') || 'dark';
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem('ql_theme', theme);
+  document.body.classList.remove('theme-light');
+  if (theme === 'light') {
+    document.body.classList.add('theme-light');
+  } else if (theme === 'auto') {
+    const h = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'})).getHours();
+    if (h >= 6 && h < 19) document.body.classList.add('theme-light');
+  }
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = theme==='dark'?'🌙':theme==='light'?'☀️':'🌓';
+}
+
+function cycleTheme() {
+  const idx = THEMES.indexOf(currentTheme);
+  applyTheme(THEMES[(idx+1) % THEMES.length]);
+}
 
 function cycleLang() {
   const langs = ['es','en','de'];
@@ -7314,4 +7316,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-   </html>
+</html>
