@@ -1055,8 +1055,8 @@ body::before {
     <div id="rankModalTitle" class="modal-title"></div>
     <div id="rankModalCode" style="font-size:0.78em;color:var(--muted2);margin-bottom:16px;"></div>
     <div id="rankModalList"></div>
-    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">📲 Compartir Pizarra por WhatsApp</button>
-    <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" onclick="openRankWAMenu()">💬 Mensajes al grupo</button>
+    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">${t('shareRankBtn')}</button>
+    <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" onclick="openRankWAMenu()">${t('msgGroupBtn')}</button>
     <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('rankModal')">Cerrar</button>
   </div>
 </div>
@@ -1065,11 +1065,11 @@ body::before {
 <div id="myPredsModal" class="modal-overlay hidden">
   <div class="modal-box" style="max-height:92vh;">
     <div class="modal-handle"></div>
-    <div class="modal-title">📋 Mis Predicciones</div>
+    <div class="modal-title" id="lbl-predModalTitle">📋 Mis Predicciones</div>
     <div id="myPredsContent">
       <div class="empty"><span class="empty-icon">⏳</span></div>
     </div>
-    <button class="btn btn-ghost" style="margin-top:12px;" onclick="closeModal('myPredsModal')">Cerrar</button>
+    <button class="btn btn-ghost" style="margin-top:12px;" id="lbl-closePredModal" onclick="closeModal('myPredsModal')">Cerrar</button>
   </div>
 </div>
 
@@ -1115,11 +1115,11 @@ body::before {
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;" id="standingsTabs">
       <button class="standing-tab active" onclick="loadStandings('4480','ucl',this)">⭐ UCL</button>
       <button class="standing-tab" onclick="loadStandings('4328','premier',this)">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier</button>
-      <button class="standing-tab" onclick="loadStandings('4335','laliga',this)">🇪🇸 LaLiga</button>
-      <button class="standing-tab" onclick="loadStandings('4332','seriea',this)">🇮🇹 Serie A</button>
-      <button class="standing-tab" onclick="loadStandings('4331','bundesliga',this)">🇩🇪 Bundesliga</button>
-      <button class="standing-tab" onclick="loadStandings('4334','ligue1',this)">🇫🇷 Ligue 1</button>
-      <button class="standing-tab" onclick="loadStandings('4481','uel',this)">🌍 Europa League</button>
+      <button class="standing-tab" id="stab-laliga" onclick="loadStandings('4335','laliga',this)">🇪🇸 LaLiga</button>
+      <button class="standing-tab" id="stab-seriea" onclick="loadStandings('4332','seriea',this)">🇮🇹 Serie A</button>
+      <button class="standing-tab" id="stab-bundesliga" onclick="loadStandings('4331','bundesliga',this)">🇩🇪 Bundesliga</button>
+      <button class="standing-tab" id="stab-ligue1" onclick="loadStandings('4334','ligue1',this)">🇫🇷 Ligue 1</button>
+      <button class="standing-tab" id="stab-uel" onclick="loadStandings('4481','uel',this)">🌍 Europa League</button>
     </div>
     <div id="standingsContent">
       <div class="empty"><span class="empty-icon">⏳</span></div>
@@ -1476,6 +1476,46 @@ const LANGS = {
     cleanOld:'🗑️ Limpiar Predicciones Antiguas', nukeAll:'💣 Borrar TODO (Disolver Grupo)',
     selectAction:'Selecciona una acción...',
     greeting:'Bienvenido',
+    closeIn:'⏰ Cierre en:',
+    liveMatches:'Partidos en curso',
+    chatWelcome:'Bienvenido al chat de Quiniela LuAn ⚽',
+    chatHello:'Hola',
+    chatSubtitle:'Escribe y envía',
+    predModalTitle:'📋 Mis Predicciones',
+    realPts:'Real',
+    registeredPlayers:'Jugadores Registrados',
+    predictedToday:t('predictedToday'),
+    noPredToday:t('noPredToday'),
+    waBtn:'📲 WhatsApp',
+    resetPassBtn:'🔑 Reset Clave',
+    createGroupTitle:'➕ Crear Grupo',
+    navGroups:'Grupos', navCreate:'➕ Crear',
+    shareRankBtn:'📲 Compartir Pizarra por WhatsApp',
+    msgGroupBtn:'💬 Mensajes al grupo',
+    msgGroupTitle:'💬 Mensajes del Grupo',
+    msgGroupTitle2:'💬 Mensajes para el grupo',
+    msgInvite:'📣 Invitar + cómo registrarse',
+    msgReminder:'📅 Recordatorio + tutorial cómo predecir',
+    msgLastCall:'⏰ Último aviso — 1 hora para el cierre',
+    msgLive:'🔴 Los partidos ya empezaron',
+    msgEnd:'🏁 Jornada terminada — revisa la pizarra',
+    msgBoard:'📊 Compartir pizarra actual',
+    msgTop3:'🎉 Felicitar a los Top 3 juntos',
+    msgMotivate:'🔥 Motivar al grupo para la próxima jornada',
+    msgAnnounce:'📢 Anuncio general al grupo',
+    msgWelcomeGroup:'🌟 Mensaje de bienvenida al grupo',
+    closeModal:'Cerrar',
+    sendWA:'Toca para enviar por WhatsApp',
+    // Nombres de ligas
+    lgChampions:'Champions League',
+    lgBundesliga:'Bundesliga',
+    lgLigue1:'Ligue 1',
+    lgSerieA:'Serie A',
+    lgPremier:'Premier League',
+    lgLaLiga:'LaLiga',
+    lgCopadelRey:'Copa del Rey',
+    lgMundial:'Copa del Mundo 2026',
+    lgEuropaLeague:'Europa League',
     groupsLabel:'Grupos:',
     setZeroAll:'🔮 Poner 0-0 a todos',
     saveBtn:'💾 Guardar',
@@ -1567,6 +1607,45 @@ const LANGS = {
     cleanOld:'🗑️ Clean Old Predictions', nukeAll:'💣 Delete ALL (Dissolve Group)',
     selectAction:'Select an action...',
     greeting:'Welcome',
+    closeIn:'⏰ Closes in:',
+    liveMatches:'Matches in progress',
+    chatWelcome:'Welcome to LuAn Predictions Chat ⚽',
+    chatHello:'Hello',
+    chatSubtitle:'Type and send',
+    predModalTitle:'📋 My Predictions',
+    realPts:'Real',
+    registeredPlayers:'Registered Players',
+    predictedToday:'🟢 Predicted today',
+    noPredToday:'🔴 No prediction',
+    waBtn:'📲 WhatsApp',
+    resetPassBtn:'🔑 Reset Password',
+    createGroupTitle:'➕ Create Group',
+    navGroups:'Groups', navCreate:'➕ Create',
+    shareRankBtn:'📲 Share Board on WhatsApp',
+    msgGroupBtn:'💬 Group Messages',
+    msgGroupTitle:'💬 Group Messages',
+    msgGroupTitle2:'💬 Messages for the group',
+    msgInvite:'📣 Invite + how to register',
+    msgReminder:'📅 Reminder + prediction tutorial',
+    msgLastCall:'⏰ Last call — 1 hour to close',
+    msgLive:'🔴 Matches have started',
+    msgEnd:'🏁 Matchday over — check the board',
+    msgBoard:'📊 Share current board',
+    msgTop3:'🎉 Congratulate the Top 3',
+    msgMotivate:'🔥 Motivate the group for next round',
+    msgAnnounce:'📢 General announcement',
+    msgWelcomeGroup:'🌟 Welcome message to group',
+    closeModal:'Close',
+    sendWA:'Tap to send on WhatsApp',
+    lgChampions:'Champions League',
+    lgBundesliga:'Bundesliga',
+    lgLigue1:'Ligue 1',
+    lgSerieA:'Serie A',
+    lgPremier:'Premier League',
+    lgLaLiga:'La Liga',
+    lgCopadelRey:'Copa del Rey',
+    lgMundial:'FIFA World Cup 2026',
+    lgEuropaLeague:'Europa League',
     groupsLabel:'Groups:',
     setZeroAll:'🔮 Set all to 0-0',
     saveBtn:'💾 Save',
@@ -1658,6 +1737,45 @@ const LANGS = {
     cleanOld:'🗑️ Alte Tipps löschen', nukeAll:'💣 ALLES löschen (Gruppe auflösen)',
     selectAction:'Aktion auswählen...',
     greeting:'Willkommen',
+    closeIn:'⏰ Schließt in:',
+    liveMatches:'Spiele laufen',
+    chatWelcome:'Willkommen im LuAn-Chat ⚽',
+    chatHello:'Hallo',
+    chatSubtitle:'Schreiben und senden',
+    predModalTitle:'📋 Meine Tipps',
+    realPts:'Real',
+    registeredPlayers:'Registrierte Spieler',
+    predictedToday:'🟢 Heute getippt',
+    noPredToday:'🔴 Kein Tipp',
+    waBtn:'📲 WhatsApp',
+    resetPassBtn:'🔑 Passwort zurücksetzen',
+    createGroupTitle:'➕ Gruppe erstellen',
+    navGroups:'Gruppen', navCreate:'➕ Erstellen',
+    shareRankBtn:'📲 Tabelle per WhatsApp teilen',
+    msgGroupBtn:'💬 Gruppen-Nachrichten',
+    msgGroupTitle:'💬 Gruppen-Nachrichten',
+    msgGroupTitle2:'💬 Nachrichten für die Gruppe',
+    msgInvite:'📣 Einladen + Anleitung',
+    msgReminder:'📅 Erinnerung + Tipp-Tutorial',
+    msgLastCall:'⏰ Letzte Chance — 1 Stunde bis Schluss',
+    msgLive:'🔴 Spiele haben begonnen',
+    msgEnd:'🏁 Spieltag vorbei — Tabelle ansehen',
+    msgBoard:'📊 Aktuelle Tabelle teilen',
+    msgTop3:'🎉 Die Top 3 beglückwünschen',
+    msgMotivate:'🔥 Gruppe für die nächste Runde motivieren',
+    msgAnnounce:'📢 Allgemeine Ankündigung',
+    msgWelcomeGroup:'🌟 Begrüßungsnachricht an die Gruppe',
+    closeModal:'Schließen',
+    sendWA:'Tippe zum Senden über WhatsApp',
+    lgChampions:'Champions League',
+    lgBundesliga:'Bundesliga',
+    lgLigue1:'Ligue 1',
+    lgSerieA:'Serie A',
+    lgPremier:'Premier League',
+    lgLaLiga:'La Liga',
+    lgCopadelRey:'Copa del Rey',
+    lgMundial:'FIFA-Weltmeisterschaft 2026',
+    lgEuropaLeague:'Europa League',
     groupsLabel:'Gruppen:',
     setZeroAll:'🔮 Alle auf 0-0 setzen',
     saveBtn:'💾 Speichern',
@@ -1735,11 +1853,23 @@ function setLang(lang) {
     'lbl-mundialWhoRunner': 'mundialWhoRunner',
     'lbl-mundialWhoThird': 'mundialWhoThird',
     'lbl-mundialWhoScorer': 'mundialWhoScorer',
-    'btnSaveConfig': 'saveConfig',
+    'btnSaveConfig'      : 'saveConfig',
+    'lbl-predModalTitle' : 'predModalTitle',
+    'lbl-closePredModal' : 'closeModal',
   };
   Object.entries(domLabels).forEach(([id,key])=>{
     const el = document.getElementById(id);
     if(el) el.textContent = t(key);
+  });
+  // Standing tabs (con flag preservado)
+  const stabMap = {
+    'stab-laliga':'lgLaLiga','stab-seriea':'lgSerieA',
+    'stab-bundesliga':'lgBundesliga','stab-ligue1':'lgLigue1','stab-uel':'lgEuropaLeague',
+  };
+  const stabFlags = {'stab-laliga':'🇪🇸','stab-seriea':'🇮🇹','stab-bundesliga':'🇩🇪','stab-ligue1':'🇫🇷','stab-uel':'🌍'};
+  Object.entries(stabMap).forEach(([id,key])=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = `${stabFlags[id]} ${t(key)}`;
   });
   // Actualizar primera opción vacía de los selects del Mundial
   ['mCampeon','mSubcampeon','mTercero'].forEach(selId => {
@@ -1893,19 +2023,19 @@ function openRankWAMenu() {
     // ── Individuales con teléfono ──────────────────────
     {
       icon: '🥇',
-      label: `Felicitar al líder — ${p1?.username||'?'}`,
+      label: `${t('msgTop3').replace('🎉 ','').replace('juntos','')} 🥇 ${p1?.username||'?'}`,
       phone: p1?.phone || '',
       text: `🥇 *¡ERES EL LÍDER DE LA JORNADA!* 🥇\n\n¡Felicidades ${p1?.username||''}! 👏\n\nEstuviste fantástico esta jornada en el grupo *"${gname}"*. Obtuviste *${p1?.grpPts||0} puntos*${p1?.grpExact ? `, con ${p1.grpExact} predicciones exactas ⭐` : ''} y fuiste el mejor de todos. ¡Qué ojo para el fútbol! 🎯\n\nSigue así que la corona te espera 👑\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
     },
     {
       icon: '🥈',
-      label: `Felicitar al 2do — ${p2?.username||'?'}`,
+      label: `${t('msgTop3').replace('🎉 ','').replace('juntos','')} 🥈 ${p2?.username||'?'}`,
       phone: p2?.phone || '',
       text: `🥈 *¡Gran jornada ${p2?.username||''}!* 🔥\n\nVas en el *2° lugar* del grupo *"${gname}"* con *${p2?.grpPts||0} puntos*. ¡Estás muy cerca de la cima!\n\nUn buen partido puede cambiar todo — no te rindas 💪\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
     },
     {
       icon: '🥉',
-      label: `Felicitar al 3ro — ${p3?.username||'?'}`,
+      label: `${t('msgTop3').replace('🎉 ','').replace('juntos','')} 🥉 ${p3?.username||'?'}`,
       phone: p3?.phone || '',
       text: `🥉 *¡Top 3 ${p3?.username||''}!* 🏆\n\nVas en el *3er lugar* del grupo *"${gname}"* con *${p3?.grpPts||0} puntos*. ¡Estás en el podio!\n\nLa lucha por arriba está apretada, sigue prediciendo con cabeza 🧠⚽\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
     },
@@ -1924,37 +2054,37 @@ function openRankWAMenu() {
     },
     {
       icon: '📊',
-      label: 'Compartir pizarra actual',
+      label: t('msgBoard'),
       phone: '',
       text: pizarraText
     },
     {
       icon: '🔥',
-      label: 'Motivar a todo el grupo',
+      label: t('msgMotivate'),
       phone: '',
       text: `🔥 *¡Resumen de la jornada!* — *${gname}*\n\n${ranked.slice(0,3).map((r,i)=>{const m=['🥇','🥈','🥉'];return `${m[i]} ${r.username} — ${r.grpPts}pts`;}).join('\n')}\n\n¡Gran jornada para todos! La clasificación está apretada y el fútbol siempre sorprende 🎲\n\nLa próxima jornada viene con todo ⚽💥\n📲 ${appUrl}\n\n_— ${nombre}_`
     },
     {
       icon: '📅',
-      label: 'Recordatorio + tutorial cómo predecir',
+      label: t('msgReminder'),
       phone: '',
       text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
     },
     {
       icon: '⏰',
-      label: 'Último aviso — cierre próximo',
+      label: t('msgLastCall'),
       phone: '',
       text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta poco para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
     },
     {
       icon: '🔴',
-      label: 'Los partidos ya empezaron',
+      label: t('msgLive'),
       phone: '',
       text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar el fútbol ⚽🔥\n\nEntra a la app para ver los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
     },
     {
       icon: '🏁',
-      label: 'Jornada terminada — revisa la pizarra',
+      label: t('msgEnd'),
       phone: '',
       text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
     },
@@ -1970,7 +2100,7 @@ function openRankWAMenu() {
   modal.innerHTML = `
     <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
       <div class="modal-handle"></div>
-      <div class="modal-title">💬 Mensajes del Grupo</div>
+      <div class="modal-title">${t('msgGroupTitle')}</div>
       <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar</div>
 
       <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personales (abre WhatsApp directo)</div>
@@ -2585,19 +2715,27 @@ async function enterApp() {
         if (phase === 'ET') {
           const kET = window._kET[mid];
           dispSec = kET
-            ? Math.max(1, Math.floor((now - kET) / 1000)) + 90*60 + adminOffset
-            : Math.max(1, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
+            ? Math.max(0, Math.floor((now - kET) / 1000)) + 90*60 + adminOffset
+            : Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
           const totalM = Math.floor(dispSec / 60);
-          capMin = totalM < 105 ? 105 : 120; // ET1 → 105, ET2 → 120
+          capMin = totalM < 105 ? 105 : 120;
         } else if (phase === '2H') {
           const k2H = window._k2H[mid];
-          dispSec = k2H
-            ? Math.max(1, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset
-            : Math.max(1, Math.floor((now - kickoffMs) / 1000) - 3600) + 45*60 + adminOffset;
+          if (k2H) {
+            // Kickoff real del 2do tiempo grabado cuando la API cambió a '2H'
+            dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
+          } else if (kickoffMs) {
+            // Fallback: estimamos que el descanso duró 15 min (kickoff + 45' juego + 15' descanso = 60 min)
+            const elapsed = Math.floor((now - kickoffMs) / 1000);
+            const secondHalfStart = elapsed - 60*60; // segundos desde inicio estimado del 2H
+            dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
+          } else {
+            mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')} `; extraEl.style.display='none'; return;
+          }
           capMin = 90;
         } else if (phase === '1H') {
           if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
-          dispSec = Math.max(1, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
+          dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
           capMin  = 45;
         } else {
           mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
@@ -3108,7 +3246,7 @@ function renderMatches() {
       : 'AHORA';
     html += `<div class="countdown-banner">
       <div>
-        <div class="countdown-label">⏰ Cierre en: <strong style="color:var(--red);">${countdown}</strong></div>
+        <div class="countdown-label">${t('closeIn')} <strong style="color:var(--red);">${countdown}</strong></div>
         <div class="countdown-match" style="font-size:0.82em;margin-top:2px;">${nextClose.home} ${t('vsLabel')} ${nextClose.away}</div>
       </div>
       <div class="countdown-status">${vzTime(nextClose.time)}</div>
@@ -3117,7 +3255,7 @@ function renderMatches() {
   if (closed) {
     html += `<div class="countdown-banner" style="background:rgba(255,77,109,0.08);border-color:rgba(255,77,109,0.3);">
       <span style="color:var(--red);font-weight:800;">🔴 Predicciones CERRADAS</span>
-      <span style="font-size:0.78em;color:var(--muted2);">Partidos en curso</span>
+      <span style="font-size:0.78em;color:var(--muted2);">${t('liveMatches')}</span>
     </div>`;
   }
 
@@ -4304,7 +4442,7 @@ async function renderPreds() {
               <div class="pred-match-sub">${t('vsLabel')} ${p.away}</div>
             </div>
             <div class="pred-score-box">${p.predictedHomeScore}—${p.predictedAwayScore}</div>
-            ${hasReal?`<div class="pred-real-box">Real<span class="pred-real-score">${match.homeScore}—${match.awayScore}</span></div>`:'<div></div>'}
+            ${hasReal?`<div class="pred-real-box">${t('realPts')}<span class="pred-real-score">${match.homeScore}—${match.awayScore}</span></div>`:'<div></div>'}
             <div class="pred-pts-box ${ptsCls}">${ptsLabel}</div>
           </div>`;
       });
@@ -4430,13 +4568,13 @@ function initChat() {
       <div style="display:flex;align-items:center;gap:10px;">
         <div class="chat-online"></div>
         <div class="chat-header-info">
-          <h3>💬 Chat LuAn</h3>
-          <p>Hola ${me?.username||''} · Escribe y envía</p>
+          <h3>${t('chatTitle')}</h3>
+          <p>${t('chatHello')} ${me?.username||''} · ${t('chatSubtitle')}</p>
         </div>
       </div>
     </div>
     <div class="chat-messages" id="chatMessages">
-      <div class="chat-system">Bienvenido al chat de Quiniela LuAn ⚽</div>
+      <div class="chat-system">${t('chatWelcome')}</div>
     </div>
     <div class="chat-input-bar" id="chatBar">
       <input type="text" class="chat-input" id="chatInput"
@@ -4514,6 +4652,16 @@ async function sendChat() {
 // ═══════════════════════════════════════════
 // TOURNAMENTS
 // ═══════════════════════════════════════════
+// Nombre traducido de cada liga
+function tLeague(id) {
+  const map = {
+    ucl:'lgChampions', bundesliga:'lgBundesliga', ligue1:'lgLigue1',
+    seriea:'lgSerieA', premier:'lgPremier', laliga:'lgLaLiga',
+    copadelrey:'lgCopadelRey', mundial:'lgMundial', uel:'lgEuropaLeague',
+  };
+  return t(map[id] || id);
+}
+
 function renderTournaments() {
   const el = $('screenTournaments');
   let html = `<div class="section-header"><span class="section-title">${t('secTournaments')}</span></div>
@@ -4524,7 +4672,7 @@ function renderTournaments() {
       <div style="display:flex;align-items:center;gap:12px;">
         <span style="font-size:2em;">🌍🏆</span>
         <div style="flex:1;">
-          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
+          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">${tLeague('mundial')}</div>
           <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">${t('mundialDesc')}</div>
         </div>
         <span style="font-size:1.5em;">→</span>
@@ -4542,7 +4690,7 @@ function renderTournaments() {
     html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${tr.id}',this)">
       <div class="tourn-left">
         <span style="font-size:1.3em;">${tr.flag}</span>
-        <span>${tr.name}</span>
+        <span>${tLeague(tr.id)}</span>
       </div>
       <div class="tourn-check">${sel?'✓':''}</div>
     </div>`;
@@ -4573,9 +4721,9 @@ async function renderGroups() {
   el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
 
   let html = `<div class="section-header">
-    <span class="section-title">👥 Grupos</span>
+    <span class="section-title">${t('secGroups')}</span>
     <div style="display:flex;gap:8px;">
-      ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="renderCreatePicker();openModal('createModal')">➕ Crear</button>` : ''}
+      ${me.isAdmin ? `<button class="btn btn-ghost btn-sm" onclick="renderCreatePicker();openModal('createModal')">${t('navCreate')}</button>` : ''}
       ${me.isAdmin ? `` : ''}
     </div>
   </div>
@@ -4659,7 +4807,7 @@ function renderLigasPanel() {
       <div style="display:flex;align-items:center;gap:12px;">
         <span style="font-size:2em;">🌍🏆</span>
         <div style="flex:1;">
-          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">Copa del Mundo 2026</div>
+          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">${tLeague('mundial')}</div>
           <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">${t('mundialDesc')}</div>
         </div>
         <span style="font-size:1.5em;">→</span>
@@ -4671,13 +4819,13 @@ function renderLigasPanel() {
     if (me.isAdmin) {
       // Admin: puede activar/desactivar
       html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${tr.id}',this)">
-        <div class="tourn-left"><span style="font-size:1.3em;">${tr.flag}</span><span>${tr.name}</span></div>
+        <div class="tourn-left"><span style="font-size:1.3em;">${tr.flag}</span><span>${tLeague(tr.id)}</span></div>
         <div class="tourn-check">${sel?'✓':''}</div>
       </div>`;
     } else {
       // Jugador: solo lectura
       html += `<div class="tourn-item" style="opacity:${sel?'1':'0.5'};cursor:default;">
-        <div class="tourn-left"><span style="font-size:1.3em;">${tr.flag}</span><span>${tr.name}</span></div>
+        <div class="tourn-left"><span style="font-size:1.3em;">${tr.flag}</span><span>${tLeague(tr.id)}</span></div>
         <div class="tourn-check" style="color:${sel?'var(--green)':'var(--muted)'};">${sel?'✓':'—'}</div>
       </div>`;
     }
@@ -4811,52 +4959,52 @@ async function openGroupWAMenu(code, gname) {
   const quickMsgs = [
     {
       icon: '📣',
-      label: 'Invitar + cómo registrarse',
+      label: t('msgInvite'),
       text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n\n👆 *¿Cómo unirte al grupo?*\nUna vez dentro, ve a *Partidos* y toca el nombre del grupo en el cintillo de arriba — con ese solo toque ya quedas dentro 👌\n\n👥 *Grupos disponibles:*\n${gruposLista}\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado.\n\n⚠️ Predice antes del pitazo o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
     },
     {
       icon: '📅',
-      label: 'Recordatorio + tutorial cómo predecir',
+      label: t('msgReminder'),
       text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
     },
     {
       icon: '⏰',
-      label: 'Último aviso — 1 hora para el cierre',
+      label: t('msgLastCall'),
       text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta menos de 1 hora para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
     },
     {
       icon: '🔴',
-      label: 'Los partidos ya empezaron',
+      label: t('msgLive'),
       text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar y sufrir el fútbol ⚽🔥\n\nEntra a la app para seguir los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
     },
     {
       icon: '🏁',
-      label: 'Jornada terminada — revisa la pizarra',
+      label: t('msgEnd'),
       text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
     },
     {
       icon: '📊',
-      label: 'Compartir pizarra actual',
+      label: t('msgBoard'),
       text: _buildPizarraText(gname)
     },
     {
       icon: '🎉',
-      label: 'Felicitar a los Top 3 juntos',
+      label: t('msgTop3'),
       text: _buildTop3Text(gname)
     },
     {
       icon: '🔥',
-      label: 'Motivar al grupo para la próxima jornada',
+      label: t('msgMotivate'),
       text: `🔥 *¡La próxima jornada se viene cargada!* — *${gname}*\n\nLa tabla está apretada, cualquiera puede escalar. Un buen ojo en las predicciones lo puede cambiar todo 🎯\n\nPredicción + suerte + conocimiento = Campeón 🏆\n\n📲 ${appUrl}\n\n_— ${nombre}_`
     },
     {
       icon: '📢',
-      label: 'Anuncio general al grupo',
+      label: t('msgAnnounce'),
       text: `📢 *Aviso del grupo "${gname}"* — Quiniela LuAn ⚽\n\nHola a todos, recuerden estar pendientes de la app para no perderse ninguna jornada.\n\n📲 ${appUrl}\n\n¡Éxito a todos! 💪\n_— ${nombre}_`
     },
     {
       icon: '🌟',
-      label: 'Mensaje de bienvenida al grupo',
+      label: t('msgWelcomeGroup'),
       text: `🌟 *¡Bienvenidos al grupo "${gname}"!* ⚽\n\nYa estamos todos listos para competir en *Quiniela LuAn*.\n\nReglas simples:\n✅ Predice antes del primer partido\n✅ Los puntos se calculan automáticamente\n✅ Exacto = 3pts · Resultado correcto = 1pt\n\n📲 ${appUrl}\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
     },
   ];
@@ -4868,7 +5016,7 @@ async function openGroupWAMenu(code, gname) {
   modal.innerHTML = `
     <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
       <div class="modal-handle"></div>
-      <div class="modal-title">💬 Mensajes para el grupo</div>
+      <div class="modal-title">${t('msgGroupTitle2')}</div>
       <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar por WhatsApp</div>
       ${quickMsgs.map((m,i) => `
         <button onclick="sendGroupWA(${i})"
@@ -5158,7 +5306,7 @@ async function adminUsers() {
 
   const hasPredicted = uid => todayPreds.has(uid);
 
-  let html=`<div class="big-stat"><span class="big-stat-num">${snap.size}</span><span class="big-stat-label">Jugadores Registrados</span></div>`;
+  let html=`<div class="big-stat"><span class="big-stat-num">${snap.size}</span><span class="big-stat-label">${t('registeredPlayers')}</span></div>`;
 
   // Summary badges
   const predCount = snap.docs.filter(d=>hasPredicted(d.id)).length;
@@ -5203,8 +5351,8 @@ async function adminUsers() {
       </div>
       <div style="font-size:0.72em;color:var(--muted2);margin-bottom:8px;">${u.phoneDisplay||uphone||'—'} · Inv: ${u.personalInviteCode||'—'}</div>
       <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button class="btn-wa" style="flex:1;" onclick="adminWAMenu('${uname}','${uphone}',${predicted})">📲 WhatsApp</button>
-        <button style="flex:1;padding:9px;background:rgba(245,197,66,0.15);border:1px solid rgba(245,197,66,0.3);color:var(--gold);border-radius:var(--r-sm);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="adminResetUserPass('${uname}','${uphone}','${d.id}')">🔑 Reset Clave</button>
+        <button class="btn-wa" style="flex:1;" onclick="adminWAMenu('${uname}','${uphone}',${predicted})">${t('waBtn')}</button>
+        <button style="flex:1;padding:9px;background:rgba(245,197,66,0.15);border:1px solid rgba(245,197,66,0.3);color:var(--gold);border-radius:var(--r-sm);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="adminResetUserPass('${uname}','${uphone}','${d.id}')">${t('resetPassBtn')}</button>
       </div>
     </div>`;
   });
@@ -7164,4 +7312,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-</html>
+   </html>
