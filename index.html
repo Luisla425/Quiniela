@@ -1055,8 +1055,8 @@ body::before {
     <div id="rankModalTitle" class="modal-title"></div>
     <div id="rankModalCode" style="font-size:0.78em;color:var(--muted2);margin-bottom:16px;"></div>
     <div id="rankModalList"></div>
-    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">${t('shareRankBtn')}</button>
-    <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" onclick="openRankWAMenu()">${t('msgGroupBtn')}</button>
+    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">📲 Compartir Pizarra por WhatsApp</button>
+    <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" id="msgGroupBtn" onclick="openRankWAMenu()">💬 Mensajes al grupo</button>
     <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('rankModal')">Cerrar</button>
   </div>
 </div>
@@ -1856,6 +1856,8 @@ function setLang(lang) {
     'btnSaveConfig'      : 'saveConfig',
     'lbl-predModalTitle' : 'predModalTitle',
     'lbl-closePredModal' : 'closeModal',
+    'sharePizarraBtn'    : 'shareRankBtn',
+    'msgGroupBtn'        : 'msgGroupBtn',
   };
   Object.entries(domLabels).forEach(([id,key])=>{
     const el = document.getElementById(id);
