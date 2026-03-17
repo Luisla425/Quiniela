@@ -2687,6 +2687,11 @@ async function enterApp() {
         const st  = (m.status || '').toUpperCase();
         let phase = wrap.dataset.phase || '';
 
+        // kickoffMs debe declararse ANTES del bloque de fases (se usa para estimar _k2H/_kET)
+        const kickoffMs   = +wrap.dataset.kickoff || 0;
+        const adminOffset = window._adminCronOffset[mid] || 0;
+        const now         = Date.now();
+
         // Sincronizar fase y grabar kickoff real de 2H/ET
         // IMPORTANTE: actualizar SIEMPRE (no solo al cambiar) para que funcione al cargar
         if (st === '1H') {
@@ -2695,15 +2700,13 @@ async function enterApp() {
           wrap.dataset.phase = 'HT'; phase = 'HT';
         } else if (st === '2H') {
           wrap.dataset.phase = '2H'; phase = '2H';
-          // Si no tenemos kickoff real del 2do tiempo, estimar desde kickoff original
-          // TheSportsDB no da hora de inicio del 2do tiempo, estimamos kickoff + 62min
           if (!window._k2H[mid] && kickoffMs) {
             window._k2H[mid] = kickoffMs + 62 * 60 * 1000;
           }
         } else if (st === 'ET') {
           wrap.dataset.phase = 'ET'; phase = 'ET';
           if (!window._kET[mid] && kickoffMs) {
-            window._kET[mid] = kickoffMs + 112 * 60 * 1000; // kickoff + ~112min estimado
+            window._kET[mid] = kickoffMs + 112 * 60 * 1000;
           }
         } else if (st === 'BT') {
           wrap.dataset.phase = 'BT'; phase = 'BT';
@@ -2719,10 +2722,6 @@ async function enterApp() {
         if (phase === 'HT') { mainEl.textContent = `⏸ Descanso`;       extraEl.style.display='none'; return; }
         if (phase === 'BT') { mainEl.textContent = `⏸ Desc. Prórroga`; extraEl.style.display='none'; return; }
         if (phase === 'P')  { mainEl.textContent = `⚡ Penales`;        extraEl.style.display='none'; return; }
-
-        const kickoffMs    = +wrap.dataset.kickoff || 0;
-        const adminOffset  = window._adminCronOffset[mid] || 0; // segundos
-        const now          = Date.now();
 
         let dispSec, capMin;
 
@@ -7326,4 +7325,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-</html>
+   </html>
