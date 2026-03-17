@@ -1239,50 +1239,6 @@ body::before {
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-   CRONÓMETRO MULTIPARTIDO - NUEVO MODAL
-═══════════════════════════════════════════ -->
-<div class="modal-overlay hidden" id="clockModal">
-    <div class="modal-box" style="max-width:400px; text-align:center;">
-        <div class="modal-handle"></div>
-        <div class="modal-title" id="cronoModalTitle">⏱️ Cronómetro</div>
-        <div id="cronoMatchTitle" style="font-size:0.9em; color:var(--primary2); font-weight:700; margin-bottom:5px;"></div>
-        <div id="clock" style="font-size:4em; font-weight:bold; margin:15px 0; font-family: var(--font-h); color: var(--primary2);">0:00</div>
-        
-        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 15px;">
-            <button class="btn btn-ghost btn-sm" style="flex: 1 0 30%;" onclick="phase('1T')">1T</button>
-            <button class="btn btn-ghost btn-sm" style="flex: 1 0 30%;" onclick="phase('HT')">HT</button>
-            <button class="btn btn-ghost btn-sm" style="flex: 1 0 30%;" onclick="phase('2T')">2T</button>
-            <button class="btn btn-ghost btn-sm" style="flex: 1 0 30%;" onclick="phase('ET1')">ET1</button>
-            <button class="btn btn-ghost btn-sm" style="flex: 1 0 30%;" onclick="phase('ET2')">ET2</button>
-            <button class="btn btn-ghost btn-sm" style="flex: 1 0 30%;" onclick="phase('FT')">FT</button>
-        </div>
-
-        <div style="margin-bottom:15px;">
-            <label style="font-size:0.8em; color:var(--muted2); display:block; margin-bottom:5px;">Min añadido árbitro</label>
-            <div style="display:flex; gap:8px;">
-                <input type="number" id="extraMin" class="field input" style="flex:1;" placeholder="Ej: 4">
-                <button class="btn btn-ghost btn-sm" onclick="setExtra()">Aplicar</button>
-            </div>
-        </div>
-
-        <div style="margin-bottom:15px;">
-            <label style="font-size:0.8em; color:var(--muted2); display:block; margin-bottom:5px;">Ajustar tiempo (Min : Seg)</label>
-            <div style="display:flex; gap:8px; align-items:center;">
-                <input type="number" id="setMin" class="field input" style="flex:1;" placeholder="Min">
-                <span style="color:var(--muted2); font-weight:bold;">:</span>
-                <input type="number" id="setSec" class="field input" style="flex:1;" placeholder="Seg">
-                <button class="btn btn-ghost btn-sm" onclick="setManual()">Aplicar</button>
-            </div>
-        </div>
-
-        <div style="display:flex; gap:8px; margin-top:10px;">
-            <button class="btn btn-green" style="flex:1;" onclick="resetGame()">🔄 Reset Partido</button>
-            <button class="btn btn-ghost" style="flex:1;" onclick="closeModal('clockModal')">Cerrar</button>
-        </div>
-    </div>
-</div>
-
 <script>
 // ── CAPTURA GLOBAL DE ERRORES — muestra cualquier crash en pantalla ──
 window.addEventListener('error', function(e) {
@@ -2732,18 +2688,28 @@ async function enterApp() {
         let phase = wrap.dataset.phase || '';
 
         // Sincronizar fase y grabar kickoff real de 2H/ET
-        if (st === '1H' && phase !== '1H') { wrap.dataset.phase = '1H'; phase = '1H'; }
-        else if (st === 'HT' && phase !== 'HT') { wrap.dataset.phase = 'HT'; phase = 'HT'; }
-        else if (st === '2H' && phase !== '2H') {
+        // IMPORTANTE: actualizar SIEMPRE (no solo al cambiar) para que funcione al cargar
+        if (st === '1H') {
+          wrap.dataset.phase = '1H'; phase = '1H';
+        } else if (st === 'HT') {
+          wrap.dataset.phase = 'HT'; phase = 'HT';
+        } else if (st === '2H') {
           wrap.dataset.phase = '2H'; phase = '2H';
-          if (!window._k2H[mid]) window._k2H[mid] = Date.now();
-        }
-        else if (st === 'ET' && phase !== 'ET') {
+          // Si no tenemos kickoff real del 2do tiempo, estimar desde kickoff original
+          // TheSportsDB no da hora de inicio del 2do tiempo, estimamos kickoff + 62min
+          if (!window._k2H[mid] && kickoffMs) {
+            window._k2H[mid] = kickoffMs + 62 * 60 * 1000;
+          }
+        } else if (st === 'ET') {
           wrap.dataset.phase = 'ET'; phase = 'ET';
-          if (!window._kET[mid]) window._kET[mid] = Date.now();
+          if (!window._kET[mid] && kickoffMs) {
+            window._kET[mid] = kickoffMs + 112 * 60 * 1000; // kickoff + ~112min estimado
+          }
+        } else if (st === 'BT') {
+          wrap.dataset.phase = 'BT'; phase = 'BT';
+        } else if (st === 'P') {
+          wrap.dataset.phase = 'P'; phase = 'P';
         }
-        else if (st === 'BT' && phase !== 'BT') { wrap.dataset.phase = 'BT'; phase = 'BT'; }
-        else if (st === 'P'  && phase !== 'P')  { wrap.dataset.phase = 'P';  phase = 'P';  }
 
         const mainEl  = document.getElementById(`badge_main_${m.id}`);
         const extraEl = document.getElementById(`badge_extra_${m.id}`);
@@ -3502,17 +3468,10 @@ function buildMatchCard(m, closed) {
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
   const statsBtn = showScore ? `
-    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-        <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
-        <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
-        ${live ? `
-        <button onclick="openMatchCronometer('${m.id}', '${m.home}', '${m.away}')" 
-            style="padding:11px 10px;border-radius:12px;cursor:pointer;
-            background:rgba(108,71,255,0.1);color:var(--primary2);
-            border:1px solid var(--primary);" title="Cronómetro del partido">
-            ⏱️
-        </button>` : ''}
-        ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
+      <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
+      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
     </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
@@ -7365,287 +7324,6 @@ function cerrarManualLuan(){
     </div>
   </div>
 </div>
-<!-- ═══════════════════════════════════════════
-   CRONÓMETRO MULTIPARTIDO - Código Independiente
-═══════════════════════════════════════════ -->
-<script>
-// ═══════════════════════════════════════════
-// CRONÓMETRO MULTIPARTIDO - Código Independiente
-// ═══════════════════════════════════════════
 
-// NO modifica NADA de tu código existente
-// Usa su propio namespace y variables
-
-const CronoManager = (function() {
-    // Estado de TODOS los cronómetros por matchId
-    let games = new Map();
-    let currentMatchId = null;
-    let loop = null;
-    const STORAGE_KEY = 'cronometros_multipartido';
-
-    // Estado por defecto para un partido nuevo
-    function createDefaultGame() {
-        return {
-            phase: "1T",
-            mode: "normal",
-            limit: 45,
-            base: 0,
-            start: null,
-            extra: "?"
-        };
-    }
-
-    // Cargar del localStorage
-    function load() {
-        try {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                const obj = JSON.parse(saved);
-                games = new Map(Object.entries(obj));
-            }
-        } catch(e) {
-            console.warn('Error cargando cronómetros:', e);
-        }
-    }
-
-    // Guardar en localStorage
-    function save() {
-        try {
-            const obj = {};
-            games.forEach((value, key) => {
-                obj[key] = value;
-            });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
-        } catch(e) {
-            console.warn('Error guardando cronómetros:', e);
-        }
-    }
-
-    // Obtener o crear cronómetro para un matchId
-    function getGame(matchId) {
-        if (!games.has(matchId)) {
-            games.set(matchId, createDefaultGame());
-        }
-        return games.get(matchId);
-    }
-
-    // Actualizar el display del cronómetro actual
-    function updateDisplay() {
-        const clockDiv = document.getElementById('clock');
-        if (!clockDiv || !currentMatchId) return;
-
-        const game = games.get(currentMatchId);
-        if (!game) return;
-
-        if (!game.start) {
-            if (game.phase == "HT") {
-                clockDiv.innerHTML = "⏸️ Descanso";
-            } else if (game.phase == "FT") {
-                clockDiv.innerHTML = "✅ Final";
-            } else {
-                clockDiv.innerHTML = "0:00";
-            }
-            return;
-        }
-
-        let now = Date.now();
-        let elapsed = Math.floor((now - game.start) / 1000);
-        let total = game.base + elapsed;
-        let min = Math.floor(total / 60);
-        let sec = total % 60;
-
-        if (game.mode == "normal") {
-            if (min >= game.limit) {
-                game.mode = "extra";
-                game.start = Date.now();
-                save();
-                clockDiv.innerHTML = game.limit + "' +? 0:00";
-                return;
-            }
-            clockDiv.innerHTML = min + ":" + sec.toString().padStart(2, "0");
-        } else {
-            let e = Math.floor((Date.now() - game.start) / 1000);
-            let em = Math.floor(e / 60);
-            let es = e % 60;
-            
-            clockDiv.innerHTML = game.limit + "' +" + game.extra + " " +
-                em + ":" + es.toString().padStart(2, "0");
-
-            if (game.extra != "?") {
-                let max = game.extra * 60;
-                if (e >= max) {
-                    if (loop) {
-                        clearInterval(loop);
-                        loop = null;
-                    }
-                    clockDiv.innerHTML = game.limit + "' +" + game.extra + " " +
-                        game.extra + ":00";
-                }
-            }
-        }
-    }
-
-    // Iniciar el loop de actualización
-    function startLoop() {
-        if (!loop) {
-            loop = setInterval(updateDisplay, 500);
-        }
-    }
-
-    // API Pública
-    return {
-        // Abrir cronómetro para un partido específico
-        openMatch: function(matchId, homeTeam, awayTeam) {
-            currentMatchId = matchId;
-            const game = getGame(matchId);
-            
-            // Actualizar título del modal
-            const titleEl = document.getElementById('cronoMatchTitle');
-            if (titleEl) {
-                titleEl.textContent = `${homeTeam || ''} vs ${awayTeam || ''}`;
-            }
-            
-            // Cargar valores en inputs
-            document.getElementById('extraMin').value = game.extra !== '?' ? game.extra : '';
-            document.getElementById('setMin').value = '';
-            document.getElementById('setSec').value = '';
-            
-            // Iniciar loop si es necesario
-            if (game.start) {
-                startLoop();
-            }
-            
-            // Abrir modal
-            const modal = document.getElementById('clockModal');
-            if (modal) modal.classList.remove('hidden');
-            
-            // Actualizar display
-            updateDisplay();
-        },
-
-        // Funciones de control (se llaman desde los botones)
-        phase: function(p) {
-            if (!currentMatchId) return;
-            
-            const game = games.get(currentMatchId);
-            if (!game) return;
-            
-            if (p == "HT" || p == "FT") {
-                game.phase = p;
-                game.start = null;
-                games.set(currentMatchId, game);
-                save();
-                updateDisplay();
-                return;
-            }
-            
-            game.mode = "normal";
-            game.phase = p;
-            
-            if (p == "1T") { game.limit = 45; game.base = 0; }
-            if (p == "2T") { game.limit = 90; game.base = 45 * 60; }
-            if (p == "ET1") { game.limit = 105; game.base = 90 * 60; }
-            if (p == "ET2") { game.limit = 120; game.base = 105 * 60; }
-            
-            game.start = Date.now();
-            games.set(currentMatchId, game);
-            startLoop();
-            save();
-            updateDisplay();
-        },
-
-        setExtra: function() {
-            if (!currentMatchId) return;
-            
-            const game = games.get(currentMatchId);
-            if (!game) return;
-            
-            game.extra = document.getElementById('extraMin').value || "?";
-            games.set(currentMatchId, game);
-            save();
-            updateDisplay();
-        },
-
-        setManual: function() {
-            if (!currentMatchId) return;
-            
-            const game = games.get(currentMatchId);
-            if (!game) return;
-            
-            let m = parseInt(document.getElementById('setMin').value) || 0;
-            let s = parseInt(document.getElementById('setSec').value) || 0;
-            
-            game.base = (m * 60) + s;
-            game.start = Date.now();
-            game.mode = "normal";
-            
-            games.set(currentMatchId, game);
-            startLoop();
-            save();
-            updateDisplay();
-        },
-
-        resetGame: function() {
-            if (!currentMatchId) return;
-            if (!confirm("¿Reiniciar el partido?")) return;
-            
-            const game = games.get(currentMatchId);
-            if (!game) return;
-            
-            // Resetear valores
-            game.phase = "1T";
-            game.mode = "normal";
-            game.limit = 45;
-            game.base = 0;
-            game.start = null;
-            game.extra = "?";
-            
-            games.set(currentMatchId, game);
-            
-            document.getElementById('extraMin').value = "";
-            document.getElementById('setMin').value = "";
-            document.getElementById('setSec').value = "";
-            
-            document.getElementById('clock').innerHTML = "0:00";
-            save();
-        },
-
-        // Cargar al inicio
-        init: function() {
-            load();
-            
-            // Detener loop cuando se cierra el modal
-            document.addEventListener('click', function(e) {
-                if (e.target.classList.contains('modal-overlay') && 
-                    e.target.id === 'clockModal' && 
-                    currentMatchId) {
-                    
-                    const game = games.get(currentMatchId);
-                    if (!game || !game.start) {
-                        if (loop) {
-                            clearInterval(loop);
-                            loop = null;
-                        }
-                    }
-                }
-            }, false);
-        }
-    };
-})();
-
-// Inicializar al cargar la página
-CronoManager.init();
-
-// Funciones globales para los botones del modal
-function phase(p) { CronoManager.phase(p); }
-function setExtra() { CronoManager.setExtra(); }
-function setManual() { CronoManager.setManual(); }
-function resetGame() { CronoManager.resetGame(); }
-
-// Función para abrir cronómetro de un partido
-function openMatchCronometer(matchId, homeTeam, awayTeam) {
-    CronoManager.openMatch(matchId, homeTeam, awayTeam);
-}
-</script>
 </body>
 </html>
