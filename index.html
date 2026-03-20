@@ -2275,36 +2275,169 @@ function openHowToPredict() {
 }
 
 // ── Admin: ajustar cronómetro ──────────────────────────────
-function _askAdminCronAdjust(matchId, home, away) {
+function _askAdminCronAdjust(matchId, home, away, forcePhase) {
   if (!me?.isAdmin) return;
   const ex = document.getElementById('_cronAdjModal'); if (ex) ex.remove();
   const modal = document.createElement('div');
   modal.id = '_cronAdjModal';
   modal.className = 'modal-overlay';
   modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
-  const cur = Math.round((window._adminCronOffset?.[matchId] || 0) / 60);
+
+  // Detectar fase actual del partido
+  const wrap = document.getElementById(`badge_${matchId}`);
+  const phase = forcePhase || wrap?.dataset?.phase || '1H';
+  const phaseLabel = phase==='1H'?'1er Tiempo':phase==='2H'?'2do Tiempo':phase==='ET'?'Prórroga':'En Vivo';
+
+  // Valor actual del reloj para mostrar como referencia
+  const mainEl = document.getElementById(`badge_main_${matchId}`);
+  const tiempoActual = mainEl?.textContent?.replace('🔴 ','') || '00:00';
+
   modal.innerHTML = `
-    <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
-      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Ajustar cronómetro</div>
-      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${home} ${t('vsLabel')} ${away}</div>
-      <div style="color:var(--muted2);font-size:0.82em;margin-bottom:10px;">Offset actual: <strong id="_cronOffsetLbl" style="color:var(--gold)">${cur>0?'+':''}${cur} min</strong></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-        ${[-10,-5,-3,-1,1,3,5,10].map(v=>`<button onclick="_setCronOffset('${matchId}',${v*60})" style="flex:1;min-width:52px;padding:8px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};color:${v<0?'var(--red)':'var(--green)'};border:1px solid ${v<0?'var(--red)':'var(--green)'}">${v>0?'+':''}${v}m</button>`).join('')}
+    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
+      max-width:340px;width:94%;border:1px solid var(--border2);
+      box-shadow:0 20px 60px rgba(0,0,0,.6);">
+
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:3px;">
+        ⏱ Control del Cronómetro
       </div>
+      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:4px;">
+        ${home} vs ${away}
+      </div>
+      <div style="font-size:0.72em;color:var(--gold);font-family:var(--font-h);
+        margin-bottom:16px;background:rgba(255,197,66,0.08);
+        padding:5px 10px;border-radius:8px;border:1px solid rgba(255,197,66,0.2);">
+        🔴 ${phaseLabel} · Reloj actual: ${tiempoActual}
+      </div>
+
+      <!-- SECCIÓN 1: Arrancar desde tiempo exacto -->
+      <div style="background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);
+        border-radius:12px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:0.72em;color:var(--green);font-weight:800;
+          text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+          ▶️ Arrancar desde minuto exacto
+        </div>
+        <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">
+          ¿En qué minuto va el juego ahora mismo?
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="text" id="_cronManualInput" placeholder="ej: 3:33"
+            maxlength="5"
+            style="flex:1;padding:10px 12px;background:var(--surface);
+            border:2px solid var(--green);border-radius:10px;
+            color:var(--text);font-family:var(--font-h);font-size:1.1em;
+            font-weight:800;text-align:center;outline:none;"
+            oninput="this.value=this.value.replace(/[^0-9:]/g,'')">
+          <span style="font-size:0.75em;color:var(--muted2);">mm:ss</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px;">
+          ${['45:01','46:00','60:00','75:00','80:00','90:01'].map(v=>
+            `<button onclick="document.getElementById('_cronManualInput').value='${v}'"
+              style="padding:7px 4px;border-radius:8px;cursor:pointer;
+              font-family:var(--font-h);font-size:0.78em;font-weight:800;
+              background:rgba(0,229,160,0.1);color:var(--green);
+              border:1px solid rgba(0,229,160,0.3);">${v}</button>`
+          ).join('')}
+        </div>
+        <button onclick="_setCronManual('${matchId}','${phase}')"
+          style="width:100%;padding:11px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.88em;font-weight:800;
+          background:linear-gradient(135deg,var(--green),#00b865);
+          color:#000;border:none;">
+          ▶️ ARRANCAR DESDE ESE TIEMPO
+        </button>
+      </div>
+
+      <!-- SECCIÓN 2: Ajuste fino con botones +/- -->
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border2);
+        border-radius:12px;padding:12px;margin-bottom:12px;">
+        <div style="font-size:0.72em;color:var(--muted2);font-weight:800;
+          text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+          ⚙️ Ajuste fino (offset)
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${[-5,-3,-1,1,3,5].map(v=>
+            `<button onclick="_setCronOffset('${matchId}',${v*60})"
+              style="flex:1;min-width:46px;padding:9px 4px;border-radius:9px;cursor:pointer;
+              font-family:var(--font-h);font-size:0.85em;font-weight:800;
+              background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};
+              color:${v<0?'var(--red)':'var(--green)'};
+              border:1px solid ${v<0?'var(--red)':'var(--green)'};">
+              ${v>0?'+':''}${v}m</button>`
+          ).join('')}
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: Reset y OK -->
       <div style="display:flex;gap:8px;">
-        <button onclick="_setCronOffset('${matchId}',0,'reset')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">↺ Reset</button>
-        <button onclick="document.getElementById('_cronAdjModal').remove()" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">✅ OK</button>
+        <button onclick="_setCronOffset('${matchId}',0,'reset')"
+          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.82em;font-weight:800;
+          background:rgba(255,140,66,0.15);color:var(--orange);
+          border:1px solid var(--orange);">↺ Reset</button>
+        <button onclick="document.getElementById('_cronAdjModal').remove()"
+          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.82em;font-weight:800;
+          background:linear-gradient(135deg,var(--primary),var(--primary2));
+          color:#fff;border:none;">✅ Listo</button>
       </div>
     </div>`;
+
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  setTimeout(() => document.getElementById('_cronManualInput')?.focus(), 150);
 }
+
+// Arrancar cronómetro desde tiempo exacto escrito por el admin
+function _setCronManual(matchId, phase) {
+  const input = document.getElementById('_cronManualInput');
+  if (!input) return;
+  const val = input.value.trim();
+
+  // Parsear mm:ss o solo mm
+  let fromSec = 0;
+  if (val.includes(':')) {
+    const [mm, ss] = val.split(':').map(Number);
+    fromSec = (isNaN(mm)?0:mm)*60 + (isNaN(ss)?0:ss);
+  } else {
+    fromSec = (parseInt(val)||0) * 60;
+  }
+
+  if (fromSec < 0) fromSec = 0;
+
+  // Guardar kickoff manual: el reloj arranca AHORA desde fromSec
+  window._adminManualKick = window._adminManualKick || {};
+  window._adminManualKick[matchId] = {
+    ts:      Date.now(),
+    phase:   phase,
+    fromSec: fromSec
+  };
+
+  // Limpiar offset anterior para que no interfiera
+  window._adminCronOffset = window._adminCronOffset || {};
+  window._adminCronOffset[matchId] = 0;
+
+  // Limpiar auto-stop del tiempo extra al reiniciar
+  delete window._adminExtraStop[matchId];
+  delete window._adminExtraAsked[matchId];
+
+  const mm = String(Math.floor(fromSec/60)).padStart(2,'0');
+  const ss = String(fromSec%60).padStart(2,'0');
+  toast(`▶️ Reloj arrancado desde ${mm}:${ss}`, 'success', 2500);
+  document.getElementById('_cronAdjModal')?.remove();
+}
+
 function _setCronOffset(matchId, deltaSec, mode) {
   window._adminCronOffset = window._adminCronOffset || {};
-  window._adminCronOffset[matchId] = mode === 'reset' ? 0 : (window._adminCronOffset[matchId] || 0) + deltaSec;
+  window._adminCronOffset[matchId] = mode === 'reset'
+    ? 0
+    : (window._adminCronOffset[matchId] || 0) + deltaSec;
+  if (mode === 'reset') {
+    // Limpiar también el kickoff manual al hacer reset
+    delete window._adminManualKick?.[matchId];
+    delete window._adminExtraStop?.[matchId];
+    delete window._adminExtraAsked?.[matchId];
+  }
   const cur = Math.round(window._adminCronOffset[matchId] / 60);
-  const lbl = document.getElementById('_cronOffsetLbl');
-  if (lbl) lbl.textContent = `${cur>0?'+':''}${cur} min`;
   toast(`⏱ Offset: ${cur>0?'+':''}${cur} min`, 'info', 1500);
 }
 
@@ -2316,27 +2449,208 @@ function _askAdminExtraTime(m) {
   modal.id = '_extraTimeModal';
   modal.className = 'modal-overlay';
   modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
+  const mid = String(m.id);
+  const badge = document.getElementById(`badge_${mid}`);
+  const phase = badge?.dataset?.phase || '1H';
+  const capMin = (phase==='1H'||phase==='HT') ? 45 : (phase==='2H') ? 90 : (phase==='ET'&&badge?.dataset?.etPhase==='1') ? 105 : 120;
+
   modal.innerHTML = `
-    <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
-      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Tiempo añadido</div>
-      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${m.home} ${t('vsLabel')} ${m.away}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button onclick="_setAdminExtra('${m.id}',${v})" style="flex:1;min-width:44px;padding:9px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.9em;font-weight:800;background:rgba(245,197,66,0.12);color:var(--gold);border:1px solid var(--gold);">+${v}</button>`).join('')}
+    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
+      max-width:340px;width:94%;border:1px solid rgba(255,197,66,0.3);
+      box-shadow:0 20px 60px rgba(0,0,0,.6);">
+
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:3px;">
+        ⏱ Tiempo Añadido — ${capMin}'
       </div>
+      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:12px;">
+        ${m.home} vs ${m.away}
+      </div>
+
+      <div style="font-size:0.72em;color:var(--muted2);margin-bottom:8px;">
+        ¿Cuántos minutos concedió el árbitro?
+      </div>
+
+      <!-- Botones rápidos -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px;">
+        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`
+          <button onclick="_setAdminExtra('${mid}',${v})"
+            style="padding:10px 4px;border-radius:9px;cursor:pointer;
+            font-family:var(--font-h);font-size:0.95em;font-weight:800;
+            background:rgba(245,197,66,0.12);color:var(--gold);
+            border:1px solid rgba(245,197,66,0.35);">+${v}</button>`
+        ).join('')}
+      </div>
+
+      <!-- Input libre para escribir -->
+      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border2);
+        border-radius:12px;padding:10px;margin-bottom:12px;">
+        <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;">
+          ✏️ O escríbelo tú:
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="color:var(--gold);font-family:var(--font-h);font-size:1.1em;">+</span>
+          <input type="number" id="_extraTimeInput" min="1" max="20" placeholder="ej: 7"
+            style="flex:1;padding:9px 12px;background:var(--surface);
+            border:2px solid var(--gold);border-radius:9px;
+            color:var(--gold);font-family:var(--font-h);font-size:1.1em;
+            font-weight:800;text-align:center;outline:none;">
+          <span style="color:var(--muted2);font-size:0.75em;">min</span>
+          <button onclick="_setAdminExtraFromInput('${mid}')"
+            style="padding:9px 14px;border-radius:9px;cursor:pointer;
+            font-family:var(--font-h);font-size:0.82em;font-weight:800;
+            background:linear-gradient(135deg,var(--gold),#f0a500);
+            color:#000;border:none;">OK</button>
+        </div>
+      </div>
+
+      <div style="font-size:0.68em;color:var(--muted2);margin-bottom:10px;
+        background:rgba(0,229,160,0.06);border-radius:8px;padding:7px 10px;
+        border:1px solid rgba(0,229,160,0.15);">
+        ⚡ El chip extra se detiene automáticamente a los <b style="color:var(--green)">valor+2 minutos</b>.
+        El admin puede pararlo antes tocando el chip.
+      </div>
+
       <div style="display:flex;gap:8px;">
-        <button onclick="_setAdminExtra('${m.id}','?')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">+? (no sé)</button>
-        <button onclick="document.getElementById('_extraTimeModal').remove()" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">Cancelar</button>
+        <button onclick="_setAdminExtra('${mid}','?')"
+          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.8em;font-weight:800;
+          background:rgba(255,140,66,0.15);color:var(--orange);
+          border:1px solid var(--orange);">+? No sé aún</button>
+        <button onclick="document.getElementById('_extraTimeModal').remove()"
+          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.8em;font-weight:800;
+          background:var(--surface2);color:var(--muted2);
+          border:1px solid var(--border2);">Cancelar</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  setTimeout(() => document.getElementById('_extraTimeInput')?.focus(), 150);
 }
+
+function _setAdminExtraFromInput(matchId) {
+  const inp = document.getElementById('_extraTimeInput');
+  const val = parseInt(inp?.value);
+  if (!val || val < 1 || val > 20) {
+    if(inp) inp.style.borderColor = 'var(--red)';
+    return;
+  }
+  _setAdminExtra(matchId, val);
+}
+
 function _setAdminExtra(matchId, val) {
-  window._adminExtraTime = window._adminExtraTime || {};
+  window._adminExtraTime  = window._adminExtraTime  || {};
+  window._adminExtraStop  = window._adminExtraStop  || {};
   window._adminExtraTime[matchId] = val;
+  // Resetear el auto-stop para que cuente desde ahora
+  delete window._adminExtraStop[matchId];
   document.getElementById('_extraTimeModal')?.remove();
-  toast(`⏱ Tiempo añadido: +${val} min`, 'success', 2000);
+  const label = val === '?' ? '+? (pendiente)' : `+${val} minutos`;
+  toast(`⏱ Tiempo añadido: ${label} — se para a los ${val !== '?' ? val+2 : '?'} min`, 'success', 3000);
 }
+
+// ── Admin: arrancar reloj manual cuando API no ha marcado el partido como live
+function _adminArrancarManual(matchId, home, away) {
+  if (!me?.isAdmin) return;
+  const ex = document.getElementById('_arrancarModal'); if (ex) ex.remove();
+  const modal = document.createElement('div');
+  modal.id = '_arrancarModal';
+  modal.className = 'modal-overlay';
+  modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
+  modal.innerHTML = `
+    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
+      max-width:340px;width:94%;border:1px solid rgba(0,229,160,0.3);
+      box-shadow:0 20px 60px rgba(0,0,0,.6);">
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:3px;">
+        ▶️ Arrancar Cronómetro
+      </div>
+      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:12px;">
+        ${home} vs ${away}
+      </div>
+      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">
+        ¿En qué fase va el juego?
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
+        ${[['1H','🔴 1er Tiempo'],['2H','🔴 2do Tiempo'],['ET','🔴 Prórroga'],['P','⚡ Penales']].map(([ph,lbl])=>`
+          <button onclick="document.querySelectorAll('._phaseBtn').forEach(b=>b.classList.remove('_sel'));this.classList.add('_sel');document.getElementById('_arrancarPhase').value='${ph}'"
+            class="_phaseBtn"
+            style="padding:10px 4px;border-radius:10px;cursor:pointer;
+            font-family:var(--font-h);font-size:0.82em;font-weight:800;
+            background:rgba(0,229,160,0.08);color:var(--green);
+            border:1.5px solid rgba(0,229,160,0.25);transition:all .15s;">
+            ${lbl}</button>`
+        ).join('')}
+      </div>
+      <input type="hidden" id="_arrancarPhase" value="1H">
+      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">
+        ¿En qué minuto va? (deja en 0:00 si acaba de empezar)
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <input type="text" id="_arrancarMin" placeholder="0:00" maxlength="5"
+          style="flex:1;padding:10px 12px;background:var(--surface);
+          border:2px solid var(--green);border-radius:10px;
+          color:var(--text);font-family:var(--font-h);font-size:1.1em;
+          font-weight:800;text-align:center;outline:none;"
+          oninput="this.value=this.value.replace(/[^0-9:]/g,'')">
+        <span style="font-size:0.75em;color:var(--muted2);">mm:ss</span>
+      </div>
+      <button onclick="_confirmarArranqueManual('${matchId}')"
+        style="width:100%;padding:12px;border-radius:12px;cursor:pointer;
+        font-family:var(--font-h);font-size:0.9em;font-weight:800;
+        background:linear-gradient(135deg,var(--green),#00b865);
+        color:#000;border:none;margin-bottom:8px;">
+        ▶️ ARRANCAR AHORA
+      </button>
+      <button onclick="document.getElementById('_arrancarModal').remove()"
+        style="width:100%;padding:10px;border-radius:10px;cursor:pointer;
+        font-family:var(--font-h);font-size:0.82em;font-weight:800;
+        background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">
+        Cancelar
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  // Marcar 1H por defecto
+  setTimeout(() => {
+    const btns = document.querySelectorAll('._phaseBtn');
+    if (btns[0]) btns[0].classList.add('_sel');
+    btns.forEach(b => b.addEventListener('click', () => {
+      b.style.background='rgba(0,229,160,0.25)';
+      b.style.borderColor='var(--green)';
+      b.style.color='var(--green)';
+    }));
+  }, 50);
+}
+
+function _confirmarArranqueManual(matchId) {
+  const phase = document.getElementById('_arrancarPhase')?.value || '1H';
+  const minVal = document.getElementById('_arrancarMin')?.value?.trim() || '0:00';
+
+  let fromSec = 0;
+  if (minVal.includes(':')) {
+    const [mm, ss] = minVal.split(':').map(Number);
+    fromSec = (isNaN(mm)?0:mm)*60 + (isNaN(ss)?0:ss);
+  } else {
+    fromSec = (parseInt(minVal)||0)*60;
+  }
+
+  // Si es 2do tiempo y no pusieron minuto, arrancar desde 45:01
+  if (phase === '2H' && fromSec < 45*60) fromSec = 45*60 + 1;
+  if (phase === 'ET' && fromSec < 90*60) fromSec = 90*60 + 1;
+
+  window._adminManualKick = window._adminManualKick || {};
+  window._adminManualKick[matchId] = { ts: Date.now(), phase, fromSec };
+  window._adminCronOffset = window._adminCronOffset || {};
+  window._adminCronOffset[matchId] = 0;
+  delete window._adminExtraStop?.[matchId];
+  delete window._adminExtraAsked?.[matchId];
+
+  const mm = String(Math.floor(fromSec/60)).padStart(2,'0');
+  const ss = String(fromSec%60).padStart(2,'0');
+  toast(`▶️ Reloj arrancado: ${mm}:${ss} — ${phase}`, 'success', 2500);
+  document.getElementById('_arrancarModal')?.remove();
+}
+
 
 // Generate unique color per user based on their username
 function userColor(username) {
@@ -2670,11 +2984,15 @@ async function enterApp() {
   // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
   // Chip añadido:    [+? | 00:01] arranca automático al pasar 45:00 / 90:00
   //                 Si la API manda el tiempo añadido, reemplaza '?' con el número
-  window._adminCronOffset = window._adminCronOffset || {}; // { matchId: seconds }
-  window._adminExtraTime  = window._adminExtraTime  || {}; // { matchId: minutes }
-  window._adminExtraAsked = window._adminExtraAsked || {}; // { matchId: true }
-  window._k2H = window._k2H || {}; // kickoff real 2do tiempo { matchId: timestamp }
-  window._kET = window._kET || {}; // kickoff real prórroga   { matchId: timestamp }
+  window._adminCronOffset  = window._adminCronOffset  || {}; // { matchId: seconds }
+  window._adminExtraTime   = window._adminExtraTime   || {}; // { matchId: minutes }
+  window._adminExtraAsked  = window._adminExtraAsked  || {}; // { matchId: true }
+  window._k2H              = window._k2H              || {}; // kickoff real 2do tiempo
+  window._kET              = window._kET              || {}; // kickoff real prórroga
+  // ✅ NUEVO: arranque manual del reloj por el admin cuando API no responde
+  window._adminManualKick  = window._adminManualKick  || {}; // { matchId: {ts, phase, fromSec} }
+  // ✅ NUEVO: auto-stop del tiempo extra cuando llega a valor+2
+  window._adminExtraStop   = window._adminExtraStop   || {}; // { matchId: true }
 
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
@@ -2733,22 +3051,32 @@ async function enterApp() {
           const totalM = Math.floor(dispSec / 60);
           capMin = totalM < 105 ? 105 : 120;
         } else if (phase === '2H') {
-          const k2H = window._k2H[mid];
-          if (k2H) {
-            // Kickoff real del 2do tiempo grabado cuando la API cambió a '2H'
-            dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
-          } else if (kickoffMs) {
-            // Fallback: estimamos que el descanso duró 15 min (kickoff + 45' juego + 15' descanso = 60 min)
-            const elapsed = Math.floor((now - kickoffMs) / 1000);
-            const secondHalfStart = elapsed - 60*60; // segundos desde inicio estimado del 2H
-            dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
+          const manualK2 = window._adminManualKick[mid];
+          if (manualK2 && manualK2.phase === '2H') {
+            dispSec = Math.max(0, Math.floor((now - manualK2.ts) / 1000)) + manualK2.fromSec;
           } else {
-            mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')} `; extraEl.style.display='none'; return;
+            const k2H = window._k2H[mid];
+            if (k2H) {
+              dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
+            } else if (kickoffMs) {
+              const elapsed = Math.floor((now - kickoffMs) / 1000);
+              const secondHalfStart = elapsed - 60*60;
+              dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
+            } else {
+              mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')} `; extraEl.style.display='none'; return;
+            }
           }
           capMin = 90;
         } else if (phase === '1H') {
-          if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
-          dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
+          // ✅ Si el admin arrancó manualmente, usar su kickoff en lugar del del API
+          const manualK = window._adminManualKick[mid];
+          if (manualK && manualK.phase === '1H') {
+            dispSec = Math.max(0, Math.floor((now - manualK.ts) / 1000)) + manualK.fromSec;
+          } else if (kickoffMs) {
+            dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
+          } else {
+            mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
+          }
           capMin  = 45;
         } else {
           mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
@@ -2763,15 +3091,37 @@ async function enterApp() {
           extraEl.style.display = 'none';
         } else {
           mainEl.textContent = `🔴 ${capMin}:00`;
-          const extraMin     = totalMin - capMin;
-          const extraSS      = String(sec).padStart(2, '0');
-          const adminExtra   = window._adminExtraTime[mid];
+          const extraMin      = totalMin - capMin;
+          const extraSec_raw  = dispSec - capMin*60;
+          const extraSS       = String(sec).padStart(2, '0');
+          const adminExtra    = window._adminExtraTime[mid];
           const officialExtra = adminExtra ?? m.intExtraTime ?? m.strExtraTime ?? null;
-          const addedLabel   = officialExtra ? `+${officialExtra}` : '+?';
-          extraEl.textContent  = `${addedLabel} | ${String(extraMin).padStart(2,'0')}:${extraSS}`;
+          const extraValNum   = officialExtra && officialExtra !== '?' ? parseInt(officialExtra) : null;
+          const addedLabel    = officialExtra ? `+${officialExtra}` : '+?';
+
+          // ✅ AUTO-STOP: cuando llega a valor+2 minutos, congelar el chip extra
+          if (extraValNum && extraMin >= extraValNum + 2 && !window._adminExtraStop[mid]) {
+            window._adminExtraStop[mid] = true;
+          }
+          const extraFrozen = window._adminExtraStop[mid];
+          const dispExtraMin = extraFrozen ? (extraValNum + 2) : extraMin;
+          const dispExtraSS  = extraFrozen ? '00' : extraSS;
+
+          extraEl.textContent  = `${addedLabel} | ${String(dispExtraMin).padStart(2,'0')}:${dispExtraSS}`;
           extraEl.style.display = 'inline-block';
-          // Auto-preguntar al admin a los 8+ min de tiempo añadido
-          if (extraMin >= 8 && me?.isAdmin && !window._adminExtraAsked[mid]) {
+          // Estilo visual diferente cuando está frozzen
+          if (extraFrozen) {
+            extraEl.style.opacity = '0.6';
+            extraEl.style.border  = '1px solid #aaa';
+            extraEl.style.color   = '#aaa';
+          } else {
+            extraEl.style.opacity = '1';
+            extraEl.style.border  = '1px solid #ffd700';
+            extraEl.style.color   = '#ffd700';
+          }
+
+          // Auto-preguntar al admin si el tiempo extra aún es '?' y ya van 2+ min
+          if (extraMin >= 2 && !officialExtra && me?.isAdmin && !window._adminExtraAsked[mid]) {
             window._adminExtraAsked[mid] = true;
             setTimeout(() => _askAdminExtraTime(m), 300);
           }
@@ -3470,7 +3820,20 @@ function buildMatchCard(m, closed) {
     <div style="display:flex;gap:6px;margin-top:8px;">
       <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
       <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
-      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
+      ${live && me?.isAdmin ? `
+        <button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')"
+          style="padding:11px 10px;border-radius:12px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.85em;font-weight:800;
+          background:rgba(255,197,66,0.1);color:var(--gold);
+          border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;"
+          title="Ajustar cronómetro">⏱</button>` : ''}
+      ${!live && !done && me?.isAdmin ? `
+        <button onclick="_adminArrancarManual('${m.id}','${m.home}','${m.away}')"
+          style="padding:11px 10px;border-radius:12px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.85em;font-weight:800;
+          background:rgba(0,229,160,0.12);color:var(--green);
+          border:1px solid var(--green);-webkit-tap-highlight-color:transparent;"
+          title="Arrancar cronómetro manualmente">▶️</button>` : ''}
     </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
