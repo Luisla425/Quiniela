@@ -1777,6 +1777,7 @@ let me = null;
 let myTournaments = [];
 let _aM = [];
 let _dM = [];
+let _filtroFecha = 'hoy'; // 'ayer' | 'hoy' | 'manana'
 let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
@@ -3304,14 +3305,34 @@ function parseEvent(ev, t) {
 }
 
 function setDayMatches() {
-  const today = vzDate();
-  let pool = _aM.filter(m=>m.date===today);
-  if (!pool.length) {
+  const today    = vzDate();
+  const ayer     = new Date(new Date(today).setDate(new Date(today).getDate()-1)).toISOString().split('T')[0];
+  const manana   = new Date(new Date(today).setDate(new Date(today).getDate()+1)).toISOString().split('T')[0];
+
+  let targetDate;
+  if(_filtroFecha === 'ayer')   targetDate = ayer;
+  else if(_filtroFecha === 'manana') targetDate = manana;
+  else targetDate = today; // 'hoy' por defecto
+
+  let pool = _aM.filter(m => m.date === targetDate);
+
+  // Si el filtro es 'hoy' y no hay partidos, buscar el próximo día con partidos
+  if(!pool.length && _filtroFecha === 'hoy') {
     const upcoming = _aM.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date));
     const nextDate = upcoming[0]?.date;
     pool = nextDate ? _aM.filter(m=>m.date===nextDate) : [];
+    // Actualizar el filtro visual al día encontrado
+    if(nextDate) _filtroFecha = 'hoy'; // mantener en hoy pero mostrar el próximo
   }
+
   _dM = pool.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+}
+
+// ── Método Lárez: cambiar filtro de fecha y re-renderizar ──
+function filtrarFecha(filtro) {
+  _filtroFecha = filtro;
+  setDayMatches();
+  renderMatches();
 }
 
 function bettingClosed() {
@@ -3567,6 +3588,23 @@ function renderMatches() {
         <button class="btn btn-ghost btn-sm" onclick="openStandings()" title="Tablas de posiciones" style="padding:5px 8px;font-size:0.85em;">📊</button>
         <button class="btn btn-ghost btn-sm" onclick="doSync()" title="Sincronizar" style="padding:5px 8px;font-size:0.85em;">🔄</button>
       </div>
+    </div>
+
+    <!-- SELECTOR DE FECHA MÉTODO LÁREZ -->
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      ${['ayer','hoy','manana'].map(f => {
+        const label = f==='ayer'?'⬅️ Ayer':f==='hoy'?'📅 Hoy':'Mañana ➡️';
+        const isActive = _filtroFecha === f;
+        return `<button onclick="filtrarFecha('${f}')"
+          style="flex:1;padding:8px 4px;border-radius:var(--r-sm);
+          border:${isActive?'2px solid var(--primary)':'1px solid var(--border2)'};
+          background:${isActive?'rgba(108,71,255,0.2)':'var(--surface2)'};
+          color:${isActive?'var(--primary2)':'var(--muted2)'};
+          font-family:var(--font-b);font-weight:${isActive?'800':'600'};
+          font-size:0.78em;cursor:pointer;transition:.15s;">
+          ${label}
+        </button>`;
+      }).join('')}
     </div>`;
 
   // ── SELECTOR DE GRUPO ACTIVO ──────────────
@@ -3630,7 +3668,12 @@ function renderMatches() {
   }
 
   if (!_dM.length) {
-    html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Sin partidos. Pulsa Sync.</span></div>`;
+    const msgVacio = _filtroFecha==='ayer'
+      ? '📭 Sin partidos registrados ayer'
+      : _filtroFecha==='manana'
+      ? '📅 Sin partidos cargados para mañana aún — vuelve más tarde'
+      : '📭 Sin partidos hoy. Pulsa 🔄 para sincronizar';
+    html += `<div class="empty"><span class="empty-icon">${_filtroFecha==='manana'?'🔭':'📭'}</span><span class="empty-text">${msgVacio}</span></div>`;
   } else {
     _dM.forEach(m => { html += buildMatchCard(m, closed); });
     if (!closed) {
@@ -4883,7 +4926,6 @@ const _mlIntenciones = [
       if(activeGroupId) {
         openGroupRanking(activeGroupId);
       } else {
-        // Buscar el primer grupo del jugador
         const primerGrupo = document.querySelector('[onclick*="openGroupRanking"]');
         if(primerGrupo) primerGrupo.click();
         else { showScreen('groups'); toast('Selecciona un grupo primero','info'); }
@@ -4905,12 +4947,23 @@ const _mlIntenciones = [
       }
     },
     resp: null },
+  // ── FECHAS — Método Lárez ───────────────────────────────
+  { keys:['manana','mañana','juegan manana','partidos manana','que hay manana','equipos manana','quienes juegan manana','que equipos juegan manana'],
+    action: () => { filtrarFecha('manana'); showScreen('matches'); },
+    resp: '🔭 Viendo partidos de mañana...' },
+  { keys:['partidos hoy','que hay hoy','juegan hoy','quienes juegan hoy','equipos hoy'],
+    action: () => { filtrarFecha('hoy'); showScreen('matches'); },
+    resp: '📅 Viendo partidos de hoy...' },
+  { keys:['ayer','partidos ayer','que hubo ayer','jugaron ayer','resultados ayer','como quedaron'],
+    action: () => { filtrarFecha('ayer'); showScreen('matches'); },
+    resp: '⬅️ Viendo resultados de ayer...' },
+  // ── NAVEGACIÓN GENERAL ──────────────────────────────────
   { keys:['como predecir','como se predice','no se predecir','como jugar','tutorial','ayuda'],
     action: () => { openHowToPredict(); },
     resp: '🎓 Abriendo el tutorial...' },
-  { keys:['cuando empiezan','que hora','horario','que partidos','partidos hoy','partidos'],
-    action: () => { showScreen('matches'); },
-    resp: '⚽ Viendo los partidos...' },
+  { keys:['cuando empiezan','que hora','horario','que partidos','partidos'],
+    action: () => { filtrarFecha('hoy'); showScreen('matches'); },
+    resp: '⚽ Viendo los partidos de hoy...' },
   { keys:['mi historial','mis predicciones','que predije','historial','mis apuestas'],
     action: () => { openMyPredictions(); },
     resp: '📋 Abriendo tu historial...' },
