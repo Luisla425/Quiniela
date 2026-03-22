@@ -4878,22 +4878,40 @@ function renderAdminFlow() {
 //  Detecta intenciones en el chat y responde con acciones
 // ──────────────────────────────────────────────────────────────
 const _mlIntenciones = [
-  { keys:['clasificacion','clasificación','pizarra','tabla','ranking','posicion','posición','puntos','quien va'],
-    action: () => { closeModal && closeModal('chatModal'); openGroupRanking(activeGroupId||''); } ,
+  { keys:['clasificacion','clasificación','pizarra','tabla','ranking','posicion','posición','ver puntos','quien va primero'],
+    action: () => {
+      if(activeGroupId) {
+        openGroupRanking(activeGroupId);
+      } else {
+        // Buscar el primer grupo del jugador
+        const primerGrupo = document.querySelector('[onclick*="openGroupRanking"]');
+        if(primerGrupo) primerGrupo.click();
+        else { showScreen('groups'); toast('Selecciona un grupo primero','info'); }
+      }
+    },
     resp: '📊 Abriendo la clasificación...' },
-  { keys:['cuantos puntos','mis puntos','cuanto llevo','tengo puntos','puntaje'],
+  { keys:['cuantos puntos','mis puntos','cuanto llevo','tengo puntos','puntaje','mis estadisticas'],
     action: () => { openMyStats(); },
     resp: '📈 Abriendo tus estadísticas...' },
-  { keys:['quien gana','quien lidera','lider','primero','top 1'],
-    action: () => { if(_currentRankData?.ranked?.length) { const p=_currentRankData.ranked[0]; toast(`🥇 ${p.username} va primero con ${p.grpPts}pts`,'success',4000); } else { toast('Carga la clasificación primero','info'); } },
+  { keys:['quien gana','quien lidera','lider','quien va ganando','primero','top 1','quien tiene mas'],
+    action: () => {
+      if(_currentRankData?.ranked?.length) {
+        const p=_currentRankData.ranked[0];
+        toast(`🥇 ${p.username} va primero con ${p.grpPts}pts`,'success',4000);
+      } else if(activeGroupId) {
+        openGroupRanking(activeGroupId);
+      } else {
+        toast('Carga la clasificación primero','info');
+      }
+    },
     resp: null },
-  { keys:['como predecir','como se predice','no sé predecir','como jugar','tutorial'],
+  { keys:['como predecir','como se predice','no se predecir','como jugar','tutorial','ayuda'],
     action: () => { openHowToPredict(); },
     resp: '🎓 Abriendo el tutorial...' },
-  { keys:['cuando empiezan','que hora','horario','que partidos','partidos hoy'],
+  { keys:['cuando empiezan','que hora','horario','que partidos','partidos hoy','partidos'],
     action: () => { showScreen('matches'); },
     resp: '⚽ Viendo los partidos...' },
-  { keys:['mi historial','mis predicciones','que predije','historial'],
+  { keys:['mi historial','mis predicciones','que predije','historial','mis apuestas'],
     action: () => { openMyPredictions(); },
     resp: '📋 Abriendo tu historial...' },
 ];
@@ -8180,4 +8198,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-</html>
+   </html>
