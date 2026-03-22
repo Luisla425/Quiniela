@@ -2165,21 +2165,22 @@ async function inviteToApp() {
   const code   = me.personalInviteCode || '';
   const nombre = me.name || me.username || '';
 
-  // Leer grupos actuales para incluirlos en el mensaje
+  // Leer grupos (async — ANTES de abrir WA)
   let groupsLine = '';
   try {
     const snap = await db.collection('groups').get();
     const grupos = snap.docs.map(d => d.data());
     if (grupos.length) {
       const lista = grupos.map(g => {
-        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
+        const flag = (g.tournaments||[]).map(tid=>{const tr=TOURNAMENTS.find(t=>t.id===tid);return tr?.flag||'';}).filter(Boolean).slice(0,1).join('');
         return `  ${flag} *${g.name}*`;
       }).join('\n');
       groupsLine = `\n👥 *Grupos disponibles:*\n${lista}\n\n`;
     }
   } catch(e) {}
 
-  const msg = encodeURIComponent(
+  // Construir texto completo
+  const txt =
     `⚽ *QUINIELA LuAn* ⚽\n\n` +
     `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante.\n\n` +
     `🏆 Predice marcadores del mejor fútbol europeo y compite con amigos, familia y panas.\n\n` +
@@ -2203,9 +2204,15 @@ async function inviteToApp() {
     `⚠️ Si no predices antes del pitazo, se registra 0-0 en todos los partidos.\n\n` +
     `━━━━━━━━━━━━━━━━━━\n` +
     `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
-    `_— luislárez_`
-  );
-  window.open(`https://wa.me/?text=${msg}`, '_blank');
+    `_— luislárez_`;
+
+  // Abrir WA con <a>.click() — no bloqueado en Android aunque venga de async
+  const a = document.createElement('a');
+  a.href = `https://wa.me/?text=${encodeURIComponent(txt)}`;
+  a.target = '_blank'; a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => document.body.removeChild(a), 200);
 }
 
 function openHowToPredict() {
@@ -3652,6 +3659,13 @@ function renderMatches() {
     const hi=$(`hi_${mid}`),ai=$(`ai_${mid}`);
     if(hi)hi.value=v.h; if(ai)ai.value=v.a;
   });
+
+  // ── Predictor Lárez: mostrar sugerencias en cada partido abierto ──
+  if(!closed) {
+    _dM.forEach(m => {
+      _mlMostrarSugerencia(String(m.id), m.home, m.away);
+    });
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -3849,6 +3863,8 @@ function buildMatchCard(m, closed) {
         onclick="openExpress('${m.id}')">
         ⚡ ${t('predictMatch').replace('⚡ ','')}
       </button>
+      <!-- Predictor Lárez: badge de sugerencia -->
+      <div id="ml_sug_${m.id}" style="display:none;"></div>
     </div>` : '';
 
   // ── Tarjetas/penaltis en vivo desde cache ──────────────
@@ -4695,6 +4711,329 @@ async function savePreds() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  🧠 MÉTODO LÁREZ — Las 5 mejoras · LuAn System™
+// ═══════════════════════════════════════════════════════════════
+
+// ── UTILIDADES FUZZY (mismas que la farmacia) ──────────────────
+function _mlNorm(str) {
+  return (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+}
+function _mlLevenshtein(a,b) {
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},(_,i)=>[i]);
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+function _mlFuzzy(hay,needle) {
+  const h=_mlNorm(hay), n=_mlNorm(needle);
+  if(!n) return null;
+  if(h.includes(n)) return 0;
+  const words=h.split(/[\s\-\/,]+/);
+  let best=Infinity;
+  for(const w of words) {
+    if(w.length<3||Math.abs(w.length-n.length)>3) continue;
+    const d=_mlLevenshtein(w,n);
+    if(d/Math.max(w.length,n.length)<=0.38) best=Math.min(best,d);
+  }
+  return best===Infinity?null:best;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MEJORA 1 — PREDICTOR LÁREZ
+//  Aprende de las últimas predicciones del jugador y sugiere
+// ──────────────────────────────────────────────────────────────
+let _mlHistorial = []; // caché de predicciones pasadas del jugador
+
+async function _mlCargarHistorial() {
+  if(!me?.uid||_mlHistorial.length) return;
+  try {
+    const snap = await db.collection('predictions')
+      .where('userId','==',me.uid)
+      .where('evaluated','==',true)
+      .orderBy('timestamp','desc').limit(50).get();
+    _mlHistorial = snap.docs.map(d=>d.data());
+  } catch(e) {}
+}
+
+function _mlSugerirMarcador(home, away) {
+  // Busca partidos similares en el historial y saca el marcador más frecuente
+  if(!_mlHistorial.length) return null;
+  const similares = _mlHistorial.filter(p => {
+    const mismoHome = _mlFuzzy(p.home||'', home) !== null;
+    const mismoAway = _mlFuzzy(p.away||'', away) !== null;
+    return mismoHome || mismoAway;
+  });
+  if(!similares.length) return null;
+  // Contar marcadores más frecuentes
+  const freq = {};
+  similares.forEach(p => {
+    const k = `${p.predictedHomeScore}-${p.predictedAwayScore}`;
+    freq[k] = (freq[k]||0) + 1;
+  });
+  const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+  if(!top) return null;
+  const [h,a] = top[0].split('-').map(Number);
+  return { h, a, count: top[1], total: similares.length };
+}
+
+// Mostrar badge de sugerencia Lárez en la tarjeta del partido
+async function _mlMostrarSugerencia(matchId, home, away) {
+  await _mlCargarHistorial();
+  const sug = _mlSugerirMarcador(home, away);
+  if(!sug) return;
+  const badge = document.getElementById(`ml_sug_${matchId}`);
+  if(!badge) return;
+  badge.innerHTML = `
+    <div style="margin-top:6px;padding:6px 10px;background:rgba(108,71,255,0.12);
+      border:1px solid rgba(108,71,255,0.3);border-radius:8px;
+      font-size:0.72em;color:var(--primary2);display:flex;align-items:center;justify-content:space-between;">
+      <span>🧠 <strong>Predictor Lárez:</strong> Solías predecir
+        <strong>${sug.h}−${sug.a}</strong>
+        (${sug.count}/${sug.total} veces)</span>
+      <button onclick="_mlAplicarSugerencia('${matchId}',${sug.h},${sug.a})"
+        style="margin-left:8px;padding:3px 9px;border-radius:6px;border:none;
+        background:var(--primary);color:white;font-size:0.9em;cursor:pointer;font-weight:700;">
+        Usar
+      </button>
+    </div>`;
+  badge.style.display = 'block';
+}
+
+function _mlAplicarSugerencia(matchId, h, a) {
+  const hi = $(`hi_${matchId}`), ai = $(`ai_${matchId}`);
+  if(hi) { if(hi.tagName==='INPUT') hi.value=h; else hi.textContent=h; }
+  if(ai) { if(ai.tagName==='INPUT') ai.value=a; else ai.textContent=a; }
+  toast(`✅ Predictor Lárez: ${h}−${a} aplicado`,'success');
+  const badge = document.getElementById(`ml_sug_${matchId}`);
+  if(badge) badge.style.display='none';
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MEJORA 2 — ADMIN FLOW LÁREZ
+//  Panel admin reorganizado por flujo semanal natural
+// ──────────────────────────────────────────────────────────────
+function renderAdminFlow() {
+  const out = $('adminOut');
+  if(!out) return;
+  const hora = vzNow().getHours();
+  // Detectar momento del día para sugerir la acción más probable
+  let pasos;
+  if(hora < 12) {
+    // Mañana: lo más probable es revisar quién no predijo y mandar recordatorio
+    pasos = [
+      {icon:'👥', label:'Ver quién no ha predicho hoy', hint:'Primera acción del día', fn:'adminUsers()'},
+      {icon:'📲', label:'Mandar recordatorio WA', hint:'A los que aún no predicen', fn:'adminShowGroups()'},
+      {icon:'⚡', label:'Evaluar partidos', hint:'Cuando terminen los partidos', fn:'adminEval()'},
+      {icon:'📊', label:'Compartir pizarra', hint:'Después de evaluar', fn:'openRankWAMenu()'},
+    ];
+  } else if(hora < 18) {
+    // Tarde: partidos en curso o por empezar
+    pasos = [
+      {icon:'⚡', label:'Evaluar partidos en curso', hint:'Actualiza puntos en vivo', fn:'adminEval()'},
+      {icon:'👥', label:'Ver estado de jugadores', hint:'Quién predijo, quién no', fn:'adminUsers()'},
+      {icon:'📊', label:'Compartir pizarra en vivo', hint:'Comparte la clasificación actual', fn:'openRankWAMenu()'},
+      {icon:'📲', label:'Mandar recordatorio', hint:'Si quedan partidos por predecir', fn:'adminShowGroups()'},
+    ];
+  } else {
+    // Noche: cierre de jornada
+    pasos = [
+      {icon:'⚡', label:'Evaluar y cerrar jornada', hint:'Calcula puntos finales', fn:'adminEval()'},
+      {icon:'📊', label:'Compartir pizarra final', hint:'El resultado de la jornada', fn:'openRankWAMenu()'},
+      {icon:'🏅', label:'Ver rachas y badges', hint:'Quién está en racha', fn:'_mlMostrarRachas()'},
+      {icon:'👥', label:'Felicitar al ganador', hint:'Manda WA al top 1', fn:'adminUsers()'},
+    ];
+  }
+
+  const flowHtml = pasos.map((p,i) => `
+    <button onclick="${p.fn}"
+      style="width:100%;margin-bottom:8px;padding:13px 14px;
+      background:var(--surface2);border:1px solid var(--border2);
+      border-radius:var(--r);cursor:pointer;text-align:left;
+      display:flex;align-items:center;gap:12px;
+      font-family:var(--font-b);">
+      <span style="font-size:1.6em;flex-shrink:0;">${p.icon}</span>
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:0.88em;color:var(--text);">${p.label}</div>
+        <div style="font-size:0.72em;color:var(--muted2);margin-top:2px;">${p.hint}</div>
+      </div>
+      <span style="color:var(--primary2);font-size:0.9em;">→</span>
+    </button>`).join('');
+
+  out.innerHTML = `
+    <div style="font-size:0.7em;color:var(--primary2);font-weight:700;
+      text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+      🧠 Método Lárez — Flujo recomendado para ahora (${hora}:00h)
+    </div>
+    ${flowHtml}
+    <div style="margin-top:8px;font-size:0.7em;color:var(--muted2);text-align:center;">
+      Toca cualquier acción para ejecutarla directamente
+    </div>`;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MEJORA 3 — CHAT INTELIGENTE LÁREZ
+//  Detecta intenciones en el chat y responde con acciones
+// ──────────────────────────────────────────────────────────────
+const _mlIntenciones = [
+  { keys:['clasificacion','clasificación','pizarra','tabla','ranking','posicion','posición','puntos','quien va'],
+    action: () => { closeModal && closeModal('chatModal'); openGroupRanking(activeGroupId||''); } ,
+    resp: '📊 Abriendo la clasificación...' },
+  { keys:['cuantos puntos','mis puntos','cuanto llevo','tengo puntos','puntaje'],
+    action: () => { openMyStats(); },
+    resp: '📈 Abriendo tus estadísticas...' },
+  { keys:['quien gana','quien lidera','lider','primero','top 1'],
+    action: () => { if(_currentRankData?.ranked?.length) { const p=_currentRankData.ranked[0]; toast(`🥇 ${p.username} va primero con ${p.grpPts}pts`,'success',4000); } else { toast('Carga la clasificación primero','info'); } },
+    resp: null },
+  { keys:['como predecir','como se predice','no sé predecir','como jugar','tutorial'],
+    action: () => { openHowToPredict(); },
+    resp: '🎓 Abriendo el tutorial...' },
+  { keys:['cuando empiezan','que hora','horario','que partidos','partidos hoy'],
+    action: () => { showScreen('matches'); },
+    resp: '⚽ Viendo los partidos...' },
+  { keys:['mi historial','mis predicciones','que predije','historial'],
+    action: () => { openMyPredictions(); },
+    resp: '📋 Abriendo tu historial...' },
+];
+
+function _mlDetectarIntencion(texto) {
+  const norm = _mlNorm(texto);
+  for(const intent of _mlIntenciones) {
+    for(const key of intent.keys) {
+      if(_mlFuzzy(norm, key) !== null || norm.includes(_mlNorm(key))) {
+        return intent;
+      }
+    }
+  }
+  return null;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MEJORA 4 — PERFIL DE PREDICTOR LÁREZ
+//  Calcula y muestra el estilo de predicción de cada jugador
+// ──────────────────────────────────────────────────────────────
+function _mlCalcPerfilPredictor(preds) {
+  if(!preds||!preds.length) return null;
+  const total = preds.length;
+  // ¿Favorece al local?
+  const localWins = preds.filter(p=>p.predictedHomeScore>p.predictedAwayScore).length;
+  const empates   = preds.filter(p=>p.predictedHomeScore===p.predictedAwayScore).length;
+  const visitWins = total - localWins - empates;
+  // Marcador más frecuente
+  const freqM = {};
+  preds.forEach(p=>{ const k=`${p.predictedHomeScore}-${p.predictedAwayScore}`; freqM[k]=(freqM[k]||0)+1; });
+  const topMarcador = Object.entries(freqM).sort((a,b)=>b[1]-a[1])[0];
+  // Equipo favorito (más veces predicho ganando)
+  const equipoFav = {};
+  preds.forEach(p=>{
+    if(p.predictedHomeScore>p.predictedAwayScore) equipoFav[p.home]=(equipoFav[p.home]||0)+1;
+    if(p.predictedAwayScore>p.predictedHomeScore) equipoFav[p.away]=(equipoFav[p.away]||0)+1;
+  });
+  const topEquipo = Object.entries(equipoFav).sort((a,b)=>b[1]-a[1])[0];
+  // Tendencia de goles
+  const promedioGoles = preds.reduce((s,p)=>s+(p.predictedHomeScore+p.predictedAwayScore),0)/total;
+  // Estilo
+  let estilo, estiloEmoji;
+  const pctLocal = localWins/total;
+  const pctEmpate = empates/total;
+  if(pctLocal>0.6) { estilo='Localista'; estiloEmoji='🏠'; }
+  else if(pctEmpate>0.3) { estilo='Diplomático'; estiloEmoji='🤝'; }
+  else if(promedioGoles>3) { estilo='Goleador'; estiloEmoji='💥'; }
+  else if(promedioGoles<1.5) { estilo='Táctico'; estiloEmoji='🛡️'; }
+  else { estilo='Equilibrado'; estiloEmoji='⚖️'; }
+
+  return { total, localWins, empates, visitWins, topMarcador, topEquipo, promedioGoles: promedioGoles.toFixed(1), estilo, estiloEmoji };
+}
+
+// ──────────────────────────────────────────────────────────────
+//  MEJORA 5 — RACHAS Y BADGES LÁREZ
+//  Detecta rachas automáticamente y genera badges para WA
+// ──────────────────────────────────────────────────────────────
+async function _mlMostrarRachas() {
+  if(!activeGroupId) { toast('Selecciona un grupo primero','info'); return; }
+  const out = $('adminOut');
+  if(out) out.innerHTML='⏳ Calculando rachas...';
+
+  try {
+    const gdoc = await db.collection('groups').doc(activeGroupId).get();
+    const g = gdoc.data();
+    const memberIds = (g.members||[]).map(m=>m.userId);
+
+    // Cargar todas las predicciones evaluadas del grupo
+    const pSnap = await db.collection('predictions')
+      .where('groupId','==',activeGroupId)
+      .where('evaluated','==',true).get();
+
+    // Agrupar por usuario y por fecha
+    const byUser = {};
+    pSnap.docs.forEach(d=>{
+      const p=d.data();
+      if(!byUser[p.userId]) byUser[p.userId]={username:p.username,preds:[]};
+      byUser[p.userId].preds.push(p);
+    });
+
+    // Calcular rachas y badges para cada jugador
+    const badges = [];
+    Object.entries(byUser).forEach(([uid, data]) => {
+      const preds = data.preds.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));
+      // Racha actual de aciertos
+      let rachaActual=0, rachaMax=0, cur=0;
+      let exactosHoy=0;
+      const hoy=vzDate();
+      preds.forEach(p=>{
+        if(p.jornadaDate===hoy && p.pointsAwarded===5) exactosHoy++;
+        if(p.pointsAwarded>0){cur++;rachaMax=Math.max(rachaMax,cur);}
+        else cur=0;
+      });
+      for(const p of preds){if(p.pointsAwarded>0)rachaActual++;else break;}
+
+      const userBadges=[];
+      if(rachaActual>=3) userBadges.push(`🔥 Racha de ${rachaActual} aciertos seguidos`);
+      if(exactosHoy>=3) userBadges.push(`⭐ ${exactosHoy} exactos hoy — ¡Impresionante!`);
+      if(rachaMax>=5)   userBadges.push(`👑 Mejor racha histórica: ${rachaMax} aciertos`);
+      if(userBadges.length) badges.push({username:data.username, badges:userBadges});
+    });
+
+    if(!badges.length) {
+      if(out) out.innerHTML='<div style="color:var(--muted2);font-size:0.85em;text-align:center;padding:20px;">Sin rachas destacadas esta jornada 👀</div>';
+      return;
+    }
+
+    // Construir mensaje de WA con todas las rachas
+    let waText = `🏅 *RACHAS Y BADGES — ${g.name}*\n🧠 _Método Lárez · LuAn System_\n${'━'.repeat(18)}\n\n`;
+    badges.forEach(b=>{ waText += `👤 *${b.username}*\n${b.badges.map(x=>`  ${x}`).join('\n')}\n\n`; });
+    waText += `${'━'.repeat(18)}\n⚽ Quiniela LuAn`;
+
+    let html = `<div style="font-size:0.78em;font-weight:800;color:var(--primary2);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">🏅 Rachas detectadas</div>`;
+    badges.forEach(b=>{
+      html+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;">
+        <div style="font-weight:700;margin-bottom:4px;">👤 ${b.username}</div>
+        ${b.badges.map(x=>`<div style="font-size:0.78em;color:var(--gold);margin-top:3px;">${x}</div>`).join('')}
+      </div>`;
+    });
+    html += `<button onclick="_mlCompartirRachas(${JSON.stringify(waText).replace(/'/g,"\\'")})"
+      style="width:100%;margin-top:10px;padding:11px;border-radius:40px;border:none;
+      background:#25D366;color:white;font-weight:700;cursor:pointer;font-family:var(--font-b);">
+      📲 Compartir Rachas por WhatsApp
+    </button>`;
+    if(out) out.innerHTML=html;
+  } catch(e) {
+    if(out) out.innerHTML=`<div style="color:var(--red);">Error: ${e.message}</div>`;
+  }
+}
+
+function _mlCompartirRachas(txt) {
+  const a=document.createElement('a');
+  a.href=`https://wa.me/?text=${encodeURIComponent(txt)}`;
+  a.target='_blank'; a.rel='noopener noreferrer';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>document.body.removeChild(a),200);
+}
+
+// ── FIN MÉTODO LÁREZ ────────────────────────────────────────────
+
 async function doSavePreds(preds, jDate, group) {
   // Check if already saved for this group+date
   try {
@@ -5001,11 +5340,24 @@ async function sendChat() {
   const text = input.value.trim();
   if (!text) return;
   if (!me?.uid) { toast('Debes estar autenticado','error'); return; }
-  
+
+  // ── Método Lárez: detectar intención antes de enviar ──
+  const intencion = _mlDetectarIntencion(text);
+  if(intencion) {
+    if(intencion.resp) toast(intencion.resp,'success',2500);
+    if(intencion.action) {
+      // Enviar igual al chat para que quede registro
+      try { await db.collection('chat').add({ uid:me.uid, username:me.username, name:me.name||me.username, text:text, ts:firebase.firestore.FieldValue.serverTimestamp() }); } catch(e){}
+      input.value=''; input.focus();
+      setTimeout(()=>intencion.action(), 400);
+      return;
+    }
+  }
+
   // Clear immediately for fast UX
   input.value = '';
   input.focus();
-  
+
   try {
     await db.collection('chat').add({
       uid: me.uid,
@@ -5015,7 +5367,6 @@ async function sendChat() {
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
-    // Restore text if failed
     input.value = text;
     const msg = e.code === 'permission-denied'
       ? '❌ Sin permiso para escribir. Verifica las reglas de Firestore.'
@@ -5136,21 +5487,19 @@ async function renderGroups() {
       if(!me.isAdmin&&!g.members?.some(m=>m.userId===me.uid)) return;
       found++;
       const isMine=g.members?.some(m=>m.userId===me.uid);
+      const memberCount=g.members?.length||0;
       grpHtml+=`<div class="group-card">
         <div class="group-card-header">
           <div>
             <div class="group-name">${g.name} ${isMine?'👑':''}</div>
-            <div class="group-meta">👥 ${g.members?.length||0}/${g.maxMembers} ${t('playersCount')}</div>
-          </div>
-          <div class="group-code">
-            <span class="group-code-label">${t('codeLabel')}</span>
-            <span class="group-code-val">${g.code}</span>
+            <div class="group-meta">👥 ${memberCount}/${g.maxMembers} ${t('playersCount')}</div>
           </div>
         </div>
         <div class="group-actions">
           ${me.isAdmin?`<button class="btn-del" onclick="deleteGroup('${doc.id}','${g.name}')">🗑️</button>`:''}
           <button class="btn-rank" onclick="openGroupRanking('${doc.id}')">${t('viewRanking')}</button>
           <button class="btn-wa" onclick="shareGroup('${g.code}','${g.name}')">📲</button>
+          ${isMine&&!me.isAdmin?`<button style="padding:7px 12px;border-radius:var(--r-sm);border:1px solid rgba(255,77,109,0.4);background:rgba(255,77,109,0.1);color:var(--red);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="leaveGroup('${doc.id}','${g.name}')">Salir</button>`:''}
         </div>
       </div>`;
     });
@@ -5280,6 +5629,78 @@ async function doCreateGroup() {
   finally{btn.disabled=false;}
 }
 
+
+// ── Dashboard rápido Admin ──────────────────────────────────
+async function _loadAdminDashboard() {
+  try {
+    const [uSnap, gSnap, pSnap] = await Promise.all([
+      db.collection('users').get(),
+      db.collection('groups').get(),
+      db.collection('predictions').where('jornadaDate','==',vzDate()).get()
+    ]);
+    const totalJ = uSnap.size;
+    const totalG = gSnap.docs.filter(d => (d.data().members||[]).length > 0).length;
+    const predHoy = new Set(pSnap.docs.map(d => d.data().userId)).size;
+    const sinPred = Math.max(0, totalJ - predHoy);
+    const dj = document.getElementById('dash-jugadores');
+    const dp = document.getElementById('dash-predHoy');
+    const ds = document.getElementById('dash-sinPred');
+    const dg = document.getElementById('dash-grupos');
+    if(dj) dj.textContent = totalJ;
+    if(dp) dp.textContent = predHoy;
+    if(ds) ds.textContent = sinPred;
+    if(dg) dg.textContent = totalG;
+  } catch(e) { console.error('Dashboard error:', e); }
+}
+
+// ── Copiar código de invitación ─────────────────────────────
+function adminCopiarInvite() {
+  const code = me.personalInviteCode || '';
+  if(!code) { toast('Sin código de invitación','error'); return; }
+  navigator.clipboard?.writeText(code)
+    .then(() => toast(`✅ Código copiado: ${code}`, 'success', 3000))
+    .catch(() => toast(`Tu código: ${code}`, 'info', 6000));
+}
+
+// ── Salir de un grupo (jugador) ─────────────────────────────
+async function leaveGroup(gid, gname) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '6000';
+  modal.innerHTML = `
+    <div class="modal-box" style="padding:28px 24px;text-align:center;">
+      <div class="modal-handle"></div>
+      <div style="font-size:2em;margin-bottom:10px;">👋</div>
+      <div style="font-family:var(--font-h);font-size:1.2em;font-weight:800;margin-bottom:8px;">¿Salir del grupo?</div>
+      <div style="font-size:1em;color:var(--primary2);font-weight:700;margin-bottom:12px;">${gname}</div>
+      <div style="font-size:0.82em;color:var(--muted2);margin-bottom:22px;line-height:1.5;">
+        Puedes volver a unirte cuando quieras tocando el grupo en la pantalla de Partidos.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+        <button class="btn" style="background:var(--red);color:white;" onclick="confirmLeaveGroup('${gid}','${gname}',this.closest('.modal-overlay'))">Salir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function confirmLeaveGroup(gid, gname, modal) {
+  modal?.remove();
+  try {
+    await db.collection('groups').doc(gid).update({
+      members: firebase.firestore.FieldValue.arrayRemove(
+        ...((await db.collection('groups').doc(gid).get()).data()?.members||[])
+          .filter(m => m.userId === me.uid)
+      )
+    });
+    toast(`👋 Saliste de "${gname}"`, 'success');
+    if(activeGroupId === gid) clearActiveGroup();
+    await loadMyGroups();
+    renderGroups();
+  } catch(e) {
+    toast('Error al salir: ' + e.message, 'error');
+  }
+}
 
 async function deleteGroup(gid, name) {
   if(!confirm(`¿Eliminar el grupo "${name}"?\nSe borrarán TODAS las predicciones y datos. No se puede deshacer.`)) return;
@@ -5447,7 +5868,7 @@ async function openGroupRanking(gid) {
   const gdoc=await db.collection('groups').doc(gid).get();
   const g=gdoc.data();
   $('rankModalTitle').textContent=`🏆 ${g.name}`;
-  $('rankModalCode').textContent=`🔐 Código: ${g.code}`;
+  $('rankModalCode').textContent=`👥 ${g.members?.length||0} jugadores`;
 
   const memberIds=g.members.map(m=>m.userId);
   const ptMap={};
@@ -5619,18 +6040,48 @@ async function autoEval() {
 // ═══════════════════════════════════════════
 function renderAdmin() {
   const el=$('screenAdmin');
+  const invCode = me.personalInviteCode || '—';
   el.innerHTML=`
     <div class="section-header"><span class="section-title">⚙️ ${t('admin')}</span></div>
-    <div class="card-glow" style="margin-bottom:16px;">
-      <div style="font-family:var(--font-h);font-size:0.8em;color:var(--muted2);margin-bottom:4px;">${t('adminPanel')}</div>
-      <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
+
+    <!-- DASHBOARD RÁPIDO -->
+    <div id="adminDashboard" style="margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div style="background:rgba(108,71,255,0.12);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r);padding:12px;text-align:center;">
+          <div id="dash-jugadores" style="font-family:var(--font-h);font-size:1.8em;color:var(--primary2);">—</div>
+          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Jugadores</div>
+        </div>
+        <div style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:12px;text-align:center;">
+          <div id="dash-predHoy" style="font-family:var(--font-h);font-size:1.8em;color:var(--green);">—</div>
+          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Predicaron hoy</div>
+        </div>
+        <div style="background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.25);border-radius:var(--r);padding:12px;text-align:center;">
+          <div id="dash-sinPred" style="font-family:var(--font-h);font-size:1.8em;color:var(--red);">—</div>
+          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Sin predicción</div>
+        </div>
+        <div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);border-radius:var(--r);padding:12px;text-align:center;">
+          <div id="dash-grupos" style="font-family:var(--font-h);font-size:1.8em;color:var(--gold);">—</div>
+          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Grupos activos</div>
+        </div>
+      </div>
     </div>
+
+    <!-- CÓDIGO DE INVITACIÓN (prominente) -->
+    <div style="background:rgba(108,71,255,0.1);border:1.5px solid rgba(108,71,255,0.4);border-radius:var(--r);padding:14px;margin-bottom:16px;">
+      <div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🔐 Tu código de invitación</div>
+      <div style="font-family:var(--font-h);font-size:1.6em;color:var(--primary2);letter-spacing:4px;margin-bottom:10px;">${invCode}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button onclick="adminCopiarInvite()" style="padding:9px;border-radius:var(--r-sm);border:1px solid rgba(108,71,255,0.4);background:rgba(108,71,255,0.15);color:var(--primary2);font-family:var(--font-b);font-weight:700;font-size:0.8em;cursor:pointer;">📋 Copiar</button>
+        <button onclick="inviteToApp()" style="padding:9px;border-radius:var(--r-sm);border:none;background:#25D366;color:white;font-family:var(--font-b);font-weight:700;font-size:0.8em;cursor:pointer;">📲 Invitar WA</button>
+      </div>
+    </div>
+
+    <!-- GRID DE ACCIONES -->
     <div class="admin-grid">
       <button class="admin-btn" onclick="adminUsers()">👥<br>${t('seeUsers')}</button>
       <button class="admin-btn" onclick="adminEval()">⚡<br>${t('evalMatches')}</button>
       <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>${t('evalManual')}</button>
-      <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>${t('groupCodes')}</button>
-      <button class="admin-btn full" onclick="adminSync()">${t('syncNow')}</button>
+      <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>Ver Grupos</button>
       <button class="admin-btn full danger" onclick="adminReset()">${t('deleteData')}</button>
       <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">${t('cleanDups')}</button>
       <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">${t('evalMundial')}</button>
@@ -5638,6 +6089,12 @@ function renderAdmin() {
       <button class="admin-btn full danger" onclick="nukeAllPreds()">${t('nukeAll')}</button>
     </div>
     <div class="admin-output" id="adminOut"><span style="color:var(--muted2);">${t('selectAction')}</span></div>`;
+
+  // Cargar dashboard en background
+  _loadAdminDashboard();
+  // Mostrar flujo recomendado por Método Lárez
+  setTimeout(renderAdminFlow, 300);
+}
 }
 
 async function adminUsers() {
@@ -5997,16 +6454,15 @@ async function adminShowGroups() {
   let html=`<p style="font-weight:800;margin-bottom:12px;color:var(--primary2);">📋 GRUPOS (${snap.size}/5)</p>`;
   snap.docs.forEach(doc=>{
     const g=doc.data();
+    const memberCount=g.members?.length||0;
+    const ligas=(g.tournaments||[]).map(tid=>{const tr=TOURNAMENTS.find(t=>t.id===tid);return tr?.flag||'';}).filter(Boolean).join(' ');
     html+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <strong>${g.name}</strong>
-        <span style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);letter-spacing:3px;">${g.code}</span>
+        <span style="font-size:0.82em;color:var(--muted2);">👥 ${memberCount}/${g.maxMembers||50}</span>
       </div>
-      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">👥 ${g.members?.length||0}/${g.maxMembers}</div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn-wa" style="flex:1;" onclick="shareGroup('${g.code}','${g.name}')">📲 Compartir WA</button>
-        <button class="btn btn-ghost btn-sm" onclick="copyCode('${g.code}','${g.name}')">📋 Copiar</button>
-      </div>
+      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:8px;">${ligas||'Sin ligas configuradas'}</div>
+      <button class="btn-wa" style="width:100%;" onclick="shareGroup('${g.code}','${g.name}')">📲 Compartir por WhatsApp</button>
     </div>`;
   });
   out.innerHTML=html;
@@ -6588,7 +7044,44 @@ async function openMyStats() {
 
       ${defaults > 0 ? `<div style="margin-top:10px;font-size:0.72em;color:var(--muted2);text-align:center;">
         🔮 ${defaults} predicciones por defecto (0-0) guardadas automáticamente
-      </div>` : ''}`;
+      </div>` : ''}
+
+      <!-- PERFIL PREDICTOR LÁREZ -->
+      ${(()=>{
+        const perfil = _mlCalcPerfilPredictor(preds);
+        if(!perfil) return '';
+        return `
+        <div style="margin-top:16px;background:rgba(108,71,255,0.1);border:1.5px solid rgba(108,71,255,0.3);border-radius:var(--r);padding:14px;">
+          <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+            🧠 Tu Perfil de Predictor · Método Lárez
+          </div>
+          <div style="font-family:var(--font-h);font-size:1.4em;margin-bottom:8px;">
+            ${perfil.estiloEmoji} ${perfil.estilo}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.75em;">
+            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
+              <div style="color:var(--muted2);">🏠 Local gana</div>
+              <div style="font-weight:700;color:var(--text);">${Math.round(perfil.localWins/perfil.total*100)}%</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
+              <div style="color:var(--muted2);">🤝 Empates</div>
+              <div style="font-weight:700;color:var(--text);">${Math.round(perfil.empates/perfil.total*100)}%</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
+              <div style="color:var(--muted2);">⚽ Goles/partido</div>
+              <div style="font-weight:700;color:var(--text);">${perfil.promedioGoles}</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
+              <div style="color:var(--muted2);">🎯 Marcador top</div>
+              <div style="font-weight:700;color:var(--text);">${perfil.topMarcador?perfil.topMarcador[0]:'—'}</div>
+            </div>
+          </div>
+          ${perfil.topEquipo?`<div style="margin-top:8px;font-size:0.75em;color:var(--muted2);">
+            ❤️ Equipo favorito: <strong style="color:var(--text);">${perfil.topEquipo[0]}</strong>
+            (predices ${perfil.topEquipo[1]} veces ganando)
+          </div>`:''}
+        </div>`;
+      })()}`;
 
   } catch(e) {
     el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
