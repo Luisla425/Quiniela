@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0d0d14">
-<title>⚽ Quiniela LuAn</title>
+<title>⚽ Quiniela LuAn v6 · ML</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -1777,7 +1777,6 @@ let me = null;
 let myTournaments = [];
 let _aM = [];
 let _dM = [];
-let _filtroFecha = 'hoy'; // 'ayer' | 'hoy' | 'manana'
 let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
@@ -2866,6 +2865,9 @@ async function doReset() {
 async function doLogout() {
   clearTimeout(syncTimer);
   if (chatUnsub) chatUnsub();
+  // ML v6: limpiar caché de historial al cerrar sesión
+  _mlHistorial = [];
+  _mlCacheClear();
   await auth.signOut();
 }
 
@@ -3305,34 +3307,14 @@ function parseEvent(ev, t) {
 }
 
 function setDayMatches() {
-  const today    = vzDate();
-  const ayer     = new Date(new Date(today).setDate(new Date(today).getDate()-1)).toISOString().split('T')[0];
-  const manana   = new Date(new Date(today).setDate(new Date(today).getDate()+1)).toISOString().split('T')[0];
-
-  let targetDate;
-  if(_filtroFecha === 'ayer')   targetDate = ayer;
-  else if(_filtroFecha === 'manana') targetDate = manana;
-  else targetDate = today; // 'hoy' por defecto
-
-  let pool = _aM.filter(m => m.date === targetDate);
-
-  // Si el filtro es 'hoy' y no hay partidos, buscar el próximo día con partidos
-  if(!pool.length && _filtroFecha === 'hoy') {
+  const today = vzDate();
+  let pool = _aM.filter(m=>m.date===today);
+  if (!pool.length) {
     const upcoming = _aM.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date));
     const nextDate = upcoming[0]?.date;
     pool = nextDate ? _aM.filter(m=>m.date===nextDate) : [];
-    // Actualizar el filtro visual al día encontrado
-    if(nextDate) _filtroFecha = 'hoy'; // mantener en hoy pero mostrar el próximo
   }
-
   _dM = pool.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-}
-
-// ── Método Lárez: cambiar filtro de fecha y re-renderizar ──
-function filtrarFecha(filtro) {
-  _filtroFecha = filtro;
-  setDayMatches();
-  renderMatches();
 }
 
 function bettingClosed() {
@@ -3588,23 +3570,6 @@ function renderMatches() {
         <button class="btn btn-ghost btn-sm" onclick="openStandings()" title="Tablas de posiciones" style="padding:5px 8px;font-size:0.85em;">📊</button>
         <button class="btn btn-ghost btn-sm" onclick="doSync()" title="Sincronizar" style="padding:5px 8px;font-size:0.85em;">🔄</button>
       </div>
-    </div>
-
-    <!-- SELECTOR DE FECHA MÉTODO LÁREZ -->
-    <div style="display:flex;gap:6px;margin-bottom:12px;">
-      ${['ayer','hoy','manana'].map(f => {
-        const label = f==='ayer'?'⬅️ Ayer':f==='hoy'?'📅 Hoy':'Mañana ➡️';
-        const isActive = _filtroFecha === f;
-        return `<button onclick="filtrarFecha('${f}')"
-          style="flex:1;padding:8px 4px;border-radius:var(--r-sm);
-          border:${isActive?'2px solid var(--primary)':'1px solid var(--border2)'};
-          background:${isActive?'rgba(108,71,255,0.2)':'var(--surface2)'};
-          color:${isActive?'var(--primary2)':'var(--muted2)'};
-          font-family:var(--font-b);font-weight:${isActive?'800':'600'};
-          font-size:0.78em;cursor:pointer;transition:.15s;">
-          ${label}
-        </button>`;
-      }).join('')}
     </div>`;
 
   // ── SELECTOR DE GRUPO ACTIVO ──────────────
@@ -3668,12 +3633,7 @@ function renderMatches() {
   }
 
   if (!_dM.length) {
-    const msgVacio = _filtroFecha==='ayer'
-      ? '📭 Sin partidos registrados ayer'
-      : _filtroFecha==='manana'
-      ? '📅 Sin partidos cargados para mañana aún — vuelve más tarde'
-      : '📭 Sin partidos hoy. Pulsa 🔄 para sincronizar';
-    html += `<div class="empty"><span class="empty-icon">${_filtroFecha==='manana'?'🔭':'📭'}</span><span class="empty-text">${msgVacio}</span></div>`;
+    html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Sin partidos. Pulsa Sync.</span></div>`;
   } else {
     _dM.forEach(m => { html += buildMatchCard(m, closed); });
     if (!closed) {
@@ -4779,30 +4739,71 @@ function _mlFuzzy(hay,needle) {
   for(const w of words) {
     if(w.length<3||Math.abs(w.length-n.length)>3) continue;
     const d=_mlLevenshtein(w,n);
-    if(d/Math.max(w.length,n.length)<=0.38) best=Math.min(best,d);
+    const maxLen=Math.max(w.length,n.length);
+    // ML v6: Umbral dinámico según longitud — más estricto en palabras cortas
+    let umbral;
+    if(maxLen<=3)      umbral=0;    // exacto obligatorio
+    else if(maxLen<=5) umbral=0.20; // máx 1 error en 5 letras
+    else if(maxLen<=7) umbral=0.28; // máx 2 errores en 7 letras
+    else               umbral=0.35; // 35% para palabras largas
+    if(d/maxLen<=umbral) best=Math.min(best,d);
   }
   return best===Infinity?null:best;
 }
 
 // ──────────────────────────────────────────────────────────────
-//  MEJORA 1 — PREDICTOR LÁREZ
+//  MEJORA 1 — PREDICTOR LÁREZ (v6: caché + decaimiento temporal)
 //  Aprende de las últimas predicciones del jugador y sugiere
 // ──────────────────────────────────────────────────────────────
-let _mlHistorial = []; // caché de predicciones pasadas del jugador
+let _mlHistorial = [];
+
+// ML v6: Caché localStorage para evitar releer Firebase cada sesión
+// El caché expira en 6 horas para mantenerse fresco
+function _mlCacheKey()  { return `ml_historial_${me?.uid||'anon'}`; }
+function _mlCacheGet()  {
+  try {
+    const raw = localStorage.getItem(_mlCacheKey());
+    if(!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    const seisHoras = 6*60*60*1000;
+    if(Date.now() - ts > seisHoras) { localStorage.removeItem(_mlCacheKey()); return null; }
+    return data;
+  } catch(e) { return null; }
+}
+function _mlCacheSet(data) {
+  try { localStorage.setItem(_mlCacheKey(), JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
+}
+function _mlCacheClear() {
+  try { localStorage.removeItem(_mlCacheKey()); } catch(e) {}
+}
 
 async function _mlCargarHistorial() {
-  if(!me?.uid||_mlHistorial.length) return;
+  if(!me?.uid) return;
+  if(_mlHistorial.length) return; // ya cargado en esta sesión
+  // Intentar desde caché primero (evita leer Firebase en cada carga)
+  const cached = _mlCacheGet();
+  if(cached && cached.length) { _mlHistorial = cached; return; }
   try {
     const snap = await db.collection('predictions')
       .where('userId','==',me.uid)
       .where('evaluated','==',true)
-      .orderBy('timestamp','desc').limit(50).get();
+      .orderBy('timestamp','desc').limit(80).get();
     _mlHistorial = snap.docs.map(d=>d.data());
+    _mlCacheSet(_mlHistorial); // guardar en caché
   } catch(e) {}
 }
 
+// ML v6: Decaimiento temporal — predicciones recientes pesan más
+// Una predicción de hace 3 días pesa más que una de hace 90 días
+function _mlPesoDecaimiento(pred) {
+  if(!pred.timestamp?.seconds) return 1;
+  const diasDesde = (Date.now()/1000 - pred.timestamp.seconds) / 86400;
+  // Decaimiento exponencial: peso = e^(-diasDesde/30)
+  // A 30 días el peso es ~37%, a 90 días es ~5%
+  return Math.exp(-diasDesde / 30);
+}
+
 function _mlSugerirMarcador(home, away) {
-  // Busca partidos similares en el historial y saca el marcador más frecuente
   if(!_mlHistorial.length) return null;
   const similares = _mlHistorial.filter(p => {
     const mismoHome = _mlFuzzy(p.home||'', home) !== null;
@@ -4810,16 +4811,22 @@ function _mlSugerirMarcador(home, away) {
     return mismoHome || mismoAway;
   });
   if(!similares.length) return null;
-  // Contar marcadores más frecuentes
+
+  // ML v6: contar marcadores con peso temporal — recientes pesan más
   const freq = {};
   similares.forEach(p => {
     const k = `${p.predictedHomeScore}-${p.predictedAwayScore}`;
-    freq[k] = (freq[k]||0) + 1;
+    const peso = _mlPesoDecaimiento(p);
+    freq[k] = (freq[k]||0) + peso;
   });
   const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
   if(!top) return null;
   const [h,a] = top[0].split('-').map(Number);
-  return { h, a, count: top[1], total: similares.length };
+  // Mostrar conteo real (sin decimales) para el usuario
+  const conteoReal = similares.filter(p =>
+    `${p.predictedHomeScore}-${p.predictedAwayScore}` === top[0]
+  ).length;
+  return { h, a, count: conteoReal, total: similares.length };
 }
 
 // Mostrar badge de sugerencia Lárez en la tarjeta del partido
@@ -4921,50 +4928,22 @@ function renderAdminFlow() {
 //  Detecta intenciones en el chat y responde con acciones
 // ──────────────────────────────────────────────────────────────
 const _mlIntenciones = [
-  { keys:['clasificacion','clasificación','pizarra','tabla','ranking','posicion','posición','ver puntos','quien va primero'],
-    action: () => {
-      if(activeGroupId) {
-        openGroupRanking(activeGroupId);
-      } else {
-        const primerGrupo = document.querySelector('[onclick*="openGroupRanking"]');
-        if(primerGrupo) primerGrupo.click();
-        else { showScreen('groups'); toast('Selecciona un grupo primero','info'); }
-      }
-    },
+  { keys:['clasificacion','clasificación','pizarra','tabla','ranking','posicion','posición','puntos','quien va'],
+    action: () => { closeModal && closeModal('chatModal'); openGroupRanking(activeGroupId||''); } ,
     resp: '📊 Abriendo la clasificación...' },
-  { keys:['cuantos puntos','mis puntos','cuanto llevo','tengo puntos','puntaje','mis estadisticas'],
+  { keys:['cuantos puntos','mis puntos','cuanto llevo','tengo puntos','puntaje'],
     action: () => { openMyStats(); },
     resp: '📈 Abriendo tus estadísticas...' },
-  { keys:['quien gana','quien lidera','lider','quien va ganando','primero','top 1','quien tiene mas'],
-    action: () => {
-      if(_currentRankData?.ranked?.length) {
-        const p=_currentRankData.ranked[0];
-        toast(`🥇 ${p.username} va primero con ${p.grpPts}pts`,'success',4000);
-      } else if(activeGroupId) {
-        openGroupRanking(activeGroupId);
-      } else {
-        toast('Carga la clasificación primero','info');
-      }
-    },
+  { keys:['quien gana','quien lidera','lider','primero','top 1'],
+    action: () => { if(_currentRankData?.ranked?.length) { const p=_currentRankData.ranked[0]; toast(`🥇 ${p.username} va primero con ${p.grpPts}pts`,'success',4000); } else { toast('Carga la clasificación primero','info'); } },
     resp: null },
-  // ── FECHAS — Método Lárez ───────────────────────────────
-  { keys:['manana','mañana','juegan manana','partidos manana','que hay manana','equipos manana','quienes juegan manana','que equipos juegan manana'],
-    action: () => { filtrarFecha('manana'); showScreen('matches'); },
-    resp: '🔭 Viendo partidos de mañana...' },
-  { keys:['partidos hoy','que hay hoy','juegan hoy','quienes juegan hoy','equipos hoy'],
-    action: () => { filtrarFecha('hoy'); showScreen('matches'); },
-    resp: '📅 Viendo partidos de hoy...' },
-  { keys:['ayer','partidos ayer','que hubo ayer','jugaron ayer','resultados ayer','como quedaron'],
-    action: () => { filtrarFecha('ayer'); showScreen('matches'); },
-    resp: '⬅️ Viendo resultados de ayer...' },
-  // ── NAVEGACIÓN GENERAL ──────────────────────────────────
-  { keys:['como predecir','como se predice','no se predecir','como jugar','tutorial','ayuda'],
+  { keys:['como predecir','como se predice','no sé predecir','como jugar','tutorial'],
     action: () => { openHowToPredict(); },
     resp: '🎓 Abriendo el tutorial...' },
-  { keys:['cuando empiezan','que hora','horario','que partidos','partidos'],
-    action: () => { filtrarFecha('hoy'); showScreen('matches'); },
-    resp: '⚽ Viendo los partidos de hoy...' },
-  { keys:['mi historial','mis predicciones','que predije','historial','mis apuestas'],
+  { keys:['cuando empiezan','que hora','horario','que partidos','partidos hoy'],
+    action: () => { showScreen('matches'); },
+    resp: '⚽ Viendo los partidos...' },
+  { keys:['mi historial','mis predicciones','que predije','historial'],
     action: () => { openMyPredictions(); },
     resp: '📋 Abriendo tu historial...' },
 ];
@@ -6153,6 +6132,7 @@ function renderAdmin() {
       <button class="admin-btn" onclick="adminEval()">⚡<br>${t('evalMatches')}</button>
       <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>${t('evalManual')}</button>
       <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>Ver Grupos</button>
+      <button class="admin-btn" onclick="mlAdminPanel()" style="background:rgba(108,71,255,0.15);color:var(--primary2);border:1px solid rgba(108,71,255,0.4);">🧠<br>Panel ML</button>
       <button class="admin-btn full danger" onclick="adminReset()">${t('deleteData')}</button>
       <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">${t('cleanDups')}</button>
       <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">${t('evalMundial')}</button>
@@ -6165,6 +6145,95 @@ function renderAdmin() {
   _loadAdminDashboard();
   // Mostrar flujo recomendado por Método Lárez
   setTimeout(renderAdminFlow, 300);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PANEL ML v6 — Admin de Método Lárez en Quiniela LuAn
+// ═══════════════════════════════════════════════════════════════
+async function mlAdminPanel() {
+  const out = $('adminOut');
+  out.innerHTML = '⏳ Cargando estado del ML...';
+
+  // Stats del caché del Predictor
+  const cachedHist = _mlCacheGet();
+  const histLen    = _mlHistorial.length || (cachedHist?.length||0);
+  const cacheKey   = _mlCacheKey();
+  let cacheFecha   = '—';
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if(raw) { const { ts } = JSON.parse(raw); cacheFecha = new Date(ts).toLocaleString('es-VE',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}); }
+  } catch(e) {}
+
+  // Stats de predicciones evaluadas del admin
+  let totalEval=0, exactos=0, correctos=0;
+  try {
+    const snap = await db.collection('predictions')
+      .where('userId','==',me.uid).where('evaluated','==',true).get();
+    totalEval = snap.size;
+    snap.docs.forEach(d=>{ const p=d.data(); if(p.pointsAwarded===5) exactos++; else if(p.pointsAwarded===3) correctos++; });
+  } catch(e) {}
+
+  out.innerHTML = `
+    <div style="font-size:0.78em;font-weight:800;color:var(--primary2);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">
+      🧠 Panel Método Lárez v6
+    </div>
+
+    <!-- ESTADO PREDICTOR LÁREZ -->
+    <div style="background:rgba(108,71,255,0.08);border:1px solid rgba(108,71,255,0.25);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;">
+      <div style="font-weight:700;font-size:0.82em;color:var(--primary2);margin-bottom:8px;">🔮 Predictor Lárez</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
+        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:8px;">
+          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);">${histLen}</div>
+          <div style="font-size:0.65em;color:var(--muted2);">Preds en caché</div>
+        </div>
+        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:8px;">
+          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);">${exactos}</div>
+          <div style="font-size:0.65em;color:var(--muted2);">⭐ Exactos</div>
+        </div>
+        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:8px;">
+          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${correctos}</div>
+          <div style="font-size:0.65em;color:var(--muted2);">🎯 Correctos</div>
+        </div>
+      </div>
+      <div style="font-size:0.7em;color:var(--muted2);margin-bottom:8px;">
+        📦 Caché guardado: <strong>${cacheFecha}</strong>
+        ${histLen>0?'<span style="color:var(--green);"> · Activo ✅</span>':'<span style="color:var(--red);"> · Vacío ⚠️</span>'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+        <button onclick="_mlCacheClear();_mlHistorial=[];toast('🗑️ Caché limpiado — se recargará en el próximo partido','success',3000);mlAdminPanel();"
+          style="padding:8px;border-radius:var(--r-sm);border:1px solid rgba(255,77,109,0.4);background:rgba(255,77,109,0.1);color:var(--red);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;">
+          🗑️ Limpiar caché
+        </button>
+        <button onclick="_mlHistorial=[];_mlCargarHistorial().then(()=>toast('✅ Historial recargado desde Firebase','success',3000));"
+          style="padding:8px;border-radius:var(--r-sm);border:1px solid rgba(0,229,160,0.4);background:rgba(0,229,160,0.1);color:var(--green);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;">
+          🔄 Recargar Firebase
+        </button>
+      </div>
+    </div>
+
+    <!-- FUZZY LÁREZ INFO -->
+    <div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;">
+      <div style="font-weight:700;font-size:0.82em;color:var(--gold);margin-bottom:6px;">🔍 Fuzzy Lárez v6 — Umbral dinámico activo</div>
+      <div style="font-size:0.72em;color:var(--muted2);line-height:1.8;">
+        ≤3 letras → exacto obligatorio<br>
+        4-5 letras → máx 20% de error<br>
+        6-7 letras → máx 28% de error<br>
+        8+ letras → máx 35% de error
+      </div>
+    </div>
+
+    <!-- ACCESO RÁPIDO A RACHAS -->
+    <button onclick="_mlMostrarRachas()"
+      style="width:100%;padding:11px;border-radius:var(--r-sm);border:none;
+      background:linear-gradient(135deg,rgba(108,71,255,0.2),rgba(0,229,160,0.1));
+      color:var(--text);font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;
+      border:1px solid rgba(108,71,255,0.3);">
+      🏅 Ver Rachas y Badges del grupo activo
+    </button>
+
+    <div style="margin-top:10px;font-size:0.68em;color:var(--muted2);text-align:center;">
+      Método Lárez v6 · LuAn System™ · Ing. Luis Lárez
+    </div>`;
 }
 
 async function adminUsers() {
@@ -8251,4 +8320,4 @@ function cerrarManualLuan(){
 </div>
 
 </body>
-   </html>
+</html>
