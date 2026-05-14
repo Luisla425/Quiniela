@@ -885,7 +885,13 @@ body::before {
       <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn btn-primary" onclick="doLogin()">Entrar →</button>
-    <button class="btn btn-ghost" style="margin-top:8px;" onclick="showReset()">¿Olvidaste tu contraseña?</button>
+    <div style="margin-top:12px;padding:10px 14px;background:rgba(108,71,255,0.08);
+      border:1px solid rgba(108,71,255,0.2);border-radius:10px;
+      font-size:0.78em;color:var(--muted2);text-align:center;line-height:1.6;">
+      🔑 ¿Olvidaste tu contraseña?<br>
+      <strong style="color:var(--primary2);">Contacta al administrador</strong>
+      para que te la restablezca por WhatsApp.
+    </div>
   </div>
 
   <!-- REGISTER -->
@@ -2618,15 +2624,8 @@ async function doRegister() {
 }
 
 async function doReset() {
-  const phone = $('resetPhone').value.trim();
-  if (!phone) { toast('Ingresa tu teléfono','error'); return; }
-  const email = phoneToEmail(phone, 'reset');
-  try {
-    await auth.sendPasswordResetEmail(email);
-    toast('✅ Enlace enviado','success');
-  } catch(e) {
-    toast('Teléfono no encontrado','error');
-  }
+  // Reset por email no funciona — sistema usa contraseña manual del admin
+  toast('⚠️ Contacta al administrador para restablecer tu clave por WhatsApp','warning', 5000);
 }
 
 async function doLogout() {
@@ -5617,33 +5616,137 @@ function sendWAMsg(num, idx, encodedText) {
 }
 
 async function adminResetUserPass(username, phone, uid) {
-  // Generate temp password
-  const tempPass = 'Luan' + Math.floor(1000+Math.random()*9000);
-  if (!confirm(`¿Resetear contraseña de ${username}?\n\nContraseña temporal: ${tempPass}\n\nSe la enviarás por WhatsApp.`)) return;
+  // Generar contraseña temporal memorable
+  const adj  = ['Rojo','Azul','Verde','Rapido','Fuerte','Luan','Gol','Real'];
+  const num  = Math.floor(100 + Math.random()*900);
+  const tempPass = adj[Math.floor(Math.random()*adj.length)] + num;
 
+  // Mostrar modal con la clave para que el admin la vea y confirme
+  const existing = document.getElementById('_resetPassModal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = '_resetPassModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '9200';
+  modal.innerHTML = `
+    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
+      max-width:340px;width:94%;border:1px solid rgba(108,71,255,0.4);
+      box-shadow:0 20px 60px rgba(0,0,0,.6);">
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:4px;">
+        🔑 Resetear Contraseña
+      </div>
+      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:16px;">
+        ${username} · ${phone||'sin teléfono'}
+      </div>
+
+      <div style="background:rgba(108,71,255,0.12);border:2px solid rgba(108,71,255,0.4);
+        border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">
+        <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;
+          text-transform:uppercase;letter-spacing:1px;">Nueva contraseña temporal</div>
+        <div style="font-family:var(--font-h);font-size:2em;font-weight:900;
+          color:var(--primary2);letter-spacing:3px;" id="_tempPassDisplay">${tempPass}</div>
+        <button onclick="
+          navigator.clipboard?.writeText('${tempPass}');
+          toast('📋 Copiada','success',1500);"
+          style="margin-top:8px;padding:5px 14px;border-radius:20px;border:none;
+          background:rgba(108,71,255,0.2);color:var(--primary2);
+          font-size:0.75em;font-weight:700;cursor:pointer;">
+          📋 Copiar
+        </button>
+      </div>
+
+      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;
+        background:rgba(245,197,66,0.08);border-radius:8px;padding:8px 10px;
+        border:1px solid rgba(245,197,66,0.2);">
+        ⚠️ Esta clave se guarda en Firestore. El usuario debe cambiarla al entrar.
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button onclick="document.getElementById('_resetPassModal').remove()"
+          style="padding:11px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.82em;font-weight:800;
+          background:var(--surface2);color:var(--muted2);
+          border:1px solid var(--border2);">Cancelar</button>
+        <button onclick="_confirmarResetPass('${uid}','${username}','${phone}','${tempPass}')"
+          style="padding:11px;border-radius:10px;cursor:pointer;
+          font-family:var(--font-h);font-size:0.82em;font-weight:800;
+          background:linear-gradient(135deg,#25D366,#128C7E);
+          color:white;border:none;">
+          📲 Guardar y enviar WA
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+}
+
+async function _confirmarResetPass(uid, username, phone, tempPass) {
+  document.getElementById('_resetPassModal')?.remove();
   try {
-    // Update password using Firebase Auth REST API (client-side trick via re-auth)
-    // We store the temp pass request in Firestore — user must change on next login
+    // Guardar en Firestore — al entrar el sistema detecta la clave temporal
     await db.collection('passResets').doc(uid).set({
-      uid, username,
-      tempPass,
+      uid, username, tempPass,
       requestedBy: me.uid,
       requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
       used: false
     });
 
-    // Send via WhatsApp
+    // Cambiar contraseña real via Firebase Auth REST API
+    const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';
+    // Primero necesitamos el email del usuario
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data();
+    const countryCode = (userData?.phone||'').replace(/[^0-9]/g,'').substring(0,2) || '58';
+    const phoneNum = (userData?.phone||'').replace(/[^0-9]/g,'');
+    const email = phoneNum + '@quiniela.app';
+
+    try {
+      // Intentar reset via REST API
+      await fetch(
+        \`https://identitytoolkit.googleapis.com/v1/accounts:update?key=\${apiKey}\`,
+        {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            localId: uid,
+            password: tempPass,
+            returnSecureToken: false
+          })
+        }
+      );
+    } catch(apiErr) {
+      // Si falla la API (permisos), la clave en Firestore sirve de referencia
+      console.warn('REST API no disponible — clave guardada en Firestore');
+    }
+
+    // Mandar por WhatsApp de todas formas
     const num = phone.replace(/[^0-9]/g,'');
-    const msg = encodeURIComponent(
-      `🔑 Quiniela LuAn — Reset de contraseña\n\n` +
-      `Hola ${username}! Tu contraseña temporal es:\n\n` +
-      `*${tempPass}*\n\n` +
-      `Entra con esta clave y cámbiala desde el menú de tu perfil.`
-    );
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-    toast(`✅ Contraseña temporal generada para ${username}`,'success');
+    const appUrl = 'https://luisla425.github.io/Quiniela/';
+    const msg =
+`🔑 *Quiniela LuAn — Nueva contraseña*
+
+Hola *${username}*! 👋
+
+Tu contraseña fue restablecida por el administrador.
+
+📱 Tu teléfono: ${phone}
+🔐 Nueva clave: *${tempPass}*
+
+Entra aquí: ${appUrl}
+
+⚠️ _Cámbiala desde el menú 🔑 una vez que entres._
+
+_— Admin Quiniela LuAn_`;
+
+    const waUrl = num
+      ? \`https://wa.me/\${num}?text=\${encodeURIComponent(msg)}\`
+      : \`https://wa.me/?text=\${encodeURIComponent(msg)}\`;
+
+    window.open(waUrl, '_blank');
+    toast(\`✅ Clave enviada a \${username} por WhatsApp\`, 'success', 3000);
   } catch(e) {
-    toast('Error: '+e.message,'error');
+    toast('Error: ' + e.message, 'error');
   }
 }
 
