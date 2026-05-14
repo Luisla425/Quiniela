@@ -5681,74 +5681,7 @@ async function adminResetUserPass(username, phone, uid) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 }
 
-async function _confirmarResetPass(uid, username, phone, tempPass) {
-  document.getElementById('_resetPassModal')?.remove();
-  try {
-    // Guardar en Firestore — al entrar el sistema detecta la clave temporal
-    await db.collection('passResets').doc(uid).set({
-      uid, username, tempPass,
-      requestedBy: me.uid,
-      requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      used: false
-    });
-
-    // Cambiar contraseña real via Firebase Auth REST API
-    const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';
-    // Primero necesitamos el email del usuario
-    const userDoc = await db.collection('users').doc(uid).get();
-    const userData = userDoc.data();
-    const countryCode = (userData?.phone||'').replace(/[^0-9]/g,'').substring(0,2) || '58';
-    const phoneNum = (userData?.phone||'').replace(/[^0-9]/g,'');
-    const email = phoneNum + '@quiniela.app';
-
-    try {
-      // Intentar reset via REST API
-      await fetch(
-        \`https://identitytoolkit.googleapis.com/v1/accounts:update?key=\${apiKey}\`,
-        {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            localId: uid,
-            password: tempPass,
-            returnSecureToken: false
-          })
-        }
-      );
-    } catch(apiErr) {
-      // Si falla la API (permisos), la clave en Firestore sirve de referencia
-      console.warn('REST API no disponible — clave guardada en Firestore');
-    }
-
-    // Mandar por WhatsApp de todas formas
-    const num = phone.replace(/[^0-9]/g,'');
-    const appUrl = 'https://luisla425.github.io/Quiniela/';
-    const msg =
-`🔑 *Quiniela LuAn — Nueva contraseña*
-
-Hola *${username}*! 👋
-
-Tu contraseña fue restablecida por el administrador.
-
-📱 Tu teléfono: ${phone}
-🔐 Nueva clave: *${tempPass}*
-
-Entra aquí: ${appUrl}
-
-⚠️ _Cámbiala desde el menú 🔑 una vez que entres._
-
-_— Admin Quiniela LuAn_`;
-
-    const waUrl = num
-      ? \`https://wa.me/\${num}?text=\${encodeURIComponent(msg)}\`
-      : \`https://wa.me/?text=\${encodeURIComponent(msg)}\`;
-
-    window.open(waUrl, '_blank');
-    toast(\`✅ Clave enviada a \${username} por WhatsApp\`, 'success', 3000);
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
-}
+async function _confirmarResetPass(uid, username, phone, tempPass) {   document.getElementById('_resetPassModal')?.remove();   try {     await db.collection('passResets').doc(uid).set({       uid, username, tempPass,       requestedBy: me.uid,       requestedAt: firebase.firestore.FieldValue.serverTimestamp(),       used: false     });      const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';     const userDoc = await db.collection('users').doc(uid).get();     const userData = userDoc.data();     const phoneNum = (userData?.phone||'').replace(/[^0-9]/g,'');      try {       await fetch(         'https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + apiKey,         {           method: 'POST',           headers: {'Content-Type':'application/json'},           body: JSON.stringify({             localId: uid,             password: tempPass,             returnSecureToken: false           })         }       );     } catch(apiErr) {       console.warn('REST API no disponible — clave guardada en Firestore');     }      const num = phone.replace(/[^0-9]/g,'');     const appUrl = 'https://luisla425.github.io/Quiniela/';     const msg = `🔑 *Quiniela LuAn — Nueva contraseña*  Hola *${username}*! 👋  Tu contraseña fue restablecida por el administrador.  📱 Tu teléfono: ${phone} 🔐 Nueva clave: *${tempPass}*  Entra aquí: ${appUrl}  ⚠️ _Cámbiala desde el menú 🔑 una vez que entres._  _— Admin Quiniela LuAn_`;      const waUrl = num       ? 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg)       : 'https://wa.me/?text=' + encodeURIComponent(msg);      window.open(waUrl, '_blank');     toast('✅ Clave enviada a ' + username + ' por WhatsApp', 'success', 3000);   } catch(e) {     toast('Error: ' + e.message, 'error');   } }
 
 async function adminEval() {
   if(!confirm('¿Evaluar todos los partidos finalizados?')) return;
