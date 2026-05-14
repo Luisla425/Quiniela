@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0d0d14">
-<title>⚽ Quiniela LuAn v6 · ML</title>
+<title>⚽ Quiniela LuAn</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -2165,22 +2165,21 @@ async function inviteToApp() {
   const code   = me.personalInviteCode || '';
   const nombre = me.name || me.username || '';
 
-  // Leer grupos (async — ANTES de abrir WA)
+  // Leer grupos actuales para incluirlos en el mensaje
   let groupsLine = '';
   try {
     const snap = await db.collection('groups').get();
     const grupos = snap.docs.map(d => d.data());
     if (grupos.length) {
       const lista = grupos.map(g => {
-        const flag = (g.tournaments||[]).map(tid=>{const tr=TOURNAMENTS.find(t=>t.id===tid);return tr?.flag||'';}).filter(Boolean).slice(0,1).join('');
+        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
         return `  ${flag} *${g.name}*`;
       }).join('\n');
       groupsLine = `\n👥 *Grupos disponibles:*\n${lista}\n\n`;
     }
   } catch(e) {}
 
-  // Construir texto completo
-  const txt =
+  const msg = encodeURIComponent(
     `⚽ *QUINIELA LuAn* ⚽\n\n` +
     `👋 ¡Hola! Soy ${nombre} y te invito a la quiniela más emocionante.\n\n` +
     `🏆 Predice marcadores del mejor fútbol europeo y compite con amigos, familia y panas.\n\n` +
@@ -2204,15 +2203,9 @@ async function inviteToApp() {
     `⚠️ Si no predices antes del pitazo, se registra 0-0 en todos los partidos.\n\n` +
     `━━━━━━━━━━━━━━━━━━\n` +
     `🌾 Desarrollado por un hijo de Arichuna, con pasión por el fútbol\n` +
-    `_— luislárez_`;
-
-  // Abrir WA con <a>.click() — no bloqueado en Android aunque venga de async
-  const a = document.createElement('a');
-  a.href = `https://wa.me/?text=${encodeURIComponent(txt)}`;
-  a.target = '_blank'; a.rel = 'noopener noreferrer';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => document.body.removeChild(a), 200);
+    `_— luislárez_`
+  );
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
 }
 
 function openHowToPredict() {
@@ -2282,169 +2275,36 @@ function openHowToPredict() {
 }
 
 // ── Admin: ajustar cronómetro ──────────────────────────────
-function _askAdminCronAdjust(matchId, home, away, forcePhase) {
+function _askAdminCronAdjust(matchId, home, away) {
   if (!me?.isAdmin) return;
   const ex = document.getElementById('_cronAdjModal'); if (ex) ex.remove();
   const modal = document.createElement('div');
   modal.id = '_cronAdjModal';
   modal.className = 'modal-overlay';
   modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
-
-  // Detectar fase actual del partido
-  const wrap = document.getElementById(`badge_${matchId}`);
-  const phase = forcePhase || wrap?.dataset?.phase || '1H';
-  const phaseLabel = phase==='1H'?'1er Tiempo':phase==='2H'?'2do Tiempo':phase==='ET'?'Prórroga':'En Vivo';
-
-  // Valor actual del reloj para mostrar como referencia
-  const mainEl = document.getElementById(`badge_main_${matchId}`);
-  const tiempoActual = mainEl?.textContent?.replace('🔴 ','') || '00:00';
-
+  const cur = Math.round((window._adminCronOffset?.[matchId] || 0) / 60);
   modal.innerHTML = `
-    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
-      max-width:340px;width:94%;border:1px solid var(--border2);
-      box-shadow:0 20px 60px rgba(0,0,0,.6);">
-
-      <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:3px;">
-        ⏱ Control del Cronómetro
+    <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Ajustar cronómetro</div>
+      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${home} ${t('vsLabel')} ${away}</div>
+      <div style="color:var(--muted2);font-size:0.82em;margin-bottom:10px;">Offset actual: <strong id="_cronOffsetLbl" style="color:var(--gold)">${cur>0?'+':''}${cur} min</strong></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        ${[-10,-5,-3,-1,1,3,5,10].map(v=>`<button onclick="_setCronOffset('${matchId}',${v*60})" style="flex:1;min-width:52px;padding:8px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};color:${v<0?'var(--red)':'var(--green)'};border:1px solid ${v<0?'var(--red)':'var(--green)'}">${v>0?'+':''}${v}m</button>`).join('')}
       </div>
-      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:4px;">
-        ${home} vs ${away}
-      </div>
-      <div style="font-size:0.72em;color:var(--gold);font-family:var(--font-h);
-        margin-bottom:16px;background:rgba(255,197,66,0.08);
-        padding:5px 10px;border-radius:8px;border:1px solid rgba(255,197,66,0.2);">
-        🔴 ${phaseLabel} · Reloj actual: ${tiempoActual}
-      </div>
-
-      <!-- SECCIÓN 1: Arrancar desde tiempo exacto -->
-      <div style="background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.2);
-        border-radius:12px;padding:12px;margin-bottom:12px;">
-        <div style="font-size:0.72em;color:var(--green);font-weight:800;
-          text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
-          ▶️ Arrancar desde minuto exacto
-        </div>
-        <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">
-          ¿En qué minuto va el juego ahora mismo?
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <input type="text" id="_cronManualInput" placeholder="ej: 3:33"
-            maxlength="5"
-            style="flex:1;padding:10px 12px;background:var(--surface);
-            border:2px solid var(--green);border-radius:10px;
-            color:var(--text);font-family:var(--font-h);font-size:1.1em;
-            font-weight:800;text-align:center;outline:none;"
-            oninput="this.value=this.value.replace(/[^0-9:]/g,'')">
-          <span style="font-size:0.75em;color:var(--muted2);">mm:ss</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px;">
-          ${['45:01','46:00','60:00','75:00','80:00','90:01'].map(v=>
-            `<button onclick="document.getElementById('_cronManualInput').value='${v}'"
-              style="padding:7px 4px;border-radius:8px;cursor:pointer;
-              font-family:var(--font-h);font-size:0.78em;font-weight:800;
-              background:rgba(0,229,160,0.1);color:var(--green);
-              border:1px solid rgba(0,229,160,0.3);">${v}</button>`
-          ).join('')}
-        </div>
-        <button onclick="_setCronManual('${matchId}','${phase}')"
-          style="width:100%;padding:11px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.88em;font-weight:800;
-          background:linear-gradient(135deg,var(--green),#00b865);
-          color:#000;border:none;">
-          ▶️ ARRANCAR DESDE ESE TIEMPO
-        </button>
-      </div>
-
-      <!-- SECCIÓN 2: Ajuste fino con botones +/- -->
-      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border2);
-        border-radius:12px;padding:12px;margin-bottom:12px;">
-        <div style="font-size:0.72em;color:var(--muted2);font-weight:800;
-          text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-          ⚙️ Ajuste fino (offset)
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:5px;">
-          ${[-5,-3,-1,1,3,5].map(v=>
-            `<button onclick="_setCronOffset('${matchId}',${v*60})"
-              style="flex:1;min-width:46px;padding:9px 4px;border-radius:9px;cursor:pointer;
-              font-family:var(--font-h);font-size:0.85em;font-weight:800;
-              background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};
-              color:${v<0?'var(--red)':'var(--green)'};
-              border:1px solid ${v<0?'var(--red)':'var(--green)'};">
-              ${v>0?'+':''}${v}m</button>`
-          ).join('')}
-        </div>
-      </div>
-
-      <!-- SECCIÓN 3: Reset y OK -->
       <div style="display:flex;gap:8px;">
-        <button onclick="_setCronOffset('${matchId}',0,'reset')"
-          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.82em;font-weight:800;
-          background:rgba(255,140,66,0.15);color:var(--orange);
-          border:1px solid var(--orange);">↺ Reset</button>
-        <button onclick="document.getElementById('_cronAdjModal').remove()"
-          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.82em;font-weight:800;
-          background:linear-gradient(135deg,var(--primary),var(--primary2));
-          color:#fff;border:none;">✅ Listo</button>
+        <button onclick="_setCronOffset('${matchId}',0,'reset')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">↺ Reset</button>
+        <button onclick="document.getElementById('_cronAdjModal').remove()" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">✅ OK</button>
       </div>
     </div>`;
-
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  setTimeout(() => document.getElementById('_cronManualInput')?.focus(), 150);
 }
-
-// Arrancar cronómetro desde tiempo exacto escrito por el admin
-function _setCronManual(matchId, phase) {
-  const input = document.getElementById('_cronManualInput');
-  if (!input) return;
-  const val = input.value.trim();
-
-  // Parsear mm:ss o solo mm
-  let fromSec = 0;
-  if (val.includes(':')) {
-    const [mm, ss] = val.split(':').map(Number);
-    fromSec = (isNaN(mm)?0:mm)*60 + (isNaN(ss)?0:ss);
-  } else {
-    fromSec = (parseInt(val)||0) * 60;
-  }
-
-  if (fromSec < 0) fromSec = 0;
-
-  // Guardar kickoff manual: el reloj arranca AHORA desde fromSec
-  window._adminManualKick = window._adminManualKick || {};
-  window._adminManualKick[matchId] = {
-    ts:      Date.now(),
-    phase:   phase,
-    fromSec: fromSec
-  };
-
-  // Limpiar offset anterior para que no interfiera
-  window._adminCronOffset = window._adminCronOffset || {};
-  window._adminCronOffset[matchId] = 0;
-
-  // Limpiar auto-stop del tiempo extra al reiniciar
-  delete window._adminExtraStop[matchId];
-  delete window._adminExtraAsked[matchId];
-
-  const mm = String(Math.floor(fromSec/60)).padStart(2,'0');
-  const ss = String(fromSec%60).padStart(2,'0');
-  toast(`▶️ Reloj arrancado desde ${mm}:${ss}`, 'success', 2500);
-  document.getElementById('_cronAdjModal')?.remove();
-}
-
 function _setCronOffset(matchId, deltaSec, mode) {
   window._adminCronOffset = window._adminCronOffset || {};
-  window._adminCronOffset[matchId] = mode === 'reset'
-    ? 0
-    : (window._adminCronOffset[matchId] || 0) + deltaSec;
-  if (mode === 'reset') {
-    // Limpiar también el kickoff manual al hacer reset
-    delete window._adminManualKick?.[matchId];
-    delete window._adminExtraStop?.[matchId];
-    delete window._adminExtraAsked?.[matchId];
-  }
+  window._adminCronOffset[matchId] = mode === 'reset' ? 0 : (window._adminCronOffset[matchId] || 0) + deltaSec;
   const cur = Math.round(window._adminCronOffset[matchId] / 60);
+  const lbl = document.getElementById('_cronOffsetLbl');
+  if (lbl) lbl.textContent = `${cur>0?'+':''}${cur} min`;
   toast(`⏱ Offset: ${cur>0?'+':''}${cur} min`, 'info', 1500);
 }
 
@@ -2456,10 +2316,13 @@ function _askAdminExtraTime(m) {
   modal.id = '_extraTimeModal';
   modal.className = 'modal-overlay';
   modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
+
   const mid = String(m.id);
   const badge = document.getElementById(`badge_${mid}`);
   const phase = badge?.dataset?.phase || '1H';
-  const capMin = (phase==='1H'||phase==='HT') ? 45 : (phase==='2H') ? 90 : (phase==='ET'&&badge?.dataset?.etPhase==='1') ? 105 : 120;
+  const capMin = (phase==='1H'||phase==='HT') ? 45
+               : (phase==='2H') ? 90
+               : (phase==='ET') ? 105 : 120;
 
   modal.innerHTML = `
     <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
@@ -2477,7 +2340,7 @@ function _askAdminExtraTime(m) {
         ¿Cuántos minutos concedió el árbitro?
       </div>
 
-      <!-- Botones rápidos -->
+      <!-- Botones rápidos 1-10 -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px;">
         ${[1,2,3,4,5,6,7,8,9,10].map(v=>`
           <button onclick="_setAdminExtra('${mid}',${v})"
@@ -2488,33 +2351,36 @@ function _askAdminExtraTime(m) {
         ).join('')}
       </div>
 
-      <!-- Input libre para escribir -->
+      <!-- Input libre para escribir el valor exacto -->
       <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border2);
         border-radius:12px;padding:10px;margin-bottom:12px;">
         <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;">
           ✏️ O escríbelo tú:
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <span style="color:var(--gold);font-family:var(--font-h);font-size:1.1em;">+</span>
+          <span style="color:var(--gold);font-family:var(--font-h);font-size:1.1em;flex-shrink:0;">+</span>
           <input type="number" id="_extraTimeInput" min="1" max="20" placeholder="ej: 7"
             style="flex:1;padding:9px 12px;background:var(--surface);
             border:2px solid var(--gold);border-radius:9px;
             color:var(--gold);font-family:var(--font-h);font-size:1.1em;
-            font-weight:800;text-align:center;outline:none;">
-          <span style="color:var(--muted2);font-size:0.75em;">min</span>
+            font-weight:800;text-align:center;outline:none;"
+            onkeydown="if(event.key==='Enter')_setAdminExtraFromInput('${mid}')">
+          <span style="color:var(--muted2);font-size:0.75em;flex-shrink:0;">min</span>
           <button onclick="_setAdminExtraFromInput('${mid}')"
             style="padding:9px 14px;border-radius:9px;cursor:pointer;
             font-family:var(--font-h);font-size:0.82em;font-weight:800;
             background:linear-gradient(135deg,var(--gold),#f0a500);
-            color:#000;border:none;">OK</button>
+            color:#000;border:none;flex-shrink:0;">OK</button>
         </div>
       </div>
 
+      <!-- Info auto-stop -->
       <div style="font-size:0.68em;color:var(--muted2);margin-bottom:10px;
         background:rgba(0,229,160,0.06);border-radius:8px;padding:7px 10px;
         border:1px solid rgba(0,229,160,0.15);">
-        ⚡ El chip extra se detiene automáticamente a los <b style="color:var(--green)">valor+2 minutos</b>.
-        El admin puede pararlo antes tocando el chip.
+        ⚡ El chip extra para automáticamente a los
+        <strong style="color:var(--green);">valor + 2 minutos</strong>.
+        El admin puede tocarlo antes para detenerlo.
       </div>
 
       <div style="display:flex;gap:8px;">
@@ -2530,8 +2396,10 @@ function _askAdminExtraTime(m) {
           border:1px solid var(--border2);">Cancelar</button>
       </div>
     </div>`;
+
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  // Foco automático al input para escribir rápido
   setTimeout(() => document.getElementById('_extraTimeInput')?.focus(), 150);
 }
 
@@ -2539,7 +2407,7 @@ function _setAdminExtraFromInput(matchId) {
   const inp = document.getElementById('_extraTimeInput');
   const val = parseInt(inp?.value);
   if (!val || val < 1 || val > 20) {
-    if(inp) inp.style.borderColor = 'var(--red)';
+    if (inp) { inp.style.borderColor = 'var(--red)'; inp.focus(); }
     return;
   }
   _setAdminExtra(matchId, val);
@@ -2548,116 +2416,15 @@ function _setAdminExtraFromInput(matchId) {
 function _setAdminExtra(matchId, val) {
   window._adminExtraTime  = window._adminExtraTime  || {};
   window._adminExtraStop  = window._adminExtraStop  || {};
+  window._adminExtraAsked = window._adminExtraAsked || {};
   window._adminExtraTime[matchId] = val;
-  // Resetear el auto-stop para que cuente desde ahora
+  // Resetear auto-stop para que el nuevo valor empiece a contar desde cero
   delete window._adminExtraStop[matchId];
   document.getElementById('_extraTimeModal')?.remove();
   const label = val === '?' ? '+? (pendiente)' : `+${val} minutos`;
-  toast(`⏱ Tiempo añadido: ${label} — se para a los ${val !== '?' ? val+2 : '?'} min`, 'success', 3000);
+  const stopInfo = val !== '?' ? ` · para a los ${val+2}'` : '';
+  toast(`⏱ Tiempo añadido: ${label}${stopInfo}`, 'success', 3000);
 }
-
-// ── Admin: arrancar reloj manual cuando API no ha marcado el partido como live
-function _adminArrancarManual(matchId, home, away) {
-  if (!me?.isAdmin) return;
-  const ex = document.getElementById('_arrancarModal'); if (ex) ex.remove();
-  const modal = document.createElement('div');
-  modal.id = '_arrancarModal';
-  modal.className = 'modal-overlay';
-  modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
-  modal.innerHTML = `
-    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
-      max-width:340px;width:94%;border:1px solid rgba(0,229,160,0.3);
-      box-shadow:0 20px 60px rgba(0,0,0,.6);">
-      <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:3px;">
-        ▶️ Arrancar Cronómetro
-      </div>
-      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:12px;">
-        ${home} vs ${away}
-      </div>
-      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">
-        ¿En qué fase va el juego?
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">
-        ${[['1H','🔴 1er Tiempo'],['2H','🔴 2do Tiempo'],['ET','🔴 Prórroga'],['P','⚡ Penales']].map(([ph,lbl])=>`
-          <button onclick="document.querySelectorAll('._phaseBtn').forEach(b=>b.classList.remove('_sel'));this.classList.add('_sel');document.getElementById('_arrancarPhase').value='${ph}'"
-            class="_phaseBtn"
-            style="padding:10px 4px;border-radius:10px;cursor:pointer;
-            font-family:var(--font-h);font-size:0.82em;font-weight:800;
-            background:rgba(0,229,160,0.08);color:var(--green);
-            border:1.5px solid rgba(0,229,160,0.25);transition:all .15s;">
-            ${lbl}</button>`
-        ).join('')}
-      </div>
-      <input type="hidden" id="_arrancarPhase" value="1H">
-      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">
-        ¿En qué minuto va? (deja en 0:00 si acaba de empezar)
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
-        <input type="text" id="_arrancarMin" placeholder="0:00" maxlength="5"
-          style="flex:1;padding:10px 12px;background:var(--surface);
-          border:2px solid var(--green);border-radius:10px;
-          color:var(--text);font-family:var(--font-h);font-size:1.1em;
-          font-weight:800;text-align:center;outline:none;"
-          oninput="this.value=this.value.replace(/[^0-9:]/g,'')">
-        <span style="font-size:0.75em;color:var(--muted2);">mm:ss</span>
-      </div>
-      <button onclick="_confirmarArranqueManual('${matchId}')"
-        style="width:100%;padding:12px;border-radius:12px;cursor:pointer;
-        font-family:var(--font-h);font-size:0.9em;font-weight:800;
-        background:linear-gradient(135deg,var(--green),#00b865);
-        color:#000;border:none;margin-bottom:8px;">
-        ▶️ ARRANCAR AHORA
-      </button>
-      <button onclick="document.getElementById('_arrancarModal').remove()"
-        style="width:100%;padding:10px;border-radius:10px;cursor:pointer;
-        font-family:var(--font-h);font-size:0.82em;font-weight:800;
-        background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">
-        Cancelar
-      </button>
-    </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  // Marcar 1H por defecto
-  setTimeout(() => {
-    const btns = document.querySelectorAll('._phaseBtn');
-    if (btns[0]) btns[0].classList.add('_sel');
-    btns.forEach(b => b.addEventListener('click', () => {
-      b.style.background='rgba(0,229,160,0.25)';
-      b.style.borderColor='var(--green)';
-      b.style.color='var(--green)';
-    }));
-  }, 50);
-}
-
-function _confirmarArranqueManual(matchId) {
-  const phase = document.getElementById('_arrancarPhase')?.value || '1H';
-  const minVal = document.getElementById('_arrancarMin')?.value?.trim() || '0:00';
-
-  let fromSec = 0;
-  if (minVal.includes(':')) {
-    const [mm, ss] = minVal.split(':').map(Number);
-    fromSec = (isNaN(mm)?0:mm)*60 + (isNaN(ss)?0:ss);
-  } else {
-    fromSec = (parseInt(minVal)||0)*60;
-  }
-
-  // Si es 2do tiempo y no pusieron minuto, arrancar desde 45:01
-  if (phase === '2H' && fromSec < 45*60) fromSec = 45*60 + 1;
-  if (phase === 'ET' && fromSec < 90*60) fromSec = 90*60 + 1;
-
-  window._adminManualKick = window._adminManualKick || {};
-  window._adminManualKick[matchId] = { ts: Date.now(), phase, fromSec };
-  window._adminCronOffset = window._adminCronOffset || {};
-  window._adminCronOffset[matchId] = 0;
-  delete window._adminExtraStop?.[matchId];
-  delete window._adminExtraAsked?.[matchId];
-
-  const mm = String(Math.floor(fromSec/60)).padStart(2,'0');
-  const ss = String(fromSec%60).padStart(2,'0');
-  toast(`▶️ Reloj arrancado: ${mm}:${ss} — ${phase}`, 'success', 2500);
-  document.getElementById('_arrancarModal')?.remove();
-}
-
 
 // Generate unique color per user based on their username
 function userColor(username) {
@@ -2741,9 +2508,9 @@ function switchAuthTab(tab) {
     $(`form${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.add('hidden');
     $(`tab${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.remove('active');
   });
-  $(`form${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
+  $(`form${tab.charAt(0).toUpperCase()+tab.slice(1)}`)?.classList.remove('hidden');
   if (tab!=='reset') {
-    $(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.add('active');
+    $(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`)?.classList.add('active');
   }
 }
 
@@ -2865,9 +2632,6 @@ async function doReset() {
 async function doLogout() {
   clearTimeout(syncTimer);
   if (chatUnsub) chatUnsub();
-  // ML v6: limpiar caché de historial al cerrar sesión
-  _mlHistorial = [];
-  _mlCacheClear();
   await auth.signOut();
 }
 
@@ -2925,8 +2689,11 @@ auth.onAuthStateChanged(async user => {
 // ENTER APP
 // ═══════════════════════════════════════════
 async function enterApp() {
-  $('authScreen').classList.add('hidden');
-  $('mainApp').classList.remove('hidden');
+  const authScr = $('authScreen');
+  const mainScr = $('mainApp');
+  if (!authScr || !mainScr) { console.error('DOM no listo'); return; }
+  authScr.classList.add('hidden');
+  mainScr.classList.remove('hidden');
 
   // Check if user has a pending temp password reset
   try {
@@ -2953,8 +2720,8 @@ async function enterApp() {
   statsHdrBtn.onclick = openMyStats;
   $('hdrAdminBadge')?.parentElement?.appendChild(statsHdrBtn);
   if (me.isAdmin) {
-    $('hdrAdminBadge').classList.remove('hidden');
-    $('nav-admin').classList.remove('hidden');
+    $('hdrAdminBadge')?.classList.remove('hidden');
+    $('nav-admin')?.classList.remove('hidden');
   } else {
     // Jugadores no necesitan la pestaña Torneos — las ligas las gestiona el Admin
     $('nav-tournaments')?.classList.add('hidden');
@@ -2994,15 +2761,11 @@ async function enterApp() {
   // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
   // Chip añadido:    [+? | 00:01] arranca automático al pasar 45:00 / 90:00
   //                 Si la API manda el tiempo añadido, reemplaza '?' con el número
-  window._adminCronOffset  = window._adminCronOffset  || {}; // { matchId: seconds }
-  window._adminExtraTime   = window._adminExtraTime   || {}; // { matchId: minutes }
-  window._adminExtraAsked  = window._adminExtraAsked  || {}; // { matchId: true }
-  window._k2H              = window._k2H              || {}; // kickoff real 2do tiempo
-  window._kET              = window._kET              || {}; // kickoff real prórroga
-  // ✅ NUEVO: arranque manual del reloj por el admin cuando API no responde
-  window._adminManualKick  = window._adminManualKick  || {}; // { matchId: {ts, phase, fromSec} }
-  // ✅ NUEVO: auto-stop del tiempo extra cuando llega a valor+2
-  window._adminExtraStop   = window._adminExtraStop   || {}; // { matchId: true }
+  window._adminCronOffset = window._adminCronOffset || {}; // { matchId: seconds }
+  window._adminExtraTime  = window._adminExtraTime  || {}; // { matchId: minutes }
+  window._adminExtraAsked = window._adminExtraAsked || {}; // { matchId: true }
+  window._k2H = window._k2H || {}; // kickoff real 2do tiempo { matchId: timestamp }
+  window._kET = window._kET || {}; // kickoff real prórroga   { matchId: timestamp }
 
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
@@ -3061,32 +2824,22 @@ async function enterApp() {
           const totalM = Math.floor(dispSec / 60);
           capMin = totalM < 105 ? 105 : 120;
         } else if (phase === '2H') {
-          const manualK2 = window._adminManualKick[mid];
-          if (manualK2 && manualK2.phase === '2H') {
-            dispSec = Math.max(0, Math.floor((now - manualK2.ts) / 1000)) + manualK2.fromSec;
+          const k2H = window._k2H[mid];
+          if (k2H) {
+            // Kickoff real del 2do tiempo grabado cuando la API cambió a '2H'
+            dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
+          } else if (kickoffMs) {
+            // Fallback: estimamos que el descanso duró 15 min (kickoff + 45' juego + 15' descanso = 60 min)
+            const elapsed = Math.floor((now - kickoffMs) / 1000);
+            const secondHalfStart = elapsed - 60*60; // segundos desde inicio estimado del 2H
+            dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
           } else {
-            const k2H = window._k2H[mid];
-            if (k2H) {
-              dispSec = Math.max(0, Math.floor((now - k2H) / 1000)) + 45*60 + adminOffset;
-            } else if (kickoffMs) {
-              const elapsed = Math.floor((now - kickoffMs) / 1000);
-              const secondHalfStart = elapsed - 60*60;
-              dispSec = Math.max(0, secondHalfStart) + 45*60 + adminOffset;
-            } else {
-              mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')} `; extraEl.style.display='none'; return;
-            }
+            mainEl.textContent = `🔴 ${t('st_2H').replace('🔴 ','')} `; extraEl.style.display='none'; return;
           }
           capMin = 90;
         } else if (phase === '1H') {
-          // ✅ Si el admin arrancó manualmente, usar su kickoff en lugar del del API
-          const manualK = window._adminManualKick[mid];
-          if (manualK && manualK.phase === '1H') {
-            dispSec = Math.max(0, Math.floor((now - manualK.ts) / 1000)) + manualK.fromSec;
-          } else if (kickoffMs) {
-            dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
-          } else {
-            mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
-          }
+          if (!kickoffMs) { mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return; }
+          dispSec = Math.max(0, Math.floor((now - kickoffMs) / 1000)) + adminOffset;
           capMin  = 45;
         } else {
           mainEl.textContent = `🔴 En Vivo`; extraEl.style.display='none'; return;
@@ -3101,37 +2854,15 @@ async function enterApp() {
           extraEl.style.display = 'none';
         } else {
           mainEl.textContent = `🔴 ${capMin}:00`;
-          const extraMin      = totalMin - capMin;
-          const extraSec_raw  = dispSec - capMin*60;
-          const extraSS       = String(sec).padStart(2, '0');
-          const adminExtra    = window._adminExtraTime[mid];
+          const extraMin     = totalMin - capMin;
+          const extraSS      = String(sec).padStart(2, '0');
+          const adminExtra   = window._adminExtraTime[mid];
           const officialExtra = adminExtra ?? m.intExtraTime ?? m.strExtraTime ?? null;
-          const extraValNum   = officialExtra && officialExtra !== '?' ? parseInt(officialExtra) : null;
-          const addedLabel    = officialExtra ? `+${officialExtra}` : '+?';
-
-          // ✅ AUTO-STOP: cuando llega a valor+2 minutos, congelar el chip extra
-          if (extraValNum && extraMin >= extraValNum + 2 && !window._adminExtraStop[mid]) {
-            window._adminExtraStop[mid] = true;
-          }
-          const extraFrozen = window._adminExtraStop[mid];
-          const dispExtraMin = extraFrozen ? (extraValNum + 2) : extraMin;
-          const dispExtraSS  = extraFrozen ? '00' : extraSS;
-
-          extraEl.textContent  = `${addedLabel} | ${String(dispExtraMin).padStart(2,'0')}:${dispExtraSS}`;
+          const addedLabel   = officialExtra ? `+${officialExtra}` : '+?';
+          extraEl.textContent  = `${addedLabel} | ${String(extraMin).padStart(2,'0')}:${extraSS}`;
           extraEl.style.display = 'inline-block';
-          // Estilo visual diferente cuando está frozzen
-          if (extraFrozen) {
-            extraEl.style.opacity = '0.6';
-            extraEl.style.border  = '1px solid #aaa';
-            extraEl.style.color   = '#aaa';
-          } else {
-            extraEl.style.opacity = '1';
-            extraEl.style.border  = '1px solid #ffd700';
-            extraEl.style.color   = '#ffd700';
-          }
-
-          // Auto-preguntar al admin si el tiempo extra aún es '?' y ya van 2+ min
-          if (extraMin >= 2 && !officialExtra && me?.isAdmin && !window._adminExtraAsked[mid]) {
+          // Auto-preguntar al admin a los 8+ min de tiempo añadido
+          if (extraMin >= 8 && me?.isAdmin && !window._adminExtraAsked[mid]) {
             window._adminExtraAsked[mid] = true;
             setTimeout(() => _askAdminExtraTime(m), 300);
           }
@@ -3662,13 +3393,6 @@ function renderMatches() {
     const hi=$(`hi_${mid}`),ai=$(`ai_${mid}`);
     if(hi)hi.value=v.h; if(ai)ai.value=v.a;
   });
-
-  // ── Predictor Lárez: mostrar sugerencias en cada partido abierto ──
-  if(!closed) {
-    _dM.forEach(m => {
-      _mlMostrarSugerencia(String(m.id), m.home, m.away);
-    });
-  }
 }
 
 // ═══════════════════════════════════════════
@@ -3837,20 +3561,7 @@ function buildMatchCard(m, closed) {
     <div style="display:flex;gap:6px;margin-top:8px;">
       <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
       <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
-      ${live && me?.isAdmin ? `
-        <button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')"
-          style="padding:11px 10px;border-radius:12px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.85em;font-weight:800;
-          background:rgba(255,197,66,0.1);color:var(--gold);
-          border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;"
-          title="Ajustar cronómetro">⏱</button>` : ''}
-      ${!live && !done && me?.isAdmin ? `
-        <button onclick="_adminArrancarManual('${m.id}','${m.home}','${m.away}')"
-          style="padding:11px 10px;border-radius:12px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.85em;font-weight:800;
-          background:rgba(0,229,160,0.12);color:var(--green);
-          border:1px solid var(--green);-webkit-tap-highlight-color:transparent;"
-          title="Arrancar cronómetro manualmente">▶️</button>` : ''}
+      ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
     </div>` : '';
   const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
@@ -3866,8 +3577,6 @@ function buildMatchCard(m, closed) {
         onclick="openExpress('${m.id}')">
         ⚡ ${t('predictMatch').replace('⚡ ','')}
       </button>
-      <!-- Predictor Lárez: badge de sugerencia -->
-      <div id="ml_sug_${m.id}" style="display:none;"></div>
     </div>` : '';
 
   // ── Tarjetas/penaltis en vivo desde cache ──────────────
@@ -4714,376 +4423,6 @@ async function savePreds() {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-//  🧠 MÉTODO LÁREZ — Las 5 mejoras · LuAn System™
-// ═══════════════════════════════════════════════════════════════
-
-// ── UTILIDADES FUZZY (mismas que la farmacia) ──────────────────
-function _mlNorm(str) {
-  return (str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
-}
-function _mlLevenshtein(a,b) {
-  const m=a.length,n=b.length;
-  const dp=Array.from({length:m+1},(_,i)=>[i]);
-  for(let j=0;j<=n;j++) dp[0][j]=j;
-  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++)
-    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
-  return dp[m][n];
-}
-function _mlFuzzy(hay,needle) {
-  const h=_mlNorm(hay), n=_mlNorm(needle);
-  if(!n) return null;
-  if(h.includes(n)) return 0;
-  const words=h.split(/[\s\-\/,]+/);
-  let best=Infinity;
-  for(const w of words) {
-    if(w.length<3||Math.abs(w.length-n.length)>3) continue;
-    const d=_mlLevenshtein(w,n);
-    const maxLen=Math.max(w.length,n.length);
-    // ML v6: Umbral dinámico según longitud — más estricto en palabras cortas
-    let umbral;
-    if(maxLen<=3)      umbral=0;    // exacto obligatorio
-    else if(maxLen<=5) umbral=0.20; // máx 1 error en 5 letras
-    else if(maxLen<=7) umbral=0.28; // máx 2 errores en 7 letras
-    else               umbral=0.35; // 35% para palabras largas
-    if(d/maxLen<=umbral) best=Math.min(best,d);
-  }
-  return best===Infinity?null:best;
-}
-
-// ──────────────────────────────────────────────────────────────
-//  MEJORA 1 — PREDICTOR LÁREZ (v6: caché + decaimiento temporal)
-//  Aprende de las últimas predicciones del jugador y sugiere
-// ──────────────────────────────────────────────────────────────
-let _mlHistorial = [];
-
-// ML v6: Caché localStorage para evitar releer Firebase cada sesión
-// El caché expira en 6 horas para mantenerse fresco
-function _mlCacheKey()  { return `ml_historial_${me?.uid||'anon'}`; }
-function _mlCacheGet()  {
-  try {
-    const raw = localStorage.getItem(_mlCacheKey());
-    if(!raw) return null;
-    const { ts, data } = JSON.parse(raw);
-    const seisHoras = 6*60*60*1000;
-    if(Date.now() - ts > seisHoras) { localStorage.removeItem(_mlCacheKey()); return null; }
-    return data;
-  } catch(e) { return null; }
-}
-function _mlCacheSet(data) {
-  try { localStorage.setItem(_mlCacheKey(), JSON.stringify({ ts: Date.now(), data })); } catch(e) {}
-}
-function _mlCacheClear() {
-  try { localStorage.removeItem(_mlCacheKey()); } catch(e) {}
-}
-
-async function _mlCargarHistorial() {
-  if(!me?.uid) return;
-  if(_mlHistorial.length) return; // ya cargado en esta sesión
-  // Intentar desde caché primero (evita leer Firebase en cada carga)
-  const cached = _mlCacheGet();
-  if(cached && cached.length) { _mlHistorial = cached; return; }
-  try {
-    const snap = await db.collection('predictions')
-      .where('userId','==',me.uid)
-      .where('evaluated','==',true)
-      .orderBy('timestamp','desc').limit(80).get();
-    _mlHistorial = snap.docs.map(d=>d.data());
-    _mlCacheSet(_mlHistorial); // guardar en caché
-  } catch(e) {}
-}
-
-// ML v6: Decaimiento temporal — predicciones recientes pesan más
-// Una predicción de hace 3 días pesa más que una de hace 90 días
-function _mlPesoDecaimiento(pred) {
-  if(!pred.timestamp?.seconds) return 1;
-  const diasDesde = (Date.now()/1000 - pred.timestamp.seconds) / 86400;
-  // Decaimiento exponencial: peso = e^(-diasDesde/30)
-  // A 30 días el peso es ~37%, a 90 días es ~5%
-  return Math.exp(-diasDesde / 30);
-}
-
-function _mlSugerirMarcador(home, away) {
-  if(!_mlHistorial.length) return null;
-  const similares = _mlHistorial.filter(p => {
-    const mismoHome = _mlFuzzy(p.home||'', home) !== null;
-    const mismoAway = _mlFuzzy(p.away||'', away) !== null;
-    return mismoHome || mismoAway;
-  });
-  if(!similares.length) return null;
-
-  // ML v6: contar marcadores con peso temporal — recientes pesan más
-  const freq = {};
-  similares.forEach(p => {
-    const k = `${p.predictedHomeScore}-${p.predictedAwayScore}`;
-    const peso = _mlPesoDecaimiento(p);
-    freq[k] = (freq[k]||0) + peso;
-  });
-  const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
-  if(!top) return null;
-  const [h,a] = top[0].split('-').map(Number);
-  // Mostrar conteo real (sin decimales) para el usuario
-  const conteoReal = similares.filter(p =>
-    `${p.predictedHomeScore}-${p.predictedAwayScore}` === top[0]
-  ).length;
-  return { h, a, count: conteoReal, total: similares.length };
-}
-
-// Mostrar badge de sugerencia Lárez en la tarjeta del partido
-async function _mlMostrarSugerencia(matchId, home, away) {
-  await _mlCargarHistorial();
-  const sug = _mlSugerirMarcador(home, away);
-  if(!sug) return;
-  const badge = document.getElementById(`ml_sug_${matchId}`);
-  if(!badge) return;
-  badge.innerHTML = `
-    <div style="margin-top:6px;padding:6px 10px;background:rgba(108,71,255,0.12);
-      border:1px solid rgba(108,71,255,0.3);border-radius:8px;
-      font-size:0.72em;color:var(--primary2);display:flex;align-items:center;justify-content:space-between;">
-      <span>🧠 <strong>Predictor Lárez:</strong> Solías predecir
-        <strong>${sug.h}−${sug.a}</strong>
-        (${sug.count}/${sug.total} veces)</span>
-      <button onclick="_mlAplicarSugerencia('${matchId}',${sug.h},${sug.a})"
-        style="margin-left:8px;padding:3px 9px;border-radius:6px;border:none;
-        background:var(--primary);color:white;font-size:0.9em;cursor:pointer;font-weight:700;">
-        Usar
-      </button>
-    </div>`;
-  badge.style.display = 'block';
-}
-
-function _mlAplicarSugerencia(matchId, h, a) {
-  const hi = $(`hi_${matchId}`), ai = $(`ai_${matchId}`);
-  if(hi) { if(hi.tagName==='INPUT') hi.value=h; else hi.textContent=h; }
-  if(ai) { if(ai.tagName==='INPUT') ai.value=a; else ai.textContent=a; }
-  toast(`✅ Predictor Lárez: ${h}−${a} aplicado`,'success');
-  const badge = document.getElementById(`ml_sug_${matchId}`);
-  if(badge) badge.style.display='none';
-}
-
-// ──────────────────────────────────────────────────────────────
-//  MEJORA 2 — ADMIN FLOW LÁREZ
-//  Panel admin reorganizado por flujo semanal natural
-// ──────────────────────────────────────────────────────────────
-function renderAdminFlow() {
-  const out = $('adminOut');
-  if(!out) return;
-  const hora = vzNow().getHours();
-  // Detectar momento del día para sugerir la acción más probable
-  let pasos;
-  if(hora < 12) {
-    // Mañana: lo más probable es revisar quién no predijo y mandar recordatorio
-    pasos = [
-      {icon:'👥', label:'Ver quién no ha predicho hoy', hint:'Primera acción del día', fn:'adminUsers()'},
-      {icon:'📲', label:'Mandar recordatorio WA', hint:'A los que aún no predicen', fn:'adminShowGroups()'},
-      {icon:'⚡', label:'Evaluar partidos', hint:'Cuando terminen los partidos', fn:'adminEval()'},
-      {icon:'📊', label:'Compartir pizarra', hint:'Después de evaluar', fn:'openRankWAMenu()'},
-    ];
-  } else if(hora < 18) {
-    // Tarde: partidos en curso o por empezar
-    pasos = [
-      {icon:'⚡', label:'Evaluar partidos en curso', hint:'Actualiza puntos en vivo', fn:'adminEval()'},
-      {icon:'👥', label:'Ver estado de jugadores', hint:'Quién predijo, quién no', fn:'adminUsers()'},
-      {icon:'📊', label:'Compartir pizarra en vivo', hint:'Comparte la clasificación actual', fn:'openRankWAMenu()'},
-      {icon:'📲', label:'Mandar recordatorio', hint:'Si quedan partidos por predecir', fn:'adminShowGroups()'},
-    ];
-  } else {
-    // Noche: cierre de jornada
-    pasos = [
-      {icon:'⚡', label:'Evaluar y cerrar jornada', hint:'Calcula puntos finales', fn:'adminEval()'},
-      {icon:'📊', label:'Compartir pizarra final', hint:'El resultado de la jornada', fn:'openRankWAMenu()'},
-      {icon:'🏅', label:'Ver rachas y badges', hint:'Quién está en racha', fn:'_mlMostrarRachas()'},
-      {icon:'👥', label:'Felicitar al ganador', hint:'Manda WA al top 1', fn:'adminUsers()'},
-    ];
-  }
-
-  const flowHtml = pasos.map((p,i) => `
-    <button onclick="${p.fn}"
-      style="width:100%;margin-bottom:8px;padding:13px 14px;
-      background:var(--surface2);border:1px solid var(--border2);
-      border-radius:var(--r);cursor:pointer;text-align:left;
-      display:flex;align-items:center;gap:12px;
-      font-family:var(--font-b);">
-      <span style="font-size:1.6em;flex-shrink:0;">${p.icon}</span>
-      <div style="flex:1;">
-        <div style="font-weight:700;font-size:0.88em;color:var(--text);">${p.label}</div>
-        <div style="font-size:0.72em;color:var(--muted2);margin-top:2px;">${p.hint}</div>
-      </div>
-      <span style="color:var(--primary2);font-size:0.9em;">→</span>
-    </button>`).join('');
-
-  out.innerHTML = `
-    <div style="font-size:0.7em;color:var(--primary2);font-weight:700;
-      text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
-      🧠 Método Lárez — Flujo recomendado para ahora (${hora}:00h)
-    </div>
-    ${flowHtml}
-    <div style="margin-top:8px;font-size:0.7em;color:var(--muted2);text-align:center;">
-      Toca cualquier acción para ejecutarla directamente
-    </div>`;
-}
-
-// ──────────────────────────────────────────────────────────────
-//  MEJORA 3 — CHAT INTELIGENTE LÁREZ
-//  Detecta intenciones en el chat y responde con acciones
-// ──────────────────────────────────────────────────────────────
-const _mlIntenciones = [
-  { keys:['clasificacion','clasificación','pizarra','tabla','ranking','posicion','posición','puntos','quien va'],
-    action: () => { closeModal && closeModal('chatModal'); openGroupRanking(activeGroupId||''); } ,
-    resp: '📊 Abriendo la clasificación...' },
-  { keys:['cuantos puntos','mis puntos','cuanto llevo','tengo puntos','puntaje'],
-    action: () => { openMyStats(); },
-    resp: '📈 Abriendo tus estadísticas...' },
-  { keys:['quien gana','quien lidera','lider','primero','top 1'],
-    action: () => { if(_currentRankData?.ranked?.length) { const p=_currentRankData.ranked[0]; toast(`🥇 ${p.username} va primero con ${p.grpPts}pts`,'success',4000); } else { toast('Carga la clasificación primero','info'); } },
-    resp: null },
-  { keys:['como predecir','como se predice','no sé predecir','como jugar','tutorial'],
-    action: () => { openHowToPredict(); },
-    resp: '🎓 Abriendo el tutorial...' },
-  { keys:['cuando empiezan','que hora','horario','que partidos','partidos hoy'],
-    action: () => { showScreen('matches'); },
-    resp: '⚽ Viendo los partidos...' },
-  { keys:['mi historial','mis predicciones','que predije','historial'],
-    action: () => { openMyPredictions(); },
-    resp: '📋 Abriendo tu historial...' },
-];
-
-function _mlDetectarIntencion(texto) {
-  const norm = _mlNorm(texto);
-  for(const intent of _mlIntenciones) {
-    for(const key of intent.keys) {
-      if(_mlFuzzy(norm, key) !== null || norm.includes(_mlNorm(key))) {
-        return intent;
-      }
-    }
-  }
-  return null;
-}
-
-// ──────────────────────────────────────────────────────────────
-//  MEJORA 4 — PERFIL DE PREDICTOR LÁREZ
-//  Calcula y muestra el estilo de predicción de cada jugador
-// ──────────────────────────────────────────────────────────────
-function _mlCalcPerfilPredictor(preds) {
-  if(!preds||!preds.length) return null;
-  const total = preds.length;
-  // ¿Favorece al local?
-  const localWins = preds.filter(p=>p.predictedHomeScore>p.predictedAwayScore).length;
-  const empates   = preds.filter(p=>p.predictedHomeScore===p.predictedAwayScore).length;
-  const visitWins = total - localWins - empates;
-  // Marcador más frecuente
-  const freqM = {};
-  preds.forEach(p=>{ const k=`${p.predictedHomeScore}-${p.predictedAwayScore}`; freqM[k]=(freqM[k]||0)+1; });
-  const topMarcador = Object.entries(freqM).sort((a,b)=>b[1]-a[1])[0];
-  // Equipo favorito (más veces predicho ganando)
-  const equipoFav = {};
-  preds.forEach(p=>{
-    if(p.predictedHomeScore>p.predictedAwayScore) equipoFav[p.home]=(equipoFav[p.home]||0)+1;
-    if(p.predictedAwayScore>p.predictedHomeScore) equipoFav[p.away]=(equipoFav[p.away]||0)+1;
-  });
-  const topEquipo = Object.entries(equipoFav).sort((a,b)=>b[1]-a[1])[0];
-  // Tendencia de goles
-  const promedioGoles = preds.reduce((s,p)=>s+(p.predictedHomeScore+p.predictedAwayScore),0)/total;
-  // Estilo
-  let estilo, estiloEmoji;
-  const pctLocal = localWins/total;
-  const pctEmpate = empates/total;
-  if(pctLocal>0.6) { estilo='Localista'; estiloEmoji='🏠'; }
-  else if(pctEmpate>0.3) { estilo='Diplomático'; estiloEmoji='🤝'; }
-  else if(promedioGoles>3) { estilo='Goleador'; estiloEmoji='💥'; }
-  else if(promedioGoles<1.5) { estilo='Táctico'; estiloEmoji='🛡️'; }
-  else { estilo='Equilibrado'; estiloEmoji='⚖️'; }
-
-  return { total, localWins, empates, visitWins, topMarcador, topEquipo, promedioGoles: promedioGoles.toFixed(1), estilo, estiloEmoji };
-}
-
-// ──────────────────────────────────────────────────────────────
-//  MEJORA 5 — RACHAS Y BADGES LÁREZ
-//  Detecta rachas automáticamente y genera badges para WA
-// ──────────────────────────────────────────────────────────────
-async function _mlMostrarRachas() {
-  if(!activeGroupId) { toast('Selecciona un grupo primero','info'); return; }
-  const out = $('adminOut');
-  if(out) out.innerHTML='⏳ Calculando rachas...';
-
-  try {
-    const gdoc = await db.collection('groups').doc(activeGroupId).get();
-    const g = gdoc.data();
-    const memberIds = (g.members||[]).map(m=>m.userId);
-
-    // Cargar todas las predicciones evaluadas del grupo
-    const pSnap = await db.collection('predictions')
-      .where('groupId','==',activeGroupId)
-      .where('evaluated','==',true).get();
-
-    // Agrupar por usuario y por fecha
-    const byUser = {};
-    pSnap.docs.forEach(d=>{
-      const p=d.data();
-      if(!byUser[p.userId]) byUser[p.userId]={username:p.username,preds:[]};
-      byUser[p.userId].preds.push(p);
-    });
-
-    // Calcular rachas y badges para cada jugador
-    const badges = [];
-    Object.entries(byUser).forEach(([uid, data]) => {
-      const preds = data.preds.sort((a,b)=>(b.timestamp?.seconds||0)-(a.timestamp?.seconds||0));
-      // Racha actual de aciertos
-      let rachaActual=0, rachaMax=0, cur=0;
-      let exactosHoy=0;
-      const hoy=vzDate();
-      preds.forEach(p=>{
-        if(p.jornadaDate===hoy && p.pointsAwarded===5) exactosHoy++;
-        if(p.pointsAwarded>0){cur++;rachaMax=Math.max(rachaMax,cur);}
-        else cur=0;
-      });
-      for(const p of preds){if(p.pointsAwarded>0)rachaActual++;else break;}
-
-      const userBadges=[];
-      if(rachaActual>=3) userBadges.push(`🔥 Racha de ${rachaActual} aciertos seguidos`);
-      if(exactosHoy>=3) userBadges.push(`⭐ ${exactosHoy} exactos hoy — ¡Impresionante!`);
-      if(rachaMax>=5)   userBadges.push(`👑 Mejor racha histórica: ${rachaMax} aciertos`);
-      if(userBadges.length) badges.push({username:data.username, badges:userBadges});
-    });
-
-    if(!badges.length) {
-      if(out) out.innerHTML='<div style="color:var(--muted2);font-size:0.85em;text-align:center;padding:20px;">Sin rachas destacadas esta jornada 👀</div>';
-      return;
-    }
-
-    // Construir mensaje de WA con todas las rachas
-    let waText = `🏅 *RACHAS Y BADGES — ${g.name}*\n🧠 _Método Lárez · LuAn System_\n${'━'.repeat(18)}\n\n`;
-    badges.forEach(b=>{ waText += `👤 *${b.username}*\n${b.badges.map(x=>`  ${x}`).join('\n')}\n\n`; });
-    waText += `${'━'.repeat(18)}\n⚽ Quiniela LuAn`;
-
-    let html = `<div style="font-size:0.78em;font-weight:800;color:var(--primary2);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">🏅 Rachas detectadas</div>`;
-    badges.forEach(b=>{
-      html+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px;">
-        <div style="font-weight:700;margin-bottom:4px;">👤 ${b.username}</div>
-        ${b.badges.map(x=>`<div style="font-size:0.78em;color:var(--gold);margin-top:3px;">${x}</div>`).join('')}
-      </div>`;
-    });
-    html += `<button onclick="_mlCompartirRachas(${JSON.stringify(waText).replace(/'/g,"\\'")})"
-      style="width:100%;margin-top:10px;padding:11px;border-radius:40px;border:none;
-      background:#25D366;color:white;font-weight:700;cursor:pointer;font-family:var(--font-b);">
-      📲 Compartir Rachas por WhatsApp
-    </button>`;
-    if(out) out.innerHTML=html;
-  } catch(e) {
-    if(out) out.innerHTML=`<div style="color:var(--red);">Error: ${e.message}</div>`;
-  }
-}
-
-function _mlCompartirRachas(txt) {
-  const a=document.createElement('a');
-  a.href=`https://wa.me/?text=${encodeURIComponent(txt)}`;
-  a.target='_blank'; a.rel='noopener noreferrer';
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>document.body.removeChild(a),200);
-}
-
-// ── FIN MÉTODO LÁREZ ────────────────────────────────────────────
-
 async function doSavePreds(preds, jDate, group) {
   // Check if already saved for this group+date
   try {
@@ -5390,24 +4729,11 @@ async function sendChat() {
   const text = input.value.trim();
   if (!text) return;
   if (!me?.uid) { toast('Debes estar autenticado','error'); return; }
-
-  // ── Método Lárez: detectar intención antes de enviar ──
-  const intencion = _mlDetectarIntencion(text);
-  if(intencion) {
-    if(intencion.resp) toast(intencion.resp,'success',2500);
-    if(intencion.action) {
-      // Enviar igual al chat para que quede registro
-      try { await db.collection('chat').add({ uid:me.uid, username:me.username, name:me.name||me.username, text:text, ts:firebase.firestore.FieldValue.serverTimestamp() }); } catch(e){}
-      input.value=''; input.focus();
-      setTimeout(()=>intencion.action(), 400);
-      return;
-    }
-  }
-
+  
   // Clear immediately for fast UX
   input.value = '';
   input.focus();
-
+  
   try {
     await db.collection('chat').add({
       uid: me.uid,
@@ -5417,6 +4743,7 @@ async function sendChat() {
       ts: firebase.firestore.FieldValue.serverTimestamp()
     });
   } catch(e) {
+    // Restore text if failed
     input.value = text;
     const msg = e.code === 'permission-denied'
       ? '❌ Sin permiso para escribir. Verifica las reglas de Firestore.'
@@ -5537,19 +4864,21 @@ async function renderGroups() {
       if(!me.isAdmin&&!g.members?.some(m=>m.userId===me.uid)) return;
       found++;
       const isMine=g.members?.some(m=>m.userId===me.uid);
-      const memberCount=g.members?.length||0;
       grpHtml+=`<div class="group-card">
         <div class="group-card-header">
           <div>
             <div class="group-name">${g.name} ${isMine?'👑':''}</div>
-            <div class="group-meta">👥 ${memberCount}/${g.maxMembers} ${t('playersCount')}</div>
+            <div class="group-meta">👥 ${g.members?.length||0}/${g.maxMembers} ${t('playersCount')}</div>
+          </div>
+          <div class="group-code">
+            <span class="group-code-label">${t('codeLabel')}</span>
+            <span class="group-code-val">${g.code}</span>
           </div>
         </div>
         <div class="group-actions">
           ${me.isAdmin?`<button class="btn-del" onclick="deleteGroup('${doc.id}','${g.name}')">🗑️</button>`:''}
           <button class="btn-rank" onclick="openGroupRanking('${doc.id}')">${t('viewRanking')}</button>
           <button class="btn-wa" onclick="shareGroup('${g.code}','${g.name}')">📲</button>
-          ${isMine&&!me.isAdmin?`<button style="padding:7px 12px;border-radius:var(--r-sm);border:1px solid rgba(255,77,109,0.4);background:rgba(255,77,109,0.1);color:var(--red);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="leaveGroup('${doc.id}','${g.name}')">Salir</button>`:''}
         </div>
       </div>`;
     });
@@ -5679,78 +5008,6 @@ async function doCreateGroup() {
   finally{btn.disabled=false;}
 }
 
-
-// ── Dashboard rápido Admin ──────────────────────────────────
-async function _loadAdminDashboard() {
-  try {
-    const [uSnap, gSnap, pSnap] = await Promise.all([
-      db.collection('users').get(),
-      db.collection('groups').get(),
-      db.collection('predictions').where('jornadaDate','==',vzDate()).get()
-    ]);
-    const totalJ = uSnap.size;
-    const totalG = gSnap.docs.filter(d => (d.data().members||[]).length > 0).length;
-    const predHoy = new Set(pSnap.docs.map(d => d.data().userId)).size;
-    const sinPred = Math.max(0, totalJ - predHoy);
-    const dj = document.getElementById('dash-jugadores');
-    const dp = document.getElementById('dash-predHoy');
-    const ds = document.getElementById('dash-sinPred');
-    const dg = document.getElementById('dash-grupos');
-    if(dj) dj.textContent = totalJ;
-    if(dp) dp.textContent = predHoy;
-    if(ds) ds.textContent = sinPred;
-    if(dg) dg.textContent = totalG;
-  } catch(e) { console.error('Dashboard error:', e); }
-}
-
-// ── Copiar código de invitación ─────────────────────────────
-function adminCopiarInvite() {
-  const code = me.personalInviteCode || '';
-  if(!code) { toast('Sin código de invitación','error'); return; }
-  navigator.clipboard?.writeText(code)
-    .then(() => toast(`✅ Código copiado: ${code}`, 'success', 3000))
-    .catch(() => toast(`Tu código: ${code}`, 'info', 6000));
-}
-
-// ── Salir de un grupo (jugador) ─────────────────────────────
-async function leaveGroup(gid, gname) {
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '6000';
-  modal.innerHTML = `
-    <div class="modal-box" style="padding:28px 24px;text-align:center;">
-      <div class="modal-handle"></div>
-      <div style="font-size:2em;margin-bottom:10px;">👋</div>
-      <div style="font-family:var(--font-h);font-size:1.2em;font-weight:800;margin-bottom:8px;">¿Salir del grupo?</div>
-      <div style="font-size:1em;color:var(--primary2);font-weight:700;margin-bottom:12px;">${gname}</div>
-      <div style="font-size:0.82em;color:var(--muted2);margin-bottom:22px;line-height:1.5;">
-        Puedes volver a unirte cuando quieras tocando el grupo en la pantalla de Partidos.
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-        <button class="btn" style="background:var(--red);color:white;" onclick="confirmLeaveGroup('${gid}','${gname}',this.closest('.modal-overlay'))">Salir</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-}
-
-async function confirmLeaveGroup(gid, gname, modal) {
-  modal?.remove();
-  try {
-    await db.collection('groups').doc(gid).update({
-      members: firebase.firestore.FieldValue.arrayRemove(
-        ...((await db.collection('groups').doc(gid).get()).data()?.members||[])
-          .filter(m => m.userId === me.uid)
-      )
-    });
-    toast(`👋 Saliste de "${gname}"`, 'success');
-    if(activeGroupId === gid) clearActiveGroup();
-    await loadMyGroups();
-    renderGroups();
-  } catch(e) {
-    toast('Error al salir: ' + e.message, 'error');
-  }
-}
 
 async function deleteGroup(gid, name) {
   if(!confirm(`¿Eliminar el grupo "${name}"?\nSe borrarán TODAS las predicciones y datos. No se puede deshacer.`)) return;
@@ -5918,7 +5175,7 @@ async function openGroupRanking(gid) {
   const gdoc=await db.collection('groups').doc(gid).get();
   const g=gdoc.data();
   $('rankModalTitle').textContent=`🏆 ${g.name}`;
-  $('rankModalCode').textContent=`👥 ${g.members?.length||0} jugadores`;
+  $('rankModalCode').textContent=`🔐 Código: ${g.code}`;
 
   const memberIds=g.members.map(m=>m.userId);
   const ptMap={};
@@ -6090,49 +5347,18 @@ async function autoEval() {
 // ═══════════════════════════════════════════
 function renderAdmin() {
   const el=$('screenAdmin');
-  const invCode = me.personalInviteCode || '—';
   el.innerHTML=`
     <div class="section-header"><span class="section-title">⚙️ ${t('admin')}</span></div>
-
-    <!-- DASHBOARD RÁPIDO -->
-    <div id="adminDashboard" style="margin-bottom:16px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div style="background:rgba(108,71,255,0.12);border:1px solid rgba(108,71,255,0.3);border-radius:var(--r);padding:12px;text-align:center;">
-          <div id="dash-jugadores" style="font-family:var(--font-h);font-size:1.8em;color:var(--primary2);">—</div>
-          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Jugadores</div>
-        </div>
-        <div style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.25);border-radius:var(--r);padding:12px;text-align:center;">
-          <div id="dash-predHoy" style="font-family:var(--font-h);font-size:1.8em;color:var(--green);">—</div>
-          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Predicaron hoy</div>
-        </div>
-        <div style="background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.25);border-radius:var(--r);padding:12px;text-align:center;">
-          <div id="dash-sinPred" style="font-family:var(--font-h);font-size:1.8em;color:var(--red);">—</div>
-          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Sin predicción</div>
-        </div>
-        <div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);border-radius:var(--r);padding:12px;text-align:center;">
-          <div id="dash-grupos" style="font-family:var(--font-h);font-size:1.8em;color:var(--gold);">—</div>
-          <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">Grupos activos</div>
-        </div>
-      </div>
+    <div class="card-glow" style="margin-bottom:16px;">
+      <div style="font-family:var(--font-h);font-size:0.8em;color:var(--muted2);margin-bottom:4px;">${t('adminPanel')}</div>
+      <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
     </div>
-
-    <!-- CÓDIGO DE INVITACIÓN (prominente) -->
-    <div style="background:rgba(108,71,255,0.1);border:1.5px solid rgba(108,71,255,0.4);border-radius:var(--r);padding:14px;margin-bottom:16px;">
-      <div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🔐 Tu código de invitación</div>
-      <div style="font-family:var(--font-h);font-size:1.6em;color:var(--primary2);letter-spacing:4px;margin-bottom:10px;">${invCode}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button onclick="adminCopiarInvite()" style="padding:9px;border-radius:var(--r-sm);border:1px solid rgba(108,71,255,0.4);background:rgba(108,71,255,0.15);color:var(--primary2);font-family:var(--font-b);font-weight:700;font-size:0.8em;cursor:pointer;">📋 Copiar</button>
-        <button onclick="inviteToApp()" style="padding:9px;border-radius:var(--r-sm);border:none;background:#25D366;color:white;font-family:var(--font-b);font-weight:700;font-size:0.8em;cursor:pointer;">📲 Invitar WA</button>
-      </div>
-    </div>
-
-    <!-- GRID DE ACCIONES -->
     <div class="admin-grid">
       <button class="admin-btn" onclick="adminUsers()">👥<br>${t('seeUsers')}</button>
       <button class="admin-btn" onclick="adminEval()">⚡<br>${t('evalMatches')}</button>
       <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>${t('evalManual')}</button>
-      <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>Ver Grupos</button>
-      <button class="admin-btn" onclick="mlAdminPanel()" style="background:rgba(108,71,255,0.15);color:var(--primary2);border:1px solid rgba(108,71,255,0.4);">🧠<br>Panel ML</button>
+      <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>${t('groupCodes')}</button>
+      <button class="admin-btn full" onclick="adminSync()">${t('syncNow')}</button>
       <button class="admin-btn full danger" onclick="adminReset()">${t('deleteData')}</button>
       <button class="admin-btn full" onclick="dedupPreds()" style="background:rgba(255,140,66,0.2);color:var(--orange);">${t('cleanDups')}</button>
       <button class="admin-btn full" onclick="evalMundial()" style="background:rgba(0,229,160,0.1);color:var(--green);">${t('evalMundial')}</button>
@@ -6140,100 +5366,6 @@ function renderAdmin() {
       <button class="admin-btn full danger" onclick="nukeAllPreds()">${t('nukeAll')}</button>
     </div>
     <div class="admin-output" id="adminOut"><span style="color:var(--muted2);">${t('selectAction')}</span></div>`;
-
-  // Cargar dashboard en background
-  _loadAdminDashboard();
-  // Mostrar flujo recomendado por Método Lárez
-  setTimeout(renderAdminFlow, 300);
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  PANEL ML v6 — Admin de Método Lárez en Quiniela LuAn
-// ═══════════════════════════════════════════════════════════════
-async function mlAdminPanel() {
-  const out = $('adminOut');
-  out.innerHTML = '⏳ Cargando estado del ML...';
-
-  // Stats del caché del Predictor
-  const cachedHist = _mlCacheGet();
-  const histLen    = _mlHistorial.length || (cachedHist?.length||0);
-  const cacheKey   = _mlCacheKey();
-  let cacheFecha   = '—';
-  try {
-    const raw = localStorage.getItem(cacheKey);
-    if(raw) { const { ts } = JSON.parse(raw); cacheFecha = new Date(ts).toLocaleString('es-VE',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'}); }
-  } catch(e) {}
-
-  // Stats de predicciones evaluadas del admin
-  let totalEval=0, exactos=0, correctos=0;
-  try {
-    const snap = await db.collection('predictions')
-      .where('userId','==',me.uid).where('evaluated','==',true).get();
-    totalEval = snap.size;
-    snap.docs.forEach(d=>{ const p=d.data(); if(p.pointsAwarded===5) exactos++; else if(p.pointsAwarded===3) correctos++; });
-  } catch(e) {}
-
-  out.innerHTML = `
-    <div style="font-size:0.78em;font-weight:800;color:var(--primary2);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">
-      🧠 Panel Método Lárez v6
-    </div>
-
-    <!-- ESTADO PREDICTOR LÁREZ -->
-    <div style="background:rgba(108,71,255,0.08);border:1px solid rgba(108,71,255,0.25);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;">
-      <div style="font-weight:700;font-size:0.82em;color:var(--primary2);margin-bottom:8px;">🔮 Predictor Lárez</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
-        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:8px;">
-          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);">${histLen}</div>
-          <div style="font-size:0.65em;color:var(--muted2);">Preds en caché</div>
-        </div>
-        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:8px;">
-          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);">${exactos}</div>
-          <div style="font-size:0.65em;color:var(--muted2);">⭐ Exactos</div>
-        </div>
-        <div style="text-align:center;background:var(--surface2);border-radius:8px;padding:8px;">
-          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${correctos}</div>
-          <div style="font-size:0.65em;color:var(--muted2);">🎯 Correctos</div>
-        </div>
-      </div>
-      <div style="font-size:0.7em;color:var(--muted2);margin-bottom:8px;">
-        📦 Caché guardado: <strong>${cacheFecha}</strong>
-        ${histLen>0?'<span style="color:var(--green);"> · Activo ✅</span>':'<span style="color:var(--red);"> · Vacío ⚠️</span>'}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-        <button onclick="_mlCacheClear();_mlHistorial=[];toast('🗑️ Caché limpiado — se recargará en el próximo partido','success',3000);mlAdminPanel();"
-          style="padding:8px;border-radius:var(--r-sm);border:1px solid rgba(255,77,109,0.4);background:rgba(255,77,109,0.1);color:var(--red);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;">
-          🗑️ Limpiar caché
-        </button>
-        <button onclick="_mlHistorial=[];_mlCargarHistorial().then(()=>toast('✅ Historial recargado desde Firebase','success',3000));"
-          style="padding:8px;border-radius:var(--r-sm);border:1px solid rgba(0,229,160,0.4);background:rgba(0,229,160,0.1);color:var(--green);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;">
-          🔄 Recargar Firebase
-        </button>
-      </div>
-    </div>
-
-    <!-- FUZZY LÁREZ INFO -->
-    <div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);border-radius:var(--r-sm);padding:12px;margin-bottom:10px;">
-      <div style="font-weight:700;font-size:0.82em;color:var(--gold);margin-bottom:6px;">🔍 Fuzzy Lárez v6 — Umbral dinámico activo</div>
-      <div style="font-size:0.72em;color:var(--muted2);line-height:1.8;">
-        ≤3 letras → exacto obligatorio<br>
-        4-5 letras → máx 20% de error<br>
-        6-7 letras → máx 28% de error<br>
-        8+ letras → máx 35% de error
-      </div>
-    </div>
-
-    <!-- ACCESO RÁPIDO A RACHAS -->
-    <button onclick="_mlMostrarRachas()"
-      style="width:100%;padding:11px;border-radius:var(--r-sm);border:none;
-      background:linear-gradient(135deg,rgba(108,71,255,0.2),rgba(0,229,160,0.1));
-      color:var(--text);font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;
-      border:1px solid rgba(108,71,255,0.3);">
-      🏅 Ver Rachas y Badges del grupo activo
-    </button>
-
-    <div style="margin-top:10px;font-size:0.68em;color:var(--muted2);text-align:center;">
-      Método Lárez v6 · LuAn System™ · Ing. Luis Lárez
-    </div>`;
 }
 
 async function adminUsers() {
@@ -6593,15 +5725,16 @@ async function adminShowGroups() {
   let html=`<p style="font-weight:800;margin-bottom:12px;color:var(--primary2);">📋 GRUPOS (${snap.size}/5)</p>`;
   snap.docs.forEach(doc=>{
     const g=doc.data();
-    const memberCount=g.members?.length||0;
-    const ligas=(g.tournaments||[]).map(tid=>{const tr=TOURNAMENTS.find(t=>t.id===tid);return tr?.flag||'';}).filter(Boolean).join(' ');
     html+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <strong>${g.name}</strong>
-        <span style="font-size:0.82em;color:var(--muted2);">👥 ${memberCount}/${g.maxMembers||50}</span>
+        <span style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);letter-spacing:3px;">${g.code}</span>
       </div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:8px;">${ligas||'Sin ligas configuradas'}</div>
-      <button class="btn-wa" style="width:100%;" onclick="shareGroup('${g.code}','${g.name}')">📲 Compartir por WhatsApp</button>
+      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">👥 ${g.members?.length||0}/${g.maxMembers}</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-wa" style="flex:1;" onclick="shareGroup('${g.code}','${g.name}')">📲 Compartir WA</button>
+        <button class="btn btn-ghost btn-sm" onclick="copyCode('${g.code}','${g.name}')">📋 Copiar</button>
+      </div>
     </div>`;
   });
   out.innerHTML=html;
@@ -7183,44 +6316,7 @@ async function openMyStats() {
 
       ${defaults > 0 ? `<div style="margin-top:10px;font-size:0.72em;color:var(--muted2);text-align:center;">
         🔮 ${defaults} predicciones por defecto (0-0) guardadas automáticamente
-      </div>` : ''}
-
-      <!-- PERFIL PREDICTOR LÁREZ -->
-      ${(()=>{
-        const perfil = _mlCalcPerfilPredictor(preds);
-        if(!perfil) return '';
-        return `
-        <div style="margin-top:16px;background:rgba(108,71,255,0.1);border:1.5px solid rgba(108,71,255,0.3);border-radius:var(--r);padding:14px;">
-          <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
-            🧠 Tu Perfil de Predictor · Método Lárez
-          </div>
-          <div style="font-family:var(--font-h);font-size:1.4em;margin-bottom:8px;">
-            ${perfil.estiloEmoji} ${perfil.estilo}
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.75em;">
-            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
-              <div style="color:var(--muted2);">🏠 Local gana</div>
-              <div style="font-weight:700;color:var(--text);">${Math.round(perfil.localWins/perfil.total*100)}%</div>
-            </div>
-            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
-              <div style="color:var(--muted2);">🤝 Empates</div>
-              <div style="font-weight:700;color:var(--text);">${Math.round(perfil.empates/perfil.total*100)}%</div>
-            </div>
-            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
-              <div style="color:var(--muted2);">⚽ Goles/partido</div>
-              <div style="font-weight:700;color:var(--text);">${perfil.promedioGoles}</div>
-            </div>
-            <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center;">
-              <div style="color:var(--muted2);">🎯 Marcador top</div>
-              <div style="font-weight:700;color:var(--text);">${perfil.topMarcador?perfil.topMarcador[0]:'—'}</div>
-            </div>
-          </div>
-          ${perfil.topEquipo?`<div style="margin-top:8px;font-size:0.75em;color:var(--muted2);">
-            ❤️ Equipo favorito: <strong style="color:var(--text);">${perfil.topEquipo[0]}</strong>
-            (predices ${perfil.topEquipo[1]} veces ganando)
-          </div>`:''}
-        </div>`;
-      })()}`;
+      </div>` : ''}`;
 
   } catch(e) {
     el.innerHTML = `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
