@@ -885,13 +885,7 @@ body::before {
       <input type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
     </div>
     <button class="btn btn-primary" onclick="doLogin()">Entrar →</button>
-    <div style="margin-top:12px;padding:10px 14px;background:rgba(108,71,255,0.08);
-      border:1px solid rgba(108,71,255,0.2);border-radius:10px;
-      font-size:0.78em;color:var(--muted2);text-align:center;line-height:1.6;">
-      🔑 ¿Olvidaste tu contraseña?<br>
-      <strong style="color:var(--primary2);">Contacta al administrador</strong>
-      para que te la restablezca por WhatsApp.
-    </div>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="showReset()">¿Olvidaste tu contraseña?</button>
   </div>
 
   <!-- REGISTER -->
@@ -902,7 +896,7 @@ body::before {
     </div>
     <div class="field">
       <label>Apodo (máx. 8 caracteres)</label>
-      <input type="text" id="regUsername" placeholder="LUISLA" maxlength="8" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      <input type="text" id="regUsername" placeholder="LUISLA" maxlength="11" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
     </div>
     <div class="field">
       <label>Teléfono</label>
@@ -1032,6 +1026,8 @@ body::before {
         <option value="20">20</option>
         <option value="50" selected>50</option>
         <option value="100">100</option>
+        <option value="150">150</option>
+        <option value="200">200</option>
       </select>
     </div>
     <div class="field">
@@ -1735,26 +1731,159 @@ const TOURNAMENTS = [
 
 // Mundial 2026 — 48 selecciones
 const MUNDIAL_TEAMS = [
-  // CONMEBOL
-  '🇦🇷 Argentina','🇧🇷 Brasil','🇺🇾 Uruguay','🇨🇴 Colombia','🇪🇨 Ecuador',
-  '🇵🇪 Perú','🇻🇪 Venezuela','🇵🇾 Paraguay','🇨🇱 Chile','🇧🇴 Bolivia',
-  // CONCACAF
-  '🇺🇸 Estados Unidos','🇲🇽 México','🇨🇦 Canadá','🇨🇷 Costa Rica','🇵🇦 Panamá',
-  '🇯🇲 Jamaica','🇭🇳 Honduras','🇸🇻 El Salvador','🇬🇹 Guatemala','🇹🇹 Trinidad y Tobago',
-  // UEFA
-  '🇩🇪 Alemania','🇫🇷 Francia','🇪🇸 España','🇵🇹 Portugal','🇬🇧 Inglaterra',
-  '🇳🇱 Países Bajos','🇮🇹 Italia','🇧🇪 Bélgica','🇭🇷 Croacia','🇵🇱 Polonia',
-  '🇷🇸 Serbia','🇦🇹 Austria','🇨🇭 Suiza','🇩🇰 Dinamarca','🇸🇪 Suecia','🇹🇷 Turquía',
-  // CAF
-  '🇲🇦 Marruecos','🇳🇬 Nigeria','🇸🇳 Senegal','🇪🇬 Egipto','🇨🇲 Camerún',
-  '🇿🇦 Sudáfrica','🇬🇭 Ghana','🇨🇮 Costa de Marfil','🇹🇳 Túnez',
-  // AFC
-  '🇯🇵 Japón','🇰🇷 Corea del Sur','🇮🇷 Irán','🇦🇺 Australia','🇸🇦 Arabia Saudita',
-  '🇶🇦 Qatar','🇺🇿 Uzbekistán','🇮🇶 Iraq',
-  // OFC
-  '🇳🇿 Nueva Zelanda',
+  // Grupo A
+  '🇲🇽 México','🇿🇦 Sudáfrica','🇰🇷 Corea del Sur','🇨🇿 Rep. Checa',
+  // Grupo B
+  '🇨🇦 Canadá','🇨🇭 Suiza','🇶🇦 Qatar','🇧🇦 Bosnia y Herzegovina',
+  // Grupo C
+  '🇧🇷 Brasil','🇲🇦 Marruecos','🇭🇹 Haití','🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',
+  // Grupo D
+  '🇺🇸 Estados Unidos','🇵🇾 Paraguay','🇦🇺 Australia','🇹🇷 Turquía',
+  // Grupo E
+  '🇩🇪 Alemania','🇪🇨 Ecuador','🇨🇮 Costa de Marfil','🇨🇼 Curazao',
+  // Grupo F
+  '🇳🇱 Países Bajos','🇸🇪 Suecia','🇹🇳 Túnez','🇯🇵 Japón',
+  // Grupo G
+  '🇧🇪 Bélgica','🇪🇬 Egipto','🇮🇷 Irán','🇳🇿 Nueva Zelanda',
+  // Grupo H
+  '🇪🇸 España','🇺🇾 Uruguay','🇸🇦 Arabia Saudita','🇨🇻 Cabo Verde',
+  // Grupo I
+  '🇫🇷 Francia','🇸🇳 Senegal','🇮🇶 Iraq','🇳🇴 Noruega',
+  // Grupo J
+  '🇦🇷 Argentina','🇩🇿 Argelia','🇦🇹 Austria','🇯🇴 Jordania',
+  // Grupo K
+  '🇵🇹 Portugal','🇨🇴 Colombia','🇺🇿 Uzbekistán','🇨🇩 R.D. del Congo',
+  // Grupo L
+  '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra','🇭🇷 Croacia','🇬🇭 Ghana','🇵🇦 Panamá',
 ];
 
+
+// ═══════════════════════════════════════════
+// FIXTURE MUNDIAL FIFA 2026 — 72 partidos fase de grupos
+// Verificado ESPN oficial · Hora Venezuela (UTC-4)
+// Orden: por fecha → dentro de cada fecha por hora VZ
+// Última 2 jornadas de cada grupo SIEMPRE a la misma hora (simultáneas)
+// ═══════════════════════════════════════════
+const FIXTURE_MUNDIAL = [
+
+  // ══════════════════════════════════════
+  // JORNADA 1 — 11 al 17 junio
+  // ══════════════════════════════════════
+
+  // Jue 11/6
+  { id:'m001', home:'🇲🇽 México',         away:'🇿🇦 Sudáfrica',          date:'2026-06-11', timeVZ:'3:00 pm',  group:'A', jornada:1, venue:'Estadio Azteca, CDMX' },
+  { id:'m002', home:'🇰🇷 Corea del Sur',  away:'🇨🇿 Rep. Checa',         date:'2026-06-11', timeVZ:'10:00 pm', group:'A', jornada:1, venue:'Estadio Akron, Guadalajara' },
+
+  // Vie 12/6
+  { id:'m003', home:'🇨🇦 Canadá',         away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-12', timeVZ:'3:00 pm',  group:'B', jornada:1, venue:'BMO Field, Toronto' },
+  { id:'m004', home:'🇺🇸 Estados Unidos', away:'🇵🇾 Paraguay',            date:'2026-06-12', timeVZ:'9:00 pm',  group:'D', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
+
+  // Sáb 13/6
+  { id:'m005', home:'🇶🇦 Qatar',          away:'🇨🇭 Suiza',              date:'2026-06-13', timeVZ:'3:00 pm',  group:'B', jornada:1, venue:"Levi's Stadium, San Francisco" },
+  { id:'m006', home:'🇧🇷 Brasil',         away:'🇲🇦 Marruecos',          date:'2026-06-13', timeVZ:'6:00 pm',  group:'C', jornada:1, venue:'MetLife Stadium, Nueva York' },
+  { id:'m007', home:'🇭🇹 Haití',          away:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',            date:'2026-06-13', timeVZ:'9:00 pm',  group:'C', jornada:1, venue:'Gillette Stadium, Boston' },
+  { id:'m008', home:'🇦🇺 Australia',      away:'🇹🇷 Turquía',            date:'2026-06-13', timeVZ:'12:00 am', group:'D', jornada:1, venue:'BC Place, Vancouver' },
+
+  // Dom 14/6
+  { id:'m009', home:'🇩🇪 Alemania',       away:'🇨🇼 Curazao',            date:'2026-06-14', timeVZ:'2:00 pm',  group:'E', jornada:1, venue:'NRG Stadium, Houston' },
+  { id:'m010', home:'🇳🇱 Países Bajos',   away:'🇯🇵 Japón',              date:'2026-06-14', timeVZ:'5:00 pm',  group:'F', jornada:1, venue:'AT&T Stadium, Dallas' },
+  { id:'m011', home:'🇨🇮 Costa de Marfil',away:'🇪🇨 Ecuador',            date:'2026-06-14', timeVZ:'8:00 pm',  group:'E', jornada:1, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m012', home:'🇸🇪 Suecia',         away:'🇹🇳 Túnez',              date:'2026-06-14', timeVZ:'11:00 pm', group:'F', jornada:1, venue:'Estadio BBVA, Monterrey' },
+
+  // Lun 15/6
+  { id:'m013', home:'🇧🇪 Bélgica',        away:'🇪🇬 Egipto',             date:'2026-06-15', timeVZ:'3:00 pm',  group:'G', jornada:1, venue:'Lumen Field, Seattle' },
+  { id:'m014', home:'🇪🇸 España',         away:'🇨🇻 Cabo Verde',         date:'2026-06-15', timeVZ:'2:00 pm',  group:'H', jornada:1, venue:'Mercedes-Benz Stadium, Atlanta' },
+  { id:'m015', home:'🇸🇦 Arabia Saudita', away:'🇺🇾 Uruguay',            date:'2026-06-15', timeVZ:'8:00 pm',  group:'H', jornada:1, venue:'Hard Rock Stadium, Miami' },
+  { id:'m016', home:'🇮🇷 Irán',           away:'🇳🇿 Nueva Zelanda',      date:'2026-06-15', timeVZ:'9:00 pm',  group:'G', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
+
+  // Mar 16/6
+  { id:'m017', home:'🇫🇷 Francia',        away:'🇸🇳 Senegal',            date:'2026-06-16', timeVZ:'3:00 pm',  group:'I', jornada:1, venue:'MetLife Stadium, Nueva York' },
+  { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
+  { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },
+  { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
+
+  // Mié 17/6
+  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
+  { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
+  { id:'m023', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',     away:'🇭🇷 Croacia',            date:'2026-06-17', timeVZ:'5:00 pm',  group:'L', jornada:1, venue:'AT&T Stadium, Dallas' },
+  { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
+
+  // ══════════════════════════════════════
+  // JORNADA 2 — 18 al 23 junio
+  // ══════════════════════════════════════
+
+  // Mié 18/6
+  { id:'m025', home:'🇨🇿 Rep. Checa',     away:'🇿🇦 Sudáfrica',          date:'2026-06-18', timeVZ:'2:00 pm',  group:'A', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
+  { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m027', home:'🇨🇦 Canadá',         away:'🇶🇦 Qatar',              date:'2026-06-18', timeVZ:'6:00 pm',  group:'B', jornada:2, venue:'BC Place, Vancouver' },
+  { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
+
+  // Jue 19/6
+  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
+  { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',          away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
+  { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
+
+  // Vie 20/6
+  { id:'m033', home:'🇳🇱 Países Bajos',   away:'🇸🇪 Suecia',             date:'2026-06-20', timeVZ:'2:00 pm',  group:'F', jornada:2, venue:'NRG Stadium, Houston' },
+  { id:'m034', home:'🇩🇪 Alemania',       away:'🇨🇮 Costa de Marfil',    date:'2026-06-20', timeVZ:'5:00 pm',  group:'E', jornada:2, venue:'BMO Field, Toronto' },
+  { id:'m035', home:'🇪🇨 Ecuador',        away:'🇨🇼 Curazao',            date:'2026-06-20', timeVZ:'9:00 pm',  group:'E', jornada:2, venue:'Arrowhead Stadium, Kansas City' },
+  { id:'m036', home:'🇹🇳 Túnez',          away:'🇯🇵 Japón',              date:'2026-06-20', timeVZ:'1:00 am',  group:'F', jornada:2, venue:'Estadio Akron, Guadalajara' },
+
+  // Sáb 21/6
+  { id:'m037', home:'🇪🇸 España',         away:'🇸🇦 Arabia Saudita',     date:'2026-06-21', timeVZ:'2:00 pm',  group:'H', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
+  { id:'m038', home:'🇧🇪 Bélgica',        away:'🇮🇷 Irán',               date:'2026-06-21', timeVZ:'3:00 pm',  group:'G', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m039', home:'🇺🇾 Uruguay',        away:'🇨🇻 Cabo Verde',         date:'2026-06-21', timeVZ:'8:00 pm',  group:'H', jornada:2, venue:'Hard Rock Stadium, Miami' },
+  { id:'m040', home:'🇳🇿 Nueva Zelanda',  away:'🇪🇬 Egipto',             date:'2026-06-21', timeVZ:'9:00 pm',  group:'G', jornada:2, venue:'BC Place, Vancouver' },
+
+  // Dom 22/6
+  { id:'m041', home:'🇫🇷 Francia',        away:'🇮🇶 Iraq',               date:'2026-06-22', timeVZ:'5:00 pm',  group:'I', jornada:2, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m042', home:'🇳🇴 Noruega',        away:'🇸🇳 Senegal',            date:'2026-06-22', timeVZ:'8:00 pm',  group:'I', jornada:2, venue:'MetLife Stadium, Nueva York' },
+  { id:'m043', home:'🇦🇷 Argentina',      away:'🇦🇹 Austria',            date:'2026-06-22', timeVZ:'2:00 pm',  group:'J', jornada:2, venue:'AT&T Stadium, Dallas' },
+  { id:'m044', home:'🇯🇴 Jordania',       away:'🇩🇿 Argelia',            date:'2026-06-22', timeVZ:'11:00 pm', group:'J', jornada:2, venue:"Levi's Stadium, San Francisco" },
+
+  // Lun 23/6
+  { id:'m045', home:'🇵🇹 Portugal',       away:'🇺🇿 Uzbekistán',         date:'2026-06-23', timeVZ:'2:00 pm',  group:'K', jornada:2, venue:'NRG Stadium, Houston' },
+  { id:'m046', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',     away:'🇬🇭 Ghana',              date:'2026-06-23', timeVZ:'5:00 pm',  group:'L', jornada:2, venue:'Gillette Stadium, Boston' },
+  { id:'m047', home:'🇵🇦 Panamá',         away:'🇭🇷 Croacia',            date:'2026-06-23', timeVZ:'8:00 pm',  group:'L', jornada:2, venue:'BMO Field, Toronto' },
+  { id:'m048', home:'🇨🇴 Colombia',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-23', timeVZ:'11:00 pm', group:'K', jornada:2, venue:'Estadio Akron, Guadalajara' },
+
+  // ══════════════════════════════════════
+  // JORNADA 3 — 24 al 27 junio (simultáneos por grupo)
+  // ══════════════════════════════════════
+
+  // Mié 24/6 — Grupos A, B, C
+  { id:'m049', home:'🇨🇿 Rep. Checa',     away:'🇲🇽 México',             date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio Azteca, CDMX' },
+  { id:'m050', home:'🇿🇦 Sudáfrica',      away:'🇰🇷 Corea del Sur',      date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio BBVA, Monterrey' },
+  { id:'m051', home:'🇨🇭 Suiza',          away:'🇨🇦 Canadá',             date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'BC Place, Vancouver' },
+  { id:'m052', home:'🇧🇦 Bosnia y Herz.', away:'🇶🇦 Qatar',              date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'Lumen Field, Seattle' },
+  { id:'m053', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',          away:'🇧🇷 Brasil',             date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Hard Rock Stadium, Miami' },
+  { id:'m054', home:'🇲🇦 Marruecos',      away:'🇭🇹 Haití',              date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Mercedes-Benz Stadium, Atlanta' },
+
+  // Jue 25/6 — Grupos D, E, F
+  { id:'m055', home:'🇹🇷 Turquía',        away:'🇺🇸 Estados Unidos',     date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m056', home:'🇵🇾 Paraguay',       away:'🇦🇺 Australia',          date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:"Levi's Stadium, San Francisco" },
+  { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },
+  { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m059', home:'🇯🇵 Japón',          away:'🇸🇪 Suecia',             date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'AT&T Stadium, Dallas' },
+  { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
+
+  // Vie 26/6 — Grupos G, H, I
+  { id:'m061', home:'🇪🇬 Egipto',         away:'🇮🇷 Irán',               date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'Lumen Field, Seattle' },
+  { id:'m062', home:'🇳🇿 Nueva Zelanda',  away:'🇧🇪 Bélgica',            date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'BC Place, Vancouver' },
+  { id:'m063', home:'🇨🇻 Cabo Verde',     away:'🇸🇦 Arabia Saudita',     date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'NRG Stadium, Houston' },
+  { id:'m064', home:'🇺🇾 Uruguay',        away:'🇪🇸 España',             date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'Estadio Akron, Guadalajara' },
+  { id:'m065', home:'🇳🇴 Noruega',        away:'🇫🇷 Francia',            date:'2026-06-26', timeVZ:'3:00 pm',  group:'I', jornada:3, venue:'Gillette Stadium, Boston' },
+  { id:'m066', home:'🇸🇳 Senegal',        away:'🇮🇶 Iraq',               date:'2026-06-26', timeVZ:'3:00 pm',  group:'I', jornada:3, venue:'BMO Field, Toronto' },
+
+  // Sáb 27/6 — Grupos J, K, L
+  { id:'m067', home:'🇩🇿 Argelia',        away:'🇦🇹 Austria',            date:'2026-06-27', timeVZ:'10:00 pm', group:'J', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
+  { id:'m068', home:'🇯🇴 Jordania',       away:'🇦🇷 Argentina',          date:'2026-06-27', timeVZ:'10:00 pm', group:'J', jornada:3, venue:'AT&T Stadium, Dallas' },
+  { id:'m069', home:'🇨🇴 Colombia',       away:'🇵🇹 Portugal',           date:'2026-06-27', timeVZ:'7:30 pm',  group:'K', jornada:3, venue:'Hard Rock Stadium, Miami' },
+  { id:'m070', home:'🇨🇩 R.D. del Congo', away:'🇺🇿 Uzbekistán',         date:'2026-06-27', timeVZ:'7:30 pm',  group:'K', jornada:3, venue:'Mercedes-Benz Stadium, Atlanta' },
+  { id:'m071', home:'🇵🇦 Panamá',         away:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',         date:'2026-06-27', timeVZ:'5:00 pm',  group:'L', jornada:3, venue:'MetLife Stadium, Nueva York' },
+  { id:'m072', home:'🇭🇷 Croacia',        away:'🇬🇭 Ghana',              date:'2026-06-27', timeVZ:'5:00 pm',  group:'L', jornada:3, venue:'Lincoln Financial, Filadelfia' },
+];
 // ═══════════════════════════════════════════
 // COUNTRIES
 // ═══════════════════════════════════════════
@@ -2322,114 +2451,26 @@ function _askAdminExtraTime(m) {
   modal.id = '_extraTimeModal';
   modal.className = 'modal-overlay';
   modal.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9100;';
-
-  const mid = String(m.id);
-  const badge = document.getElementById(`badge_${mid}`);
-  const phase = badge?.dataset?.phase || '1H';
-  const capMin = (phase==='1H'||phase==='HT') ? 45
-               : (phase==='2H') ? 90
-               : (phase==='ET') ? 105 : 120;
-
   modal.innerHTML = `
-    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
-      max-width:340px;width:94%;border:1px solid rgba(255,197,66,0.3);
-      box-shadow:0 20px 60px rgba(0,0,0,.6);">
-
-      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:3px;">
-        ⏱ Tiempo Añadido — ${capMin}'
+    <div style="background:var(--surface2);border-radius:18px;padding:22px 20px;max-width:320px;width:92%;border:1px solid var(--border2);">
+      <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Tiempo añadido</div>
+      <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${m.home} ${t('vsLabel')} ${m.away}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button onclick="_setAdminExtra('${m.id}',${v})" style="flex:1;min-width:44px;padding:9px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.9em;font-weight:800;background:rgba(245,197,66,0.12);color:var(--gold);border:1px solid var(--gold);">+${v}</button>`).join('')}
       </div>
-      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:12px;">
-        ${m.home} vs ${m.away}
-      </div>
-
-      <div style="font-size:0.72em;color:var(--muted2);margin-bottom:8px;">
-        ¿Cuántos minutos concedió el árbitro?
-      </div>
-
-      <!-- Botones rápidos 1-10 -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:12px;">
-        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`
-          <button onclick="_setAdminExtra('${mid}',${v})"
-            style="padding:10px 4px;border-radius:9px;cursor:pointer;
-            font-family:var(--font-h);font-size:0.95em;font-weight:800;
-            background:rgba(245,197,66,0.12);color:var(--gold);
-            border:1px solid rgba(245,197,66,0.35);">+${v}</button>`
-        ).join('')}
-      </div>
-
-      <!-- Input libre para escribir el valor exacto -->
-      <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border2);
-        border-radius:12px;padding:10px;margin-bottom:12px;">
-        <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;">
-          ✏️ O escríbelo tú:
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <span style="color:var(--gold);font-family:var(--font-h);font-size:1.1em;flex-shrink:0;">+</span>
-          <input type="number" id="_extraTimeInput" min="1" max="20" placeholder="ej: 7"
-            style="flex:1;padding:9px 12px;background:var(--surface);
-            border:2px solid var(--gold);border-radius:9px;
-            color:var(--gold);font-family:var(--font-h);font-size:1.1em;
-            font-weight:800;text-align:center;outline:none;"
-            onkeydown="if(event.key==='Enter')_setAdminExtraFromInput('${mid}')">
-          <span style="color:var(--muted2);font-size:0.75em;flex-shrink:0;">min</span>
-          <button onclick="_setAdminExtraFromInput('${mid}')"
-            style="padding:9px 14px;border-radius:9px;cursor:pointer;
-            font-family:var(--font-h);font-size:0.82em;font-weight:800;
-            background:linear-gradient(135deg,var(--gold),#f0a500);
-            color:#000;border:none;flex-shrink:0;">OK</button>
-        </div>
-      </div>
-
-      <!-- Info auto-stop -->
-      <div style="font-size:0.68em;color:var(--muted2);margin-bottom:10px;
-        background:rgba(0,229,160,0.06);border-radius:8px;padding:7px 10px;
-        border:1px solid rgba(0,229,160,0.15);">
-        ⚡ El chip extra para automáticamente a los
-        <strong style="color:var(--green);">valor + 2 minutos</strong>.
-        El admin puede tocarlo antes para detenerlo.
-      </div>
-
       <div style="display:flex;gap:8px;">
-        <button onclick="_setAdminExtra('${mid}','?')"
-          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.8em;font-weight:800;
-          background:rgba(255,140,66,0.15);color:var(--orange);
-          border:1px solid var(--orange);">+? No sé aún</button>
-        <button onclick="document.getElementById('_extraTimeModal').remove()"
-          style="flex:1;padding:10px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.8em;font-weight:800;
-          background:var(--surface2);color:var(--muted2);
-          border:1px solid var(--border2);">Cancelar</button>
+        <button onclick="_setAdminExtra('${m.id}','?')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">+? (no sé)</button>
+        <button onclick="document.getElementById('_extraTimeModal').remove()" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);">Cancelar</button>
       </div>
     </div>`;
-
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
-  // Foco automático al input para escribir rápido
-  setTimeout(() => document.getElementById('_extraTimeInput')?.focus(), 150);
 }
-
-function _setAdminExtraFromInput(matchId) {
-  const inp = document.getElementById('_extraTimeInput');
-  const val = parseInt(inp?.value);
-  if (!val || val < 1 || val > 20) {
-    if (inp) { inp.style.borderColor = 'var(--red)'; inp.focus(); }
-    return;
-  }
-  _setAdminExtra(matchId, val);
-}
-
 function _setAdminExtra(matchId, val) {
-  window._adminExtraTime  = window._adminExtraTime  || {};
-  window._adminExtraStop  = window._adminExtraStop  || {};
-  window._adminExtraAsked = window._adminExtraAsked || {};
+  window._adminExtraTime = window._adminExtraTime || {};
   window._adminExtraTime[matchId] = val;
-  // Resetear auto-stop para que el nuevo valor empiece a contar desde cero
-  delete window._adminExtraStop[matchId];
   document.getElementById('_extraTimeModal')?.remove();
-  const label = val === '?' ? '+? (pendiente)' : `+${val} minutos`;
-  const stopInfo = val !== '?' ? ` · para a los ${val+2}'` : '';
-  toast(`⏱ Tiempo añadido: ${label}${stopInfo}`, 'success', 3000);
+  toast(`⏱ Tiempo añadido: +${val} min`, 'success', 2000);
 }
 
 // Generate unique color per user based on their username
@@ -2514,9 +2555,9 @@ function switchAuthTab(tab) {
     $(`form${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.add('hidden');
     $(`tab${t.charAt(0).toUpperCase()+t.slice(1)}`)?.classList.remove('active');
   });
-  $(`form${tab.charAt(0).toUpperCase()+tab.slice(1)}`)?.classList.remove('hidden');
+  $(`form${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.remove('hidden');
   if (tab!=='reset') {
-    $(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`)?.classList.add('active');
+    $(`tab${tab.charAt(0).toUpperCase()+tab.slice(1)}`).classList.add('active');
   }
 }
 
@@ -2598,7 +2639,7 @@ async function doRegister() {
 
     // Step 4: Save profile to Firestore
     await db.collection('users').doc(uid).set({
-      name, username,
+      name, username: username + playerNumber,
       phone: fullPhone,
       phoneDisplay: `${selectedCountry.reg.f} ${selectedCountry.reg.d} ${phone.replace(/^0/,'')}`,
       personalInviteCode: randCode(),
@@ -2624,8 +2665,15 @@ async function doRegister() {
 }
 
 async function doReset() {
-  // Reset por email no funciona — sistema usa contraseña manual del admin
-  toast('⚠️ Contacta al administrador para restablecer tu clave por WhatsApp','warning', 5000);
+  const phone = $('resetPhone').value.trim();
+  if (!phone) { toast('Ingresa tu teléfono','error'); return; }
+  const email = phoneToEmail(phone, 'reset');
+  try {
+    await auth.sendPasswordResetEmail(email);
+    toast('✅ Enlace enviado','success');
+  } catch(e) {
+    toast('Teléfono no encontrado','error');
+  }
 }
 
 async function doLogout() {
@@ -2688,11 +2736,8 @@ auth.onAuthStateChanged(async user => {
 // ENTER APP
 // ═══════════════════════════════════════════
 async function enterApp() {
-  const authScr = $('authScreen');
-  const mainScr = $('mainApp');
-  if (!authScr || !mainScr) { console.error('DOM no listo'); return; }
-  authScr.classList.add('hidden');
-  mainScr.classList.remove('hidden');
+  $('authScreen').classList.add('hidden');
+  $('mainApp').classList.remove('hidden');
 
   // Check if user has a pending temp password reset
   try {
@@ -2719,8 +2764,8 @@ async function enterApp() {
   statsHdrBtn.onclick = openMyStats;
   $('hdrAdminBadge')?.parentElement?.appendChild(statsHdrBtn);
   if (me.isAdmin) {
-    $('hdrAdminBadge')?.classList.remove('hidden');
-    $('nav-admin')?.classList.remove('hidden');
+    $('hdrAdminBadge').classList.remove('hidden');
+    $('nav-admin').classList.remove('hidden');
   } else {
     // Jugadores no necesitan la pestaña Torneos — las ligas las gestiona el Admin
     $('nav-tournaments')?.classList.add('hidden');
@@ -3295,10 +3340,16 @@ function renderMatches() {
   let html = `
     <div class="section-header">
       <span class="section-title">⚽ Partidos</span>
-      <div style="display:flex;gap:4px;align-items:center;">
+      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
         <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" title="¿Cómo predecir?" style="padding:5px 8px;font-size:0.85em;">❓</button>
         <button class="btn btn-ghost btn-sm" onclick="openStandings()" title="Tablas de posiciones" style="padding:5px 8px;font-size:0.85em;">📊</button>
         <button class="btn btn-ghost btn-sm" onclick="doSync()" title="Sincronizar" style="padding:5px 8px;font-size:0.85em;">🔄</button>
+        <button onclick="renderMundialScreen()"
+          style="padding:6px 10px;border-radius:var(--r-sm);border:2px solid var(--gold);
+          background:rgba(245,197,66,0.15);color:var(--gold);
+          font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
+          🌍🏆 Mundial
+        </button>
       </div>
     </div>`;
 
@@ -5616,137 +5667,33 @@ function sendWAMsg(num, idx, encodedText) {
 }
 
 async function adminResetUserPass(username, phone, uid) {
-  // Generar contraseña temporal memorable
-  const adj  = ['Rojo','Azul','Verde','Rapido','Fuerte','Luan','Gol','Real'];
-  const num  = Math.floor(100 + Math.random()*900);
-  const tempPass = adj[Math.floor(Math.random()*adj.length)] + num;
+  // Generate temp password
+  const tempPass = 'Luan' + Math.floor(1000+Math.random()*9000);
+  if (!confirm(`¿Resetear contraseña de ${username}?\n\nContraseña temporal: ${tempPass}\n\nSe la enviarás por WhatsApp.`)) return;
 
-  // Mostrar modal con la clave para que el admin la vea y confirme
-  const existing = document.getElementById('_resetPassModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = '_resetPassModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9200';
-  modal.innerHTML = `
-    <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
-      max-width:340px;width:94%;border:1px solid rgba(108,71,255,0.4);
-      box-shadow:0 20px 60px rgba(0,0,0,.6);">
-      <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:4px;">
-        🔑 Resetear Contraseña
-      </div>
-      <div style="color:var(--muted2);font-size:0.78em;margin-bottom:16px;">
-        ${username} · ${phone||'sin teléfono'}
-      </div>
-
-      <div style="background:rgba(108,71,255,0.12);border:2px solid rgba(108,71,255,0.4);
-        border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">
-        <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;
-          text-transform:uppercase;letter-spacing:1px;">Nueva contraseña temporal</div>
-        <div style="font-family:var(--font-h);font-size:2em;font-weight:900;
-          color:var(--primary2);letter-spacing:3px;" id="_tempPassDisplay">${tempPass}</div>
-        <button onclick="
-          navigator.clipboard?.writeText('${tempPass}');
-          toast('📋 Copiada','success',1500);"
-          style="margin-top:8px;padding:5px 14px;border-radius:20px;border:none;
-          background:rgba(108,71,255,0.2);color:var(--primary2);
-          font-size:0.75em;font-weight:700;cursor:pointer;">
-          📋 Copiar
-        </button>
-      </div>
-
-      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;
-        background:rgba(245,197,66,0.08);border-radius:8px;padding:8px 10px;
-        border:1px solid rgba(245,197,66,0.2);">
-        ⚠️ Esta clave se guarda en Firestore. El usuario debe cambiarla al entrar.
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button onclick="document.getElementById('_resetPassModal').remove()"
-          style="padding:11px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.82em;font-weight:800;
-          background:var(--surface2);color:var(--muted2);
-          border:1px solid var(--border2);">Cancelar</button>
-        <button onclick="_confirmarResetPass('${uid}','${username}','${phone}','${tempPass}')"
-          style="padding:11px;border-radius:10px;cursor:pointer;
-          font-family:var(--font-h);font-size:0.82em;font-weight:800;
-          background:linear-gradient(135deg,#25D366,#128C7E);
-          color:white;border:none;">
-          📲 Guardar y enviar WA
-        </button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
-}
-
-async function _confirmarResetPass(uid, username, phone, tempPass) {
-  document.getElementById('_resetPassModal')?.remove();
   try {
-    // Guardar en Firestore — al entrar el sistema detecta la clave temporal
+    // Update password using Firebase Auth REST API (client-side trick via re-auth)
+    // We store the temp pass request in Firestore — user must change on next login
     await db.collection('passResets').doc(uid).set({
-      uid, username, tempPass,
+      uid, username,
+      tempPass,
       requestedBy: me.uid,
       requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
       used: false
     });
 
-    // Cambiar contraseña real via Firebase Auth REST API
-    const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';
-    // Primero necesitamos el email del usuario
-    const userDoc = await db.collection('users').doc(uid).get();
-    const userData = userDoc.data();
-    const countryCode = (userData?.phone||'').replace(/[^0-9]/g,'').substring(0,2) || '58';
-    const phoneNum = (userData?.phone||'').replace(/[^0-9]/g,'');
-    const email = phoneNum + '@quiniela.app';
-
-    try {
-      // Intentar reset via REST API
-      await fetch(
-        'https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + apiKey,
-        {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({
-            localId: uid,
-            password: tempPass,
-            returnSecureToken: false
-          })
-        }
-      );
-    } catch(apiErr) {
-      // Si falla la API (permisos), la clave en Firestore sirve de referencia
-      console.warn('REST API no disponible — clave guardada en Firestore');
-    }
-
-    // Mandar por WhatsApp de todas formas
+    // Send via WhatsApp
     const num = phone.replace(/[^0-9]/g,'');
-    const appUrl = 'https://luisla425.github.io/Quiniela/';
-    const msg =
-`🔑 *Quiniela LuAn — Nueva contraseña*
-
-Hola *${username}*! 👋
-
-Tu contraseña fue restablecida por el administrador.
-
-📱 Tu teléfono: ${phone}
-🔐 Nueva clave: *${tempPass}*
-
-Entra aquí: ${appUrl}
-
-⚠️ _Cámbiala desde el menú 🔑 una vez que entres._
-
-_— Admin Quiniela LuAn_`;
-
-    const waUrl = num
-      ? 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg)
-      : 'https://wa.me/?text=' + encodeURIComponent(msg);
-
-    window.open(waUrl, '_blank');
-    toast('✅ Clave enviada a ' + username + ' por WhatsApp', 'success', 3000);
+    const msg = encodeURIComponent(
+      `🔑 Quiniela LuAn — Reset de contraseña\n\n` +
+      `Hola ${username}! Tu contraseña temporal es:\n\n` +
+      `*${tempPass}*\n\n` +
+      `Entra con esta clave y cámbiala desde el menú de tu perfil.`
+    );
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    toast(`✅ Contraseña temporal generada para ${username}`,'success');
   } catch(e) {
-    toast('Error: ' + e.message, 'error');
+    toast('Error: '+e.message,'error');
   }
 }
 
@@ -6280,6 +6227,232 @@ function resetSimulation() {
   $('simSetup')?.classList.add('hidden');
   $('simResults')?.classList.add('hidden');
   simPlayers=[]; simMatches=[]; simPredictions={}; simGroup=null;
+}
+
+
+// ═══════════════════════════════════════════
+// MUNDIAL 2026 — Render partidos hardcodeados
+// ═══════════════════════════════════════════
+let _mundialJornada = 1; // jornada activa: 1, 2 o 3
+
+function renderMundialScreen() {
+  const el = $('screenMatches');
+  if (!el) return;
+
+  const jornadaMatches = FIXTURE_MUNDIAL
+    .filter(m => m.jornada === _mundialJornada)
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      // Ordenar por hora VZ: convertir a número para comparar
+      const toMins = t => {
+        const m = t.match(/(\d+):(\d+)\s*(am|pm)/i);
+        if (!m) return 0;
+        let h = +m[1], mn = +m[2];
+        if (m[3].toLowerCase() === 'pm' && h !== 12) h += 12;
+        if (m[3].toLowerCase() === 'am' && h === 12) h = 0;
+        return h * 60 + mn;
+      };
+      return toMins(a.timeVZ) - toMins(b.timeVZ);
+    });
+
+  let html = `
+    <div class="section-header">
+      <span class="section-title">🌍🏆 Mundial FIFA 2026</span>
+      <div style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" style="padding:5px 8px;font-size:0.85em;">❓</button>
+        <button class="btn btn-ghost btn-sm" onclick="showScreen('matches')" style="padding:5px 8px;font-size:0.85em;">← Volver</button>
+      </div>
+    </div>
+
+    <!-- Selector de jornada -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      ${[1,2,3].map(j => `
+        <button onclick="_mundialJornada=${j};renderMundialScreen()"
+          style="flex:1;padding:10px 6px;border-radius:var(--r-sm);cursor:pointer;
+          font-family:var(--font-b);font-weight:800;font-size:0.82em;
+          border:2px solid ${j===_mundialJornada?'var(--gold)':'var(--border2)'};
+          background:${j===_mundialJornada?'rgba(245,197,66,0.15)':'var(--surface2)'};
+          color:${j===_mundialJornada?'var(--gold)':'var(--muted2)'};">
+          🗓️ Jornada ${j}<br>
+          <span style="font-size:0.72em;opacity:0.8;">${j===1?'11-17 Jun':j===2?'18-23 Jun':'24-27 Jun'}</span>
+        </button>`).join('')}
+    </div>
+
+    <div style="font-size:0.72em;color:var(--muted2);text-align:center;margin-bottom:10px;font-weight:700;">
+      ${jornadaMatches.length} partidos · Hora Venezuela (VZ)
+    </div>`;
+
+  // Agrupar por fecha
+  const byDate = {};
+  jornadaMatches.forEach(m => {
+    if (!byDate[m.date]) byDate[m.date] = [];
+    byDate[m.date].push(m);
+  });
+
+  const closed = bettingClosed();
+
+  Object.keys(byDate).sort().forEach(date => {
+    const [y, mo, d] = date.split('-');
+    const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+    const dt = new Date(date + 'T12:00:00');
+    const diaLabel = dias[dt.getDay()];
+    const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    html += `<div style="font-size:0.7em;font-weight:800;color:var(--primary2);
+      text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;
+      padding:4px 8px;background:rgba(108,71,255,0.1);border-radius:6px;display:inline-block;">
+      📅 ${diaLabel} ${+d} ${meses[+mo]}
+    </div>`;
+
+    byDate[date].forEach(m => {
+      const predRow = !closed ? `
+        <div style="margin-top:10px;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px;">
+            <div id="hi_${m.id}" style="width:56px;height:56px;text-align:center;
+              background:var(--surface2);border:2px solid var(--border2);border-radius:12px;
+              color:var(--text);font-family:var(--font-h);font-size:1.6em;font-weight:800;
+              display:flex;align-items:center;justify-content:center;">–</div>
+            <span style="font-family:var(--font-h);font-size:1.4em;color:var(--muted);">—</span>
+            <div id="ai_${m.id}" style="width:56px;height:56px;text-align:center;
+              background:var(--surface2);border:2px solid var(--border2);border-radius:12px;
+              color:var(--text);font-family:var(--font-h);font-size:1.6em;font-weight:800;
+              display:flex;align-items:center;justify-content:center;">–</div>
+          </div>
+          <button class="btn-express-trigger"
+            ontouchend="event.preventDefault();openExpressMundial('${m.id}')"
+            onclick="openExpressMundial('${m.id}')">
+            ⚡ Predecir este partido
+          </button>
+        </div>` : '';
+
+      html += `
+        <div class="match-card" style="margin-bottom:10px;">
+          <div class="match-meta">
+            <span style="font-size:0.75em;color:var(--gold);font-weight:700;">🌍 Grupo ${m.group} · ${m.venue.split(',')[0]}</span>
+            <span class="badge-time">${m.timeVZ}</span>
+          </div>
+          <div class="match-teams">
+            <div class="team">
+              <span class="team-flag" style="font-size:1.6em;">${m.home.split(' ')[0]}</span>
+              <span class="team-name">${m.home.split(' ').slice(1).join(' ')}</span>
+            </div>
+            <span class="vs-divider">VS</span>
+            <div class="team">
+              <span class="team-flag" style="font-size:1.6em;">${m.away.split(' ')[0]}</span>
+              <span class="team-name">${m.away.split(' ').slice(1).join(' ')}</span>
+            </div>
+          </div>
+          ${predRow}
+        </div>`;
+    });
+  });
+
+  if (!closed) {
+    html += `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+        <button class="btn btn-ghost" onclick="setDefaultPredsMundial()" style="font-size:0.82em;">
+          🔮 Poner 0-0 a todos
+        </button>
+        <button class="btn btn-primary" onclick="savePredsMundial()">
+          💾 Guardar
+        </button>
+      </div>
+      <div style="font-size:0.7em;color:var(--muted2);text-align:center;margin-top:6px;">
+        💡 Si no predices antes del pitazo, se guarda 0-0 automáticamente
+      </div>`;
+  }
+
+  el.innerHTML = html;
+  // Agregar estilos del botón express si no existen
+  if (!document.getElementById('_mundialBtnStyle')) {
+    const st = document.createElement('style');
+    st.id = '_mundialBtnStyle';
+    st.textContent = `.btn-express-trigger{width:100%;padding:12px;border-radius:12px;
+      background:linear-gradient(135deg,var(--primary),var(--primary2));
+      color:#fff;font-family:var(--font-h);font-size:0.9em;font-weight:800;
+      border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;}`;
+    document.head.appendChild(st);
+  }
+}
+
+// Adapta openExpress para el fixture hardcodeado
+function openExpressMundial(matchId) {
+  // Crear un objeto compatible con _dM para reutilizar el flujo express
+  const m = FIXTURE_MUNDIAL.find(x => x.id === matchId);
+  if (!m) return;
+  // Temporalmente añadir a _dM si no existe
+  const fake = {
+    id: m.id, home: m.home, away: m.away,
+    date: m.date, time: '00:00',
+    status: 'Not Started', tournamentId: 'mundial',
+    tournamentName: 'Mundial FIFA 2026', tournamentFlag: '🌍🏆'
+  };
+  const pending = FIXTURE_MUNDIAL
+    .filter(x => x.jornada === _mundialJornada)
+    .map(x => ({...x, id: x.id, status: 'Not Started',
+      tournamentId: 'mundial', tournamentName: 'Mundial FIFA 2026', tournamentFlag: '🌍🏆'}));
+
+  _expressMatches = (() => {
+    const idx = pending.findIndex(x => x.id === matchId);
+    return idx >= 0 ? [...pending.slice(idx), ...pending.slice(0, idx)] : pending;
+  })();
+  _expressIdx  = 0;
+  _expressPick = {};
+
+  // Override _applyPickToUI para que funcione con los divs del mundial
+  _showExpressMatch();
+}
+
+function setDefaultPredsMundial() {
+  const jornadaMatches = FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada);
+  jornadaMatches.forEach(m => {
+    const hi = $('hi_' + m.id), ai = $('ai_' + m.id);
+    if (!hi || !ai) return;
+    hi.textContent = '0'; ai.textContent = '0';
+  });
+  toast('🔮 Todos en 0-0 · Toca Guardar', 'info');
+}
+
+async function savePredsMundial() {
+  if (!me?.uid) return;
+  const jornadaMatches = FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada);
+  const preds = [];
+  jornadaMatches.forEach(m => {
+    const hi = $('hi_' + m.id), ai = $('ai_' + m.id);
+    const h = +(hi?.textContent || hi?.value || 0) || 0;
+    const a = +(ai?.textContent || ai?.value || 0) || 0;
+    preds.push({ matchId: m.id, h, a, match: m });
+  });
+  if (!preds.length) { toast('Sin predicciones', 'error'); return; }
+
+  const grpSnap = await db.collection('groups').get();
+  const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()}))
+    .filter(g => g.members?.some(m => m.userId === me.uid));
+  if (!myGroups.length) { toast('Únete a un grupo primero', 'error'); return; }
+
+  const group = myGroups.length === 1 ? myGroups[0] : myGroups.find(g => g.id === activeGroupId) || myGroups[0];
+  const jDate = '2026-06-mundial-j' + _mundialJornada;
+
+  if (!confirm('¿Confirmar predicciones del Mundial para el grupo "' + group.name + '"?')) return;
+
+  try {
+    const batch = db.batch();
+    preds.forEach(p => {
+      const docId = me.uid + '_' + group.id + '_' + p.matchId;
+      batch.set(db.collection('predictions').doc(docId), {
+        userId: me.uid, username: me.username,
+        groupId: group.id, groupName: group.name,
+        matchId: p.matchId,
+        predictedHomeScore: p.h, predictedAwayScore: p.a,
+        home: p.match.home, away: p.match.away,
+        tournamentId: 'mundial', jornadaDate: jDate,
+        evaluated: false,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+    toast('✅ ' + preds.length + ' predicciones del Mundial guardadas', 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════
