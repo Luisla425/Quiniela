@@ -1729,7 +1729,7 @@ const TOURNAMENTS = [
   { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
   { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
   { id:'copadelrey', name:'Copa del Rey', flag:'🏆🇪🇸', lid:'4483', teamBlacklist:['port vale','bristol city','arsenal','chelsea','liverpool','manchester united','manchester city','tottenham','everton','newcastle','brighton','aston villa','wolverhampton','leicester','nottingham forest','brentford','fulham','crystal palace','bournemouth','burnley','west ham','southampton','luton','sheffield united','sheffield wednesday','leeds','sunderland','ipswich','oxford','plymouth','portsmouth','stoke','watford','west brom','coventry','hull','blackburn','swansea','cardiff','middlesbrough','norwich','millwall','derby','preston','blackpool','wigan','bolton','charlton','rotherham','birmingham','reading','huddersfield','peterborough','gillingham','fleetwood','stockport','wrexham','exeter','newport','grimsby','leyton orient','walsall','shrewsbury','northampton','mansfield','bradford','cambridge','swindon','crewe','rochdale','oldham','cheltenham'] },
-  { id:'mundial',  name:'Copa del Mundo 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
+  { id:'mundial',  name:'Mundial FIFA 2026',   flag:'🌍🏆', lid:'4429', isMundial:true },
   { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
 ];
 
@@ -2673,7 +2673,7 @@ auth.onAuthStateChanged(async user => {
       return;
     }
     me = { uid: user.uid, ...doc.data() };
-    myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1'];
+    myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1','mundial'];
     enterApp();
   } else {
     $('authScreen').classList.remove('hidden');
@@ -3068,7 +3068,7 @@ function renderCreatePicker() {
   const el = $('createTournamentPicker');
   if (!el) return;
   // Solo torneos de ligas (no Copa del Rey ni Mundial)
-  const playable = TOURNAMENTS.filter(t => !t.isMundial && t.id !== 'copadelrey');
+  const playable = TOURNAMENTS.filter(t => t.id !== 'copadelrey');
   el.innerHTML = playable.map(t => `
     <button class="t-pick-btn" data-tid="${t.id}"
       onclick="this.classList.toggle('selected');this.style.borderColor=this.classList.contains('selected')?'var(--primary)':'var(--border2)';this.style.background=this.classList.contains('selected')?'rgba(108,71,255,0.25)':'var(--surface2)';this.style.color=this.classList.contains('selected')?'var(--primary2)':'var(--muted2)';"
@@ -3099,7 +3099,7 @@ async function loadMyGroups() {
     } else {
       activeGroupId = null;
       // Sin grupos → usar torneos del perfil
-      myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1'];
+      myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1','mundial'];
     }
   } catch(e) {
     activeGroupId = null;
@@ -3111,7 +3111,7 @@ function applyActiveGroupTournaments() {
   if (g?.tournaments?.length) {
     myTournaments = g.tournaments;
   } else {
-    myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1'];
+    myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1','mundial'];
   }
 }
 
@@ -4917,7 +4917,7 @@ function renderLigasPanel() {
       </div>
     </div>`;
 
-  TOURNAMENTS.filter(tr => !tr.isMundial).forEach(tr => {
+  TOURNAMENTS.forEach(tr => {
     const sel = myTournaments.includes(tr.id);
     if (me.isAdmin) {
       // Admin: puede activar/desactivar
@@ -5681,7 +5681,74 @@ async function adminResetUserPass(username, phone, uid) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 }
 
-async function _confirmarResetPass(uid, username, phone, tempPass) {   document.getElementById('_resetPassModal')?.remove();   try {     await db.collection('passResets').doc(uid).set({       uid, username, tempPass,       requestedBy: me.uid,       requestedAt: firebase.firestore.FieldValue.serverTimestamp(),       used: false     });      const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';     const userDoc = await db.collection('users').doc(uid).get();     const userData = userDoc.data();     const phoneNum = (userData?.phone||'').replace(/[^0-9]/g,'');      try {       await fetch(         'https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + apiKey,         {           method: 'POST',           headers: {'Content-Type':'application/json'},           body: JSON.stringify({             localId: uid,             password: tempPass,             returnSecureToken: false           })         }       );     } catch(apiErr) {       console.warn('REST API no disponible — clave guardada en Firestore');     }      const num = phone.replace(/[^0-9]/g,'');     const appUrl = 'https://luisla425.github.io/Quiniela/';     const msg = `🔑 *Quiniela LuAn — Nueva contraseña*  Hola *${username}*! 👋  Tu contraseña fue restablecida por el administrador.  📱 Tu teléfono: ${phone} 🔐 Nueva clave: *${tempPass}*  Entra aquí: ${appUrl}  ⚠️ _Cámbiala desde el menú 🔑 una vez que entres._  _— Admin Quiniela LuAn_`;      const waUrl = num       ? 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg)       : 'https://wa.me/?text=' + encodeURIComponent(msg);      window.open(waUrl, '_blank');     toast('✅ Clave enviada a ' + username + ' por WhatsApp', 'success', 3000);   } catch(e) {     toast('Error: ' + e.message, 'error');   } }
+async function _confirmarResetPass(uid, username, phone, tempPass) {
+  document.getElementById('_resetPassModal')?.remove();
+  try {
+    // Guardar en Firestore — al entrar el sistema detecta la clave temporal
+    await db.collection('passResets').doc(uid).set({
+      uid, username, tempPass,
+      requestedBy: me.uid,
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      used: false
+    });
+
+    // Cambiar contraseña real via Firebase Auth REST API
+    const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';
+    // Primero necesitamos el email del usuario
+    const userDoc = await db.collection('users').doc(uid).get();
+    const userData = userDoc.data();
+    const countryCode = (userData?.phone||'').replace(/[^0-9]/g,'').substring(0,2) || '58';
+    const phoneNum = (userData?.phone||'').replace(/[^0-9]/g,'');
+    const email = phoneNum + '@quiniela.app';
+
+    try {
+      // Intentar reset via REST API
+      await fetch(
+        'https://identitytoolkit.googleapis.com/v1/accounts:update?key=' + apiKey,
+        {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            localId: uid,
+            password: tempPass,
+            returnSecureToken: false
+          })
+        }
+      );
+    } catch(apiErr) {
+      // Si falla la API (permisos), la clave en Firestore sirve de referencia
+      console.warn('REST API no disponible — clave guardada en Firestore');
+    }
+
+    // Mandar por WhatsApp de todas formas
+    const num = phone.replace(/[^0-9]/g,'');
+    const appUrl = 'https://luisla425.github.io/Quiniela/';
+    const msg =
+`🔑 *Quiniela LuAn — Nueva contraseña*
+
+Hola *${username}*! 👋
+
+Tu contraseña fue restablecida por el administrador.
+
+📱 Tu teléfono: ${phone}
+🔐 Nueva clave: *${tempPass}*
+
+Entra aquí: ${appUrl}
+
+⚠️ _Cámbiala desde el menú 🔑 una vez que entres._
+
+_— Admin Quiniela LuAn_`;
+
+    const waUrl = num
+      ? 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg)
+      : 'https://wa.me/?text=' + encodeURIComponent(msg);
+
+    window.open(waUrl, '_blank');
+    toast('✅ Clave enviada a ' + username + ' por WhatsApp', 'success', 3000);
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
 
 async function adminEval() {
   if(!confirm('¿Evaluar todos los partidos finalizados?')) return;
