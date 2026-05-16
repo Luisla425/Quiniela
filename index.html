@@ -2225,32 +2225,32 @@ function openRankWAMenu() {
       <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personales (abre WhatsApp directo)</div>
       ${msgs.slice(0,4).map((m,i) => {
         const hasPhone = m.phone && m.phone.replace(/[^0-9]/g,'').length > 5;
-        return `<button onclick="sendRankWA(${i})"
-          style="width:100%;margin-bottom:8px;padding:12px 14px;
-          background:var(--surface2);border:1px solid var(--border2);
-          border-radius:var(--r-sm);cursor:pointer;text-align:left;
-          color:var(--text);font-family:var(--font-b);
-          display:flex;align-items:center;gap:10px;
-          ${!hasPhone?'opacity:0.5;':''}">
-          <span style="font-size:1.4em;flex-shrink:0;">${m.icon}</span>
-          <div>
-            <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-            ${!hasPhone?'<div style="font-size:0.68em;color:var(--red);">Sin número registrado</div>':''}
-          </div>
-        </button>`;
+        return '<button onclick="sendRankWA(' + i + ')"'
+          + ' style="width:100%;margin-bottom:8px;padding:12px 14px;'
+          + 'background:var(--surface2);border:1px solid var(--border2);'
+          + 'border-radius:var(--r-sm);cursor:pointer;text-align:left;'
+          + 'color:var(--text);font-family:var(--font-b);'
+          + 'display:flex;align-items:center;gap:10px;'
+          + (!hasPhone?'opacity:0.5;':'') + '">'
+          + '<span style="font-size:1.4em;flex-shrink:0;">' + m.icon + '</span>'
+          + '<div>'
+          + '<div style="font-size:0.82em;font-weight:700;">' + m.label + '</div>'
+          + (!hasPhone?'<div style="font-size:0.68em;color:var(--red);">Sin número registrado</div>':'')
+          + '</div></button>';
       }).join('')}
 
       <div style="font-size:0.7em;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">Para el grupo de WhatsApp (copia y pega)</div>
-      ${msgs.slice(4).map((m,i) => `
-        <button onclick="sendRankWA(${i+4})"
-          style="width:100%;margin-bottom:8px;padding:12px 14px;
-          background:var(--surface2);border:1px solid var(--border2);
-          border-radius:var(--r-sm);cursor:pointer;text-align:left;
-          color:var(--text);font-family:var(--font-b);
-          display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.4em;flex-shrink:0;">${m.icon}</span>
-          <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-        </button>`).join('')}
+      ${msgs.slice(4).map((m,i) =>
+        '<button onclick="sendRankWA(' + (i+4) + ')"'
+        + ' style="width:100%;margin-bottom:8px;padding:12px 14px;'
+        + 'background:var(--surface2);border:1px solid var(--border2);'
+        + 'border-radius:var(--r-sm);cursor:pointer;text-align:left;'
+        + 'color:var(--text);font-family:var(--font-b);'
+        + 'display:flex;align-items:center;gap:10px;">'
+        + '<span style="font-size:1.4em;flex-shrink:0;">' + m.icon + '</span>'
+        + '<div style="font-size:0.82em;font-weight:700;">' + m.label + '</div>'
+        + '</button>'
+      ).join('')}
 
       <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
     </div>`;
@@ -2404,7 +2404,15 @@ function _askAdminCronAdjust(matchId, home, away) {
       <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${home} ${t('vsLabel')} ${away}</div>
       <div style="color:var(--muted2);font-size:0.82em;margin-bottom:10px;">Offset actual: <strong id="_cronOffsetLbl" style="color:var(--gold)">${cur>0?'+':''}${cur} min</strong></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-        ${[-10,-5,-3,-1,1,3,5,10].map(v=>`<button onclick="_setCronOffset('${matchId}',${v*60})" style="flex:1;min-width:52px;padding:8px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:${v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)'};color:${v<0?'var(--red)':'var(--green)'};border:1px solid ${v<0?'var(--red)':'var(--green)'}">${v>0?'+':''}${v}m</button>`).join('')}
+        ${[-10,-5,-3,-1,1,3,5,10].map(v => {
+          const bg = v<0?'rgba(255,77,109,0.15)':'rgba(0,229,160,0.15)';
+          const cl = v<0?'var(--red)':'var(--green)';
+          return '<button onclick="_setCronOffset(\'' + matchId + '\',' + (v*60) + ')"'
+            + ' style="flex:1;min-width:52px;padding:8px 4px;border-radius:10px;cursor:pointer;'
+            + 'font-family:var(--font-h);font-size:0.85em;font-weight:800;'
+            + 'background:' + bg + ';color:' + cl + ';border:1px solid ' + cl + ';">'
+            + (v>0?'+':'') + v + 'm</button>';
+        }).join('')}
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="_setCronOffset('${matchId}',0,'reset')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">↺ Reset</button>
@@ -2436,7 +2444,7 @@ function _askAdminExtraTime(m) {
       <div style="font-family:var(--font-h);font-weight:800;font-size:1.05em;margin-bottom:4px;">⏱ Tiempo añadido</div>
       <div style="color:var(--muted2);font-size:0.8em;margin-bottom:14px;">${m.home} ${t('vsLabel')} ${m.away}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
-        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`<button onclick="_setAdminExtra('${m.id}',${v})" style="flex:1;min-width:44px;padding:9px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.9em;font-weight:800;background:rgba(245,197,66,0.12);color:var(--gold);border:1px solid var(--gold);">+${v}</button>`).join('')}
+        ${[1,2,3,4,5,6,7,8,9,10].map(v => '<button onclick="_setAdminExtra(\'' + m.id + '\',' + v + ')" style="flex:1;min-width:44px;padding:9px 4px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.9em;font-weight:800;background:rgba(245,197,66,0.12);color:var(--gold);border:1px solid var(--gold);">+' + v + '</button>').join('')}
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="_setAdminExtra('${m.id}','?')" style="flex:1;padding:9px;border-radius:10px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(255,140,66,0.15);color:var(--orange);border:1px solid var(--orange);">+? (no sé)</button>
@@ -2515,10 +2523,11 @@ function closeCountryPicker(e) {
 function filterCountries(q) {
   const list = $('countryList');
   const filtered = q ? COUNTRIES.filter(c=>c.n.toLowerCase().includes(q.toLowerCase())||c.d.includes(q)) : COUNTRIES;
-  list.innerHTML = filtered.map(c=>`
-    <div class="country-option" onclick="selectCountry('${c.d}','${c.f}','${c.n}')">
-      <span>${c.f}</span><span class="dial">${c.d}</span><span>${c.n}</span>
-    </div>`).join('');
+  list.innerHTML = filtered.map(c =>
+    '<div class="country-option" onclick="selectCountry(\'' + c.d + '\',\'' + c.f + '\',\'' + c.n + '\')">'
+    + '<span>' + c.f + '</span><span class="dial">' + c.d + '</span><span>' + c.n + '</span>'
+    + '</div>'
+  ).join('');
 }
 function selectCountry(dial, flag, name) {
   selectedCountry[currentCountryTarget] = {d:dial,f:flag,n:name};
@@ -3089,15 +3098,10 @@ function renderCreatePicker() {
   if (!el) return;
   // Solo torneos de ligas (no Copa del Rey ni Mundial)
   const playable = TOURNAMENTS.filter(t => t.id !== 'copadelrey');
-  el.innerHTML = playable.map(t => `
-    <button class="t-pick-btn" data-tid="${t.id}"
-      onclick="this.classList.toggle('selected');this.style.borderColor=this.classList.contains('selected')?'var(--primary)':'var(--border2)';this.style.background=this.classList.contains('selected')?'rgba(108,71,255,0.25)':'var(--surface2)';this.style.color=this.classList.contains('selected')?'var(--primary2)':'var(--muted2)';"
-      style="padding:8px 12px;border-radius:20px;border:2px solid var(--border2);
-      background:var(--surface2);color:var(--muted2);
-      font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;
-      transition:all 0.2s;">
-      ${t.flag} ${t.name}
-    </button>`).join('');
+  el.innerHTML = playable.map(t => {
+    const sel = "this.classList.toggle('selected');this.style.borderColor=this.classList.contains('selected')?'var(--primary)':'var(--border2)';this.style.background=this.classList.contains('selected')?'rgba(108,71,255,0.25)':'var(--surface2)';this.style.color=this.classList.contains('selected')?'var(--primary2)':'var(--muted2)';";
+    return '<button class="t-pick-btn" data-tid="' + t.id + '" onclick="' + sel + '" style="padding:8px 12px;border-radius:20px;border:2px solid var(--border2);background:var(--surface2);color:var(--muted2);font-family:var(--font-b);font-weight:700;font-size:0.82em;cursor:pointer;transition:all 0.2s;">' + t.flag + ' ' + t.name + '</button>';
+  }).join('');
 }
 
 // ═══════════════════════════════════════════
@@ -3758,15 +3762,14 @@ async function openStats(matchId) {
         if (h1) parts.push({ label:'1er Tiempo', h: h1.intHomeScore??h1.intHome??'?', a: h1.intAwayScore??h1.intAway??'?' });
         if (h2) parts.push({ label:'2do Tiempo', h: h2.intHomeScore??h2.intHome??'?', a: h2.intAwayScore??h2.intAway??'?' });
         if (parts.length) {
-          partialsHtml = `
-            <div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">
-              ${parts.map(p => `
-                <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
-                  padding:5px 14px;text-align:center;">
-                  <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">${p.label}</div>
-                  <div style="font-family:var(--font-h);font-size:1.1em;font-weight:900;color:var(--text);margin-top:2px;">${p.h} — ${p.a}</div>
-                </div>`).join('')}
-            </div>`;
+          partialsHtml = '<div style="display:flex;gap:8px;justify-content:center;margin-top:8px;">'
+            + parts.map(p =>
+                '<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 14px;text-align:center;">'
+                + '<div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;">' + p.label + '</div>'
+                + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:900;color:var(--text);margin-top:2px;">' + p.h + ' — ' + p.a + '</div>'
+                + '</div>'
+              ).join('')
+            + '</div>';
         }
       }
     } catch(e) {}
@@ -4135,15 +4138,16 @@ async function openStats(matchId) {
               if (pos.includes('for')||pos.includes('strik')) return '⚡';
               return '👤';
             };
-            html += `<div>
-              <div style="font-size:0.75em;font-weight:800;color:${color};margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${tname}</div>
-              ${sorted.slice(0,11).map(p => `
-                <div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">
-                  <span>${posIcon(p.strPosition)}</span>
-                  <span style="color:var(--gold);min-width:18px;font-weight:800;">${p.strNumber||''}</span>
-                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.strPlayer||''}</span>
-                </div>`).join('')}
-            </div>`;
+            html += '<div>'
+              + '<div style="font-size:0.75em;font-weight:800;color:' + color + ';margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + tname + '</div>'
+              + sorted.slice(0,11).map(p =>
+                  '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
+                  + '<span>' + posIcon(p.strPosition) + '</span>'
+                  + '<span style="color:var(--gold);min-width:18px;font-weight:800;">' + (p.strNumber||'') + '</span>'
+                  + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (p.strPlayer||'') + '</span>'
+                  + '</div>'
+                ).join('')
+              + '</div>';
           });
           html += `</div>`;
         }
@@ -4253,20 +4257,22 @@ async function openLineup(matchId, home, away) {
           </div>
         </div>`;
 
-      return `
-        <div>
-          <div style="font-size:0.72em;font-weight:900;color:${color};margin-bottom:6px;
-            border-bottom:2px solid ${color};padding-bottom:4px;overflow:hidden;
-            text-overflow:ellipsis;white-space:nowrap;">${tname}</div>
-          ${starters.length ? `
-            <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-              letter-spacing:1px;margin:4px 0 3px;">Titulares (${starters.length})</div>
-            ${starters.map(renderRow).join('')}` : ''}
-          ${subs.length ? `
-            <div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-              letter-spacing:1px;margin:8px 0 3px;">Suplentes (${subs.length})</div>
-            ${subs.map(renderRow).join('')}` : ''}
-        </div>`;
+      let teamHtml = '<div>'
+        + '<div style="font-size:0.72em;font-weight:900;color:' + color + ';margin-bottom:6px;'
+        + 'border-bottom:2px solid ' + color + ';padding-bottom:4px;overflow:hidden;'
+        + 'text-overflow:ellipsis;white-space:nowrap;">' + tname + '</div>';
+      if (starters.length) {
+        teamHtml += '<div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;'
+          + 'letter-spacing:1px;margin:4px 0 3px;">Titulares (' + starters.length + ')</div>'
+          + starters.map(renderRow).join('');
+      }
+      if (subs.length) {
+        teamHtml += '<div style="font-size:0.6em;color:var(--muted2);font-weight:700;text-transform:uppercase;'
+          + 'letter-spacing:1px;margin:8px 0 3px;">Suplentes (' + subs.length + ')</div>'
+          + subs.map(renderRow).join('');
+      }
+      teamHtml += '</div>';
+      return teamHtml;
     };
 
     const html = `
@@ -4304,7 +4310,7 @@ function setDefaultPreds() {
     hi.classList.add('set'); ai.classList.add('set');
     // Update express button too
     const card = hi.closest('.match-card');
-    if (card) {
+    if (card)  {
       const btn = card.querySelector('.btn-express-trigger');
       if (btn) {
         btn.innerHTML = `✅ 0 — 0 &nbsp;·&nbsp; <span style="font-size:0.85em;opacity:0.8;">Cambiar</span>`;
@@ -4461,7 +4467,7 @@ async function doSavePreds(preds, jDate, group) {
     }
   } catch(e) {}
 
-  const summary = preds.map(p=>`${p.match.home} ${p.h}—${p.a} ${p.match.away}`).join('\n');
+  const summary = preds.map(p => p.match.home + ' ' + p.h + '—' + p.a + ' ' + p.match.away).join('\n');
   if (!confirm(`📋 GRUPO: ${group.name}\n\n${summary}\n\n¿Confirmar predicciones?`)) return;
 
   try {
@@ -4926,7 +4932,7 @@ function renderLigasPanel() {
     <div style="margin-bottom:14px;">
       <div style="font-size:0.78em;color:var(--muted2);font-weight:600;margin-bottom:12px;">
         ${me.isAdmin
-          c? '👑 Como Admin puedes activar/desactivar ligas para los grupos.'
+          ? '👑 Como Admin puedes activar/desactivar ligas para los grupos.'
           : '👀 Estas son las ligas disponibles en el sistema. ¿Quieres proponer una quiniela con alguna?'}
       </div>`;
 
@@ -5446,6 +5452,9 @@ async function adminUsers() {
       <div style="font-size:0.7em;color:var(--green);font-weight:700;">🟢 Predicaron hoy</div>
     </div>
     <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">
+      <div style="font-size:0.7em;color:var(--green);font-weight:700;">🟢 Predicaron hoy</div>
+    </div>
+    <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${noPredCount}</div>
       <div style="font-size:0.7em;color:var(--red);font-weight:700;">🔴 Sin predicción</div>
     </div>
@@ -5723,20 +5732,7 @@ async function _confirmarResetPass(uid, username, phone, tempPass) {
     }
     const num = phone.replace(/[^0-9]/g,'');
     const appUrl = 'https://luisla425.github.io/Quiniela/';
-    const msg = '🔑 *Quiniela LuAn — Nueva contraseña*
-
-Hola *' + username + '*! 👋
-
-Tu contraseña fue restablecida por el administrador.
-
-📱 Tu teléfono: ' + phone + '
-🔐 Nueva clave: *' + tempPass + '*
-
-Entra aquí: ' + appUrl + '
-
-⚠️ _Cámbiala desde el menú 🔑 una vez que entres._
-
-_— Admin Quiniela LuAn_';
+    const msg = '🔑 *Quiniela LuAn — Nueva contraseña*\n\nHola *' + username + '*! 👋\n\nTu contraseña fue restablecida por el administrador.\n\n📱 Tu teléfono: ' + phone + '\n🔐 Nueva clave: *' + tempPass + '*\n\nEntra aquí: ' + appUrl + '\n\n⚠️ _Cámbiala desde el menú 🔑 una vez que entres._\n\n_— Admin Quiniela LuAn_';
     const waUrl = num
       ? 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg)
       : 'https://wa.me/?text=' + encodeURIComponent(msg);
@@ -5942,7 +5938,7 @@ async function loadSimGroups() {
       sel.innerHTML = '<option>No perteneces a ningún grupo</option>';
       return;
     }
-    sel.innerHTML = myGroups.map(g=>`<option value="${g.id}">${g.name}</option>`).join('');
+    sel.innerHTML = myGroups.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
   } catch(e) { sel.innerHTML = '<option>Error cargando grupos</option>'; }
 }
 
@@ -6037,30 +6033,26 @@ async function loadSimulation() {
 function renderSimMatches() {
   const el = $('simMatchesList');
   if (!el) return;
-  el.innerHTML = simMatches.map(m=>`
-    <div class="sim-match-card">
-      <div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">
-        ${m.tournamentFlag||'🌍'} ${m.tournamentName}
-        ${isLive(m.status)?'<span class="badge-live" style="margin-left:6px;">🔴 VIVO</span>':''}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">
-        <div style="text-align:center;">
-          <span style="font-size:1.8em;">⚽</span>
-          <div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">${m.home}</div>
-        </div>
-        <div class="sim-score-row">
-          <input type="number" min="0" max="99" value="${m.homeScore!=null?m.homeScore:0}"
-            id="simH_${m.id}" class="sim-input" inputmode="numeric">
-          <span style="font-family:var(--font-h);color:var(--muted);font-size:1.2em;">—</span>
-          <input type="number" min="0" max="99" value="${m.awayScore!=null?m.awayScore:0}"
-            id="simA_${m.id}" class="sim-input" inputmode="numeric">
-        </div>
-        <div style="text-align:center;">
-          <span style="font-size:1.8em;">⚽</span>
-          <div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">${m.away}</div>
-        </div>
-      </div>
-    </div>`).join('');
+  el.innerHTML = simMatches.map(m => {
+    const simLiveTag = isLive(m.status) ? '<span class="badge-live" style="margin-left:6px;">🔴 VIVO</span>' : '';
+    const simHval = m.homeScore != null ? m.homeScore : 0;
+    const simAval = m.awayScore != null ? m.awayScore : 0;
+    return '<div class="sim-match-card">'
+      + '<div style="font-size:0.72em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">'
+      + (m.tournamentFlag||'🌍') + ' ' + m.tournamentName + simLiveTag
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;">'
+      + '<div style="text-align:center;"><span style="font-size:1.8em;">⚽</span>'
+      + '<div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">' + m.home + '</div></div>'
+      + '<div class="sim-score-row">'
+      + '<input type="number" min="0" max="99" value="' + simHval + '" id="simH_' + m.id + '" class="sim-input" inputmode="numeric">'
+      + '<span style="font-family:var(--font-h);color:var(--muted);font-size:1.2em;">—</span>'
+      + '<input type="number" min="0" max="99" value="' + simAval + '" id="simA_' + m.id + '" class="sim-input" inputmode="numeric">'
+      + '</div>'
+      + '<div style="text-align:center;"><span style="font-size:1.8em;">⚽</span>'
+      + '<div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;">' + m.away + '</div></div>'
+      + '</div></div>';
+  }).join('');
 }
 
 function applyScenario(type) {
@@ -6313,16 +6305,20 @@ function renderMundialScreen() {
       </div>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:14px;">
-      ${[1,2,3].map(j => `
-        <button onclick="_mundialJornada=${j};renderMundialScreen()"
-          style="flex:1;padding:10px 6px;border-radius:var(--r-sm);cursor:pointer;
-          font-family:var(--font-b);font-weight:800;font-size:0.82em;
-          border:2px solid ${j===_mundialJornada?'var(--gold)':'var(--border2)'};
-          background:${j===_mundialJornada?'rgba(245,197,66,0.15)':'var(--surface2)'};
-          color:${j===_mundialJornada?'var(--gold)':'var(--muted2)'};">
-          🗓️ Jornada ${j}<br>
-          <span style="font-size:0.72em;opacity:0.8;">${j===1?'11-17 Jun':j===2?'18-23 Jun':'24-27 Jun'}</span>
-        </button>`).join('')}
+      ${[1,2,3].map(j => {
+        const isActive = j === _mundialJornada;
+        const label = j===1?'11-17 Jun':j===2?'18-23 Jun':'24-27 Jun';
+        const border = isActive ? 'var(--gold)' : 'var(--border2)';
+        const bg     = isActive ? 'rgba(245,197,66,0.15)' : 'var(--surface2)';
+        const color  = isActive ? 'var(--gold)' : 'var(--muted2)';
+        return '<button onclick="_mundialJornada=' + j + ';renderMundialScreen()"'
+          + ' style="flex:1;padding:10px 6px;border-radius:var(--r-sm);cursor:pointer;'
+          + 'font-family:var(--font-b);font-weight:800;font-size:0.82em;'
+          + 'border:2px solid ' + border + ';background:' + bg + ';color:' + color + ';">'
+          + '🗓️ Jornada ' + j + '<br>'
+          + '<span style="font-size:0.72em;opacity:0.8;">' + label + '</span>'
+          + '</button>';
+      }).join('')}
     </div>
     <div style="font-size:0.72em;color:var(--muted2);text-align:center;margin-bottom:10px;font-weight:700;">
       ${jornadaMatches.length} partidos · Hora Venezuela (VZ)
@@ -6605,14 +6601,14 @@ async function openMyStats() {
 
       <!-- By tournament -->
       <div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;margin-bottom:8px;">📋 Por Torneo</div>
-      ${tourList.map(t => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:0.85em;">${t.name}</span>
-          <div style="text-align:right;">
-            <span style="font-family:var(--font-h);color:var(--primary2);">${t.pts}pts</span>
-            <span style="font-size:0.7em;color:var(--muted2);margin-left:6px;">⭐${t.exact}/${t.total}</span>
-          </div>
-        </div>`).join('')}
+      ${tourList.map(t =>
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">'
+        + '<span style="font-size:0.85em;">' + t.name + '</span>'
+        + '<div style="text-align:right;">'
+        + '<span style="font-family:var(--font-h);color:var(--primary2);">' + t.pts + 'pts</span>'
+        + '<span style="font-size:0.7em;color:var(--muted2);margin-left:6px;">⭐' + t.exact + '/' + t.total + '</span>'
+        + '</div></div>'
+      ).join('')}
 
       ${defaults > 0 ? `<div style="margin-top:10px;font-size:0.72em;color:var(--muted2);text-align:center;">
         🔮 ${defaults} predicciones por defecto (0-0) guardadas automáticamente
@@ -7265,10 +7261,7 @@ function _renderExpress_GoalsDraw(m) {
       🤝 ¿Cuántos goles cada uno?
     </div>
     <div class="goal-picker">
-      ${nums.map(n=>`
-        <div class="goal-num"
-          ontouchend="event.preventDefault();_pickDraw(${n})"
-          onclick="_pickDraw(${n})">${n}</div>`).join('')}
+      ${nums.map(n => '<div class="goal-num" ontouchend="event.preventDefault();_pickDraw(' + n + ')" onclick="_pickDraw(' + n + ')">' + n + '</div>').join('')}
     </div>
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
 }
@@ -7293,10 +7286,7 @@ function _renderExpress_GoalsWinner(m, side) {
       <div style="font-size:0.8em;color:var(--muted2);">(el ganador)</div>
     </div>
     <div class="goal-picker">
-      ${nums.map(n=>`
-        <div class="goal-num"
-          ontouchend="event.preventDefault();_pickWinnerGoals(${n})"
-          onclick="_pickWinnerGoals(${n})">${n}</div>`).join('')}
+      ${nums.map(n => '<div class="goal-num" ontouchend="event.preventDefault();_pickWinnerGoals(' + n + ')" onclick="_pickWinnerGoals(' + n + ')">' + n + '</div>').join('')}
     </div>
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
 }
@@ -7333,10 +7323,7 @@ function _pickWinnerGoals(n) {
       <div style="font-size:0.8em;color:var(--muted2);">(el perdedor)</div>
     </div>
     <div class="goal-picker">
-      ${nums.filter(x => x < n).map(x=>`
-        <div class="goal-num"
-          ontouchend="event.preventDefault();_pickLoserGoals(${x})"
-          onclick="_pickLoserGoals(${x})">${x}</div>`).join('')}
+      ${nums.filter(x => x < n).map(x => '<div class="goal-num" ontouchend="event.preventDefault();_pickLoserGoals(' + x + ')" onclick="_pickLoserGoals(' + x + ')">' + x + '</div>').join('')}
     </div>
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
 }
