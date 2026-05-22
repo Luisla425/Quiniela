@@ -1912,7 +1912,9 @@ let simGroup = null;
 let selectedCountry = { login: COUNTRIES[0], reg: COUNTRIES[0], reset: COUNTRIES[0] };
 let activeGroupId = null;      // ID del grupo activo en vista de partidos
 let myGroupsList  = [];        // Cache de grupos del jugador
-let _lEC = {};     // { matchId: { events:[], possession:null, lastUpdated:0 } }
+let _lEC = {};   
+let _emergencyUsers = new Set();
+// { matchId: { events:[], possession:null, lastUpdated:0 } }
 
 // ═══════════════════════════════════════════
 // TEMAS
@@ -2767,6 +2769,8 @@ async function enterApp() {
   startClock();
   applyTheme(currentTheme);
   setLang(currentLang);
+await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
+
   showScreen('matches');
 
   // Cargar grupos del jugador y activar el más reciente
@@ -3085,21 +3089,48 @@ function setDayMatches() {
   _dM = pool.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
 }
 
-function bettingClosed() {
-  // Cerrado si algún partido está en vivo o terminado
-  if (_dM.some(m => isLive(m.status) || isFinished(m.status))) return true;
-  // También cerrado si faltan menos de 2 horas para el primer partido
-  const vzNow = new Date(new Date().toLocaleString('en-US', {timeZone:'America/Caracas'}));
+function _isHardLocked() {
+  // Bloqueo total 5 min después del pitazo — NI EL ADMIN puede cambiar
+  const firstStarted = _dM.find(m => isLive(m.status) || isFinished(m.status));
+  if (!firstStarted || !firstStarted.time) return false;
+  try {
+    const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
+    const [hh, mm] = firstStarted.time.split(':').map(Number);
+    const kick = new Date(vzN); kick.setHours(hh, mm, 0, 0);
+    return (vzN - kick) / 60000 >= 5;
+  } catch(e) { return false; }
+}
+
+function _bettingStatus() {
+  // NIVEL 1: Bloqueo total — 5 min desde el pitazo (nadie)
+  if (_isHardLocked()) return {
+    locked: true, hardLock: true,
+    msg: '🔒 Bloqueo total — ya pasaron 5 min del inicio.\nNadie puede cambiar predicciones.'
+  };
+  // NIVEL 2: Acceso emergencia (admin abrió para este jugador)
+  if (me?.uid && _emergencyUsers.has(me.uid)) return { locked: false, emergency: true };
+  // NIVEL 3: Admin puede siempre (mientras no sea bloqueo total)
+  if (me?.isAdmin) return { locked: false, isAdmin: true };
+  // NIVEL 4: Partido ya inició o terminó
+  if (_dM.some(m => isLive(m.status) || isFinished(m.status)))
+    return { locked: true, msg: '⛔ Las predicciones están cerradas.\nYa inició un partido.' };
+  // NIVEL 5: Menos de 2 horas para el primer partido
+  const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
   for (const m of _dM) {
     if (!m.time) continue;
     const [hh, mm] = m.time.split(':').map(Number);
-    const kick = new Date(vzNow);
-    kick.setHours(hh, mm, 0, 0);
-    const diffMs = kick - vzNow;
-    if (diffMs > 0 && diffMs < 2 * 60 * 60 * 1000) return true;
+    const kick = new Date(vzN); kick.setHours(hh, mm, 0, 0);
+    const diffMs = kick - vzN;
+    if (diffMs > 0 && diffMs < 2 * 60 * 60 * 1000) return {
+      locked: true,
+      msg: '⏰ Caducó el tiempo de permitir cambiar predicciones.\nContacta al admin si necesitas acceso de emergencia.'
+    };
   }
-  return false;
+  return { locked: false };
 }
+
+function bettingClosed() { return _bettingStatus().locked; }
+
 
 // Puebla el picker de torneos en el modal de crear grupo
 function renderCreatePicker() {
@@ -4374,7 +4405,12 @@ async function autoDefaultPreds() {
 
 async function savePreds() {
   if (!me?.uid) return;
-  if (bettingClosed()) { toast('⛔ Predicciones cerradas — ya inició un partido','error'); return; }
+  const _bs = _bettingStatus();
+  if (_bs.locked) {
+    if (_bs.hardLock) toast('🔒 Bloqueo total — 5 min desde el inicio. Nadie puede cambiar.','error',5000);
+    else toast(_bs.msg || '⏰ Caducó el tiempo de permitir cambiar predicciones.','error',5000);
+    return;
+  }
 
   const jDate = _dM[0]?.date;
   if (!jDate) { toast('Sin partidos disponibles','error'); return; }
@@ -5394,6 +5430,12 @@ function renderAdmin() {
       <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
     </div>
     <div class="admin-grid">
+      <button class="admin-btn full" onclick="adminDashboard()"
+        style="background:rgba(0,229,160,0.12);color:var(--green);border:2px solid rgba(0,229,160,0.35);
+        font-size:0.88em;padding:18px;">
+        📊 DASHBOARD EN VIVO<br>
+        <span style="font-size:0.72em;font-weight:500;opacity:0.8;">Quién predicó · Emergencia · Estado</span>
+      </button>
       <button class="admin-btn" onclick="adminUsers()">👥<br>${t('seeUsers')}</button>
       <button class="admin-btn" onclick="adminEval()">⚡<br>${t('evalMatches')}</button>
       <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>${t('evalManual')}</button>
@@ -7886,6 +7928,158 @@ function abrirManualLuan(){
 function cerrarManualLuan(){
   const el=document.getElementById('luanManualOverlay');
   if(el)el.style.display='none';
+}
+// ── DASHBOARD ADMIN EN TIEMPO REAL ──────────────────────────
+async function adminDashboard() {
+  const out = $('adminOut');
+  out.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted2);">⏳ Cargando dashboard...</div>';
+  try {
+    const today = vzDate();
+    const usersSnap = await db.collection('users').get();
+    const users = usersSnap.docs.map(d => ({id:d.id,...d.data()}))
+      .filter(u => !u.isSpectator)
+      .sort((a,b) => (a.playerNumber||0)-(b.playerNumber||0));
+
+    const predsSnap = await db.collection('predictions').where('jornadaDate','==',today).get();
+    const predIds = new Set(predsSnap.docs.map(d => d.data().userId));
+
+    const emgSnap = await db.collection('emergencyAccess')
+      .where('jornadaDate','==',today).where('active','==',true).get();
+    const emgIds = new Set(emgSnap.docs.map(d => d.data().uid));
+    _emergencyUsers = emgIds; // actualizar cache global
+
+    const status = _bettingStatus();
+    const predicaron = users.filter(u => predIds.has(u.id)).length;
+    const noPred = users.filter(u => !predIds.has(u.id));
+
+    // Tiempo restante
+    let tiempoHtml = '';
+    const firstP = _dM.find(m => !isLive(m.status) && !isFinished(m.status));
+    if (firstP?.time) {
+      const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
+      const [hh,mm] = firstP.time.split(':').map(Number);
+      const kick = new Date(vzN); kick.setHours(hh,mm,0,0);
+      const diffMs = kick - vzN;
+      const diffH = Math.floor(diffMs/3600000), diffM = Math.floor((diffMs%3600000)/60000);
+      const col = diffMs<0?'var(--red)':diffMs<2*3600000?'var(--orange)':'var(--green)';
+      const lbl = diffMs<0?'Partido en curso':
+        diffMs<2*3600000?`⚠️ Zona emergencia — ${diffM}m restantes`:
+        `✅ Abierto · Cierra en ${diffH}h ${diffM}m`;
+      tiempoHtml=`<div style="text-align:center;color:${col};font-weight:800;font-size:0.85em;margin-bottom:12px;padding:8px;background:${col}15;border-radius:8px;border:1px solid ${col}44;">${lbl}</div>`;
+    }
+
+    let bannerHtml = '';
+    if (status.hardLock) {
+      bannerHtml = `<div style="background:rgba(255,77,109,0.2);border:2px solid var(--red);border-radius:10px;padding:12px;text-align:center;font-weight:900;color:var(--red);margin-bottom:14px;">
+        🔒 BLOQUEO TOTAL ACTIVO<br><span style="font-size:0.75em;font-weight:600">Nadie puede cambiar predicciones</span></div>`;
+    } else if (status.locked) {
+      bannerHtml = `<div style="background:rgba(255,140,66,0.1);border:1px solid var(--orange);border-radius:10px;padding:10px;text-align:center;font-weight:700;color:var(--orange);margin-bottom:14px;font-size:0.82em;">
+        ⛔ Predicciones cerradas · Puedes dar acceso de emergencia individual</div>`;
+    }
+
+    let html = `<div style="font-family:var(--font-h);font-size:0.95em;font-weight:800;color:var(--green);margin-bottom:12px;">📊 DASHBOARD EN TIEMPO REAL</div>
+      ${tiempoHtml}${bannerHtml}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.3);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-h);font-size:1.8em;color:var(--green);">${predicaron}</div>
+          <div style="font-size:0.68em;color:var(--green);font-weight:700;">✅ Predicaron</div>
+        </div>
+        <div style="background:rgba(255,77,109,0.08);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-h);font-size:1.8em;color:var(--red);">${noPred.length}</div>
+          <div style="font-size:0.68em;color:var(--red);font-weight:700;">❌ Sin pred.</div>
+        </div>
+        <div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.3);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-family:var(--font-h);font-size:1.8em;color:var(--gold);">${emgIds.size}</div>
+          <div style="font-size:0.68em;color:var(--gold);font-weight:700;">⚡ Emerg.</div>
+        </div>
+      </div>`;
+
+    if (noPred.length) {
+      html += `<div style="font-size:0.7em;color:var(--red);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚠️ Sin predicción (${noPred.length})</div>`;
+      noPred.forEach(u => {
+        const tieneEmg = emgIds.has(u.id);
+        const phone = (u.phone||'').replace(/[^0-9]/g,'');
+        html += `<div style="background:rgba(255,77,109,0.05);border:1px solid rgba(255,77,109,0.2);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:10px;">
+          <span>❌</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:0.82em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">#${u.playerNumber||'?'} ${u.username}</div>
+            <div style="font-size:0.65em;color:var(--muted2);">${u.name||''}</div>
+          </div>
+          ${tieneEmg
+            ? `<span style="font-size:0.68em;background:rgba(245,197,66,0.2);color:var(--gold);padding:3px 8px;border-radius:10px;font-weight:700;">⚡ ACCESO</span>`
+            : status.hardLock
+              ? `<span style="font-size:0.7em;color:var(--muted);">🔒</span>`
+              : `<div style="display:flex;gap:4px;">
+                  ${phone?`<button onclick="adminWAMenu('${u.username}','${u.phone||''}',false)"
+                    style="padding:6px 8px;background:rgba(37,211,102,0.15);border:1px solid #25d366;color:#25d366;border-radius:6px;font-size:0.7em;font-weight:700;cursor:pointer;font-family:var(--font-b);">📲 WA</button>`:''}
+                  <button onclick="grantEmergencyAccess('${u.id}','${u.username}')"
+                    style="padding:6px 10px;background:rgba(245,197,66,0.15);border:1px solid var(--gold);color:var(--gold);border-radius:6px;font-size:0.7em;font-weight:700;cursor:pointer;font-family:var(--font-b);">⚡ Abrir</button>
+                </div>`}
+        </div>`;
+      });
+    }
+
+    html += `<div style="font-size:0.7em;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;">✅ Predicaron (${predicaron})</div>`;
+    users.filter(u => predIds.has(u.id)).forEach(u => {
+      html += `<div style="background:rgba(0,229,160,0.03);border:1px solid rgba(0,229,160,0.12);border-radius:var(--r-sm);padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px;">
+        <span>✅</span>
+        <div style="font-weight:700;font-size:0.82em;flex:1;">#${u.playerNumber||'?'} ${u.username}</div>
+        <div style="font-size:0.65em;color:var(--muted2);">${u.name||''}</div>
+      </div>`;
+    });
+
+    html += `<button class="btn btn-ghost" style="margin-top:10px;font-size:0.8em;" onclick="adminDashboard()">🔄 Actualizar</button>`;
+    out.innerHTML = html;
+  } catch(e) {
+    out.innerHTML = `<div style="color:var(--red);font-size:0.85em;">❌ Error: ${e.message}</div>`;
+  }
+}
+
+// ── ACCESO DE EMERGENCIA ──────────────────────────────────────
+async function grantEmergencyAccess(uid, username) {
+  if (!me?.isAdmin) return;
+  if (_isHardLocked()) { toast('🔒 Imposible: ya pasaron 5 min del inicio. Bloqueo total.','error',5000); return; }
+  if (!confirm(`⚡ ACCESO DE EMERGENCIA\n\n¿Abrir predicciones para:\n${username}?\n\nCaduca 5 min después del pitazo.`)) return;
+  try {
+    await db.collection('emergencyAccess').doc(uid).set({
+      uid, username, grantedBy: me.uid, grantedByName: me.username,
+      grantedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      jornadaDate: vzDate(), active: true
+    });
+    _emergencyUsers.add(uid);
+    toast(`⚡ Acceso de emergencia abierto para ${username}`,'success',4000);
+    // WA al jugador
+    const uDoc = await db.collection('users').doc(uid).get();
+    if (uDoc.exists) {
+      const phone = (uDoc.data().phone||'').replace(/[^0-9]/g,'');
+      if (phone) {
+        const msg = `⚡ *ACCESO DE EMERGENCIA* — Quiniela LuAn\n\nHola ${username}! El admin te abrió acceso para predecir.\n\n🔴 *Tienes hasta 5 minutos después del pitazo.*\n\nEntra YA: https://luisla425.github.io/Quiniela/`;
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`,'_blank');
+      }
+    }
+    adminDashboard();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+async function revokeEmergencyAccess(uid, username) {
+  if (!me?.isAdmin) return;
+  if (!confirm(`¿Revocar acceso de ${username}?`)) return;
+  try {
+    await db.collection('emergencyAccess').doc(uid).update({active:false});
+    _emergencyUsers.delete(uid);
+    toast(`✅ Acceso revocado para ${username}`,'success');
+    adminDashboard();
+  } catch(e) { toast('Error: '+e.message,'error'); }
+}
+
+async function loadEmergencyAccess() {
+  if (!me?.uid) return;
+  try {
+    const doc = await db.collection('emergencyAccess').doc(me.uid).get();
+    if (doc.exists && doc.data().active && doc.data().jornadaDate === vzDate()) {
+      _emergencyUsers.add(me.uid);
+    }
+  } catch(e) {}
 }
 
 </script>
