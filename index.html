@@ -1176,11 +1176,15 @@ body::before {
               </select>
             </div>
             <div class="field" style="margin:0;">
-              <label id="lbl-mundialPtsScorer">⚽ Goleador (pts)</label>
+              <label id="lbl-mundialPtsScorer">⚽ Goleador nombre (pts)</label>
               <select id="mPtsGoleador" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
-                <option value="1">1 pt</option><option value="3">3 pts</option>
-                <option value="5" selected>5 pts</option><option value="7">7 pts</option>
-                <option value="10">10 pts</option>
+                <option value="10">10 pts</option><option value="15" selected>15 pts</option><option value="20">20 pts</option>
+              </select>
+            </div>
+            <div class="field" style="margin:0;grid-column:span 2;">
+              <label>🔢 Extra goles exactos goleador (pts)</label>
+              <select id="mPtsGolesGoleador" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-b);">
+                <option value="10">10 pts</option><option value="15">15 pts</option><option value="20">20 pts</option><option value="25" selected>25 pts</option><option value="30">30 pts</option>
               </select>
             </div>
           </div>
@@ -1215,6 +1219,11 @@ body::before {
           <label id="lbl-mundialWhoScorer">⚽ ¿Quién será el Goleador del Torneo?</label>
           <input type="text" id="mGoleador" placeholder="Ej: Kylian Mbappé" style="text-transform:capitalize;">
           <div id="mPtsGoleadorLabel" style="font-size:0.75em;color:var(--gold);margin-top:4px;font-weight:700;"></div>
+        </div>
+        <div class="field">
+          <label>⚽🔢 ¿Cuántos goles anotará ese goleador? <span style="color:var(--muted2);font-weight:500;">(opcional — bono extra)</span></label>
+          <input type="number" id="mGolesGoleador" min="1" max="20" placeholder="Ej: 8" inputmode="numeric">
+          <div id="mPtsGolesGoleadorLabel" style="font-size:0.75em;color:var(--primary2);margin-top:4px;font-weight:700;"></div>
         </div>
         <div id="mundialSavedMsg" class="hidden" style="background:rgba(0,229,160,0.1);border:1px solid var(--green);border-radius:var(--r-sm);padding:12px;margin-bottom:12px;font-size:0.85em;color:var(--green);font-weight:700;">
           ✅ Ya registraste tus predicciones mundiales. No pueden modificarse.
@@ -5167,7 +5176,7 @@ async function openGroupWAMenu(code, gname) {
     </div>`;
 
   window._groupWAMsgs = quickMsgs;
-  document.body.appendChild(modal);
+  appendChild(modal);
 }
 
 function _buildPizarraText(gname) {
@@ -6277,135 +6286,437 @@ function resetSimulation() {
 // ═══════════════════════════════════════════
 let _mundialJornada = 1;
 
+// ═══════════════════════════════════════════
+// MUNDIAL — VENTANAS DE PREDICCIÓN Y ENTRADA TARDÍA
+// ═══════════════════════════════════════════
+function getMundialJornadaStatus(jornada) {
+  const now = vzNow();
+  if (jornada === 1) {
+    const close = new Date('2026-06-11T17:00:00Z');
+    return { open: now < close, notYet: false, closeTime: close, msg: now >= close ? '⛔ Jornada 1 cerrada' : null };
+  }
+  if (jornada === 2) {
+    const open  = new Date('2026-06-16T04:01:00Z');
+    const close = new Date('2026-06-18T16:00:00Z');
+    return { open: now >= open && now < close, notYet: now < open, openTime: open, closeTime: close,
+      msg: now < open ? '🔒 Abre el mar 16/06 a las 12:01 AM (VZ)' : now >= close ? '⛔ Jornada 2 cerrada' : null };
+  }
+  if (jornada === 3) {
+    const open  = new Date('2026-06-22T04:01:00Z');
+    const close = new Date('2026-06-24T17:00:00Z');
+    return { open: now >= open && now < close, notYet: now < open, openTime: open, closeTime: close,
+      msg: now < open ? '🔒 Abre el lun 22/06 a las 12:01 AM (VZ)' : now >= close ? '⛔ Jornada 3 cerrada' : null };
+  }
+  return { open: false, notYet: false, msg: '⛔ Jornada no disponible' };
+}
+
+function getMundialFirstUnplayed() {
+  const now    = vzNow();
+  const nowStr = now.toISOString().split('T')[0];
+  for (let i = 0; i < FIXTURE_MUNDIAL.length; i++) {
+    const m = FIXTURE_MUNDIAL[i];
+    if (m.date > nowStr) return i;
+    if (m.date === nowStr) {
+      const match = m.timeVZ.match(/(\d+):(\d+)\s*(am|pm)/i);
+      if (match) {
+        let h = +match[1], mn = +match[2];
+        if (match[3].toLowerCase() === 'pm' && h !== 12) h += 12;
+        if (match[3].toLowerCase() === 'am' && h === 12) h = 0;
+        const ko = new Date(now); ko.setHours(h, mn, 0, 0);
+        if (now < ko) return i;
+      }
+    }
+  }
+  return FIXTURE_MUNDIAL.length;
+}
+
 function renderMundialScreen() {
   const el = $('screenMatches');
   if (!el) return;
+
+  const jornadaStatus  = getMundialJornadaStatus(_mundialJornada);
+  const firstUnplayed  = getMundialFirstUnplayed();
+  const jornadaOffset  = (_mundialJornada - 1) * 24;
 
   const jornadaMatches = FIXTURE_MUNDIAL
     .filter(m => m.jornada === _mundialJornada)
     .sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
+
       const toMins = s => {
         const m = s.match(/(\d+):(\d+)\s*(am|pm)/i);
         if (!m) return 0;
-        let h = +m[1], mn = +m[2];
+
+        let h = +m[1];
+        const mn = +m[2];
+
         if (m[3].toLowerCase() === 'pm' && h !== 12) h += 12;
         if (m[3].toLowerCase() === 'am' && h === 12) h = 0;
+
         return h * 60 + mn;
       };
+
       return toMins(a.timeVZ) - toMins(b.timeVZ);
     });
 
   let html = `
     <div class="section-header">
       <span class="section-title">🌍🏆 Mundial FIFA 2026</span>
+
       <div style="display:flex;gap:4px;">
-        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" style="padding:5px 8px;font-size:0.85em;">❓</button>
-        <button class="btn btn-ghost btn-sm" onclick="renderMatches()" style="padding:5px 8px;font-size:0.85em;">← Volver</button>
+        <button class="btn btn-ghost btn-sm"
+          onclick="openHowToPredict()"
+          style="padding:5px 8px;font-size:0.85em;">
+          ❓
+        </button>
+
+        <button class="btn btn-ghost btn-sm"
+          onclick="renderMatches()"
+          style="padding:5px 8px;font-size:0.85em;">
+          ← Volver
+        </button>
       </div>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;">
+
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
       ${[1,2,3].map(j => {
+
+        const st = getMundialJornadaStatus(j);
+
         const isActive = j === _mundialJornada;
-        const label = j===1?'11-17 Jun':j===2?'18-23 Jun':'24-27 Jun';
-        const border = isActive ? 'var(--gold)' : 'var(--border2)';
-        const bg     = isActive ? 'rgba(245,197,66,0.15)' : 'var(--surface2)';
-        const color  = isActive ? 'var(--gold)' : 'var(--muted2)';
+
+        const label =
+          j === 1 ? '11-17 Jun'
+          : j === 2 ? '18-23 Jun'
+          : '24-27 Jun';
+
+        const lockIcon =
+          st.open ? ''
+          : st.notYet ? ' 🔒'
+          : ' ⛔';
+
+        const border = isActive
+          ? 'var(--gold)'
+          : 'var(--border2)';
+
+        const bg = isActive
+          ? 'rgba(245,197,66,0.15)'
+          : 'var(--surface2)';
+
+        const color = isActive
+          ? 'var(--gold)'
+          : 'var(--muted2)';
+
         return '<button onclick="_mundialJornada=' + j + ';renderMundialScreen()"'
-          + ' style="flex:1;padding:10px 6px;border-radius:var(--r-sm);cursor:pointer;'
-          + 'font-family:var(--font-b);font-weight:800;font-size:0.82em;'
+          + ' style="flex:1;padding:9px 4px;border-radius:var(--r-sm);cursor:pointer;'
+          + 'font-family:var(--font-b);font-weight:800;font-size:0.78em;'
           + 'border:2px solid ' + border + ';background:' + bg + ';color:' + color + ';">'
-          + '🗓️ Jornada ' + j + '<br>'
+          + '🗓️ J' + j + lockIcon + '<br>'
           + '<span style="font-size:0.72em;opacity:0.8;">' + label + '</span>'
           + '</button>';
+
       }).join('')}
     </div>
-    <div style="font-size:0.72em;color:var(--muted2);text-align:center;margin-bottom:10px;font-weight:700;">
-      ${jornadaMatches.length} partidos · Hora Venezuela (VZ)
-    </div>`;
+  `;
+
+  // Banner estado jornada
+  if (jornadaStatus.msg) {
+
+    const isNotYet = jornadaStatus.notYet;
+
+    html += '<div style="background:' + (isNotYet
+      ? 'rgba(59,158,255,0.1)'
+      : 'rgba(255,77,109,0.1)')
+      + ';border:1px solid '
+      + (isNotYet
+        ? 'rgba(59,158,255,0.4)'
+        : 'rgba(255,77,109,0.4)')
+      + ';border-radius:var(--r-sm);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;">'
+
+      + '<span style="font-size:1.4em;">'
+      + (isNotYet ? '🔒' : '⛔')
+      + '</span>'
+
+      + '<div><div style="font-weight:800;font-size:0.85em;color:'
+      + (isNotYet ? 'var(--blue)' : 'var(--red)')
+      + ';">'
+      + jornadaStatus.msg
+      + '</div></div>'
+
+      + '</div>';
+
+  } else if (jornadaStatus.open && jornadaStatus.closeTime) {
+
+    const diffMs = jornadaStatus.closeTime - vzNow();
+
+    const diffH = Math.floor(diffMs / 3600000);
+
+    const diffM = Math.floor((diffMs % 3600000) / 60000);
+
+    html += '<div style="background:rgba(0,229,160,0.08);border:1px solid rgba(0,229,160,0.3);border-radius:var(--r-sm);padding:8px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">'
+
+      + '<span style="color:var(--green);font-weight:800;font-size:0.82em;">'
+      + '✅ Jornada ' + _mundialJornada + ' abierta'
+      + '</span>'
+
+      + '<span style="color:var(--muted2);font-size:0.72em;">'
+      + 'Cierra en ' + diffH + 'h ' + diffM + 'm'
+      + '</span>'
+
+      + '</div>';
+  }
+
+  // Banner entrada tardía
+  if (firstUnplayed > 0 && firstUnplayed < FIXTURE_MUNDIAL.length) {
+
+    const nextNum = firstUnplayed + 1;
+
+    html += '<div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:10px;">'
+
+      + '<div style="font-size:0.78em;font-weight:800;color:var(--gold);margin-bottom:3px;">'
+      + '📅 Próximo partido disponible: #' + nextNum
+      + '</div>'
+
+      + '<div style="font-size:0.68em;color:var(--muted);margin-top:3px;">'
+      + 'Si te unes ahora, predices desde el partido #' + nextNum + ' en adelante.'
+      + '</div>'
+
+      + '</div>';
+  }
+
+  html += '<div style="font-size:0.72em;color:var(--muted2);text-align:center;margin-bottom:10px;font-weight:700;">'
+    + jornadaMatches.length
+    + ' partidos · Hora Venezuela (VZ) · Partidos '
+    + (jornadaOffset + 1)
+    + '–'
+    + (jornadaOffset + 24)
+    + '</div>';
+
+  const puedePredicir = jornadaStatus.open;
 
   const byDate = {};
-  jornadaMatches.forEach(m => {
-    if (!byDate[m.date]) byDate[m.date] = [];
-    byDate[m.date].push(m);
-  });
 
-  const closed = bettingClosed();
-  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  jornadaMatches.forEach((m, idx) => {
 
-  Object.keys(byDate).sort().forEach(date => {
-    const [y, mo, d] = date.split('-');
-    const dt = new Date(date + 'T12:00:00');
-    html += `<div style="font-size:0.7em;font-weight:800;color:var(--primary2);
-      text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px;
-      padding:4px 8px;background:rgba(108,71,255,0.1);border-radius:6px;display:inline-block;">
-      📅 ${dias[dt.getDay()]} ${+d} ${meses[+mo]}
-    </div>`;
+    if (!byDate[m.date]) {
+      byDate[m.date] = [];
+    }
 
-    byDate[date].forEach(m => {
-      const predRow = !closed ? `
-        <div style="margin-top:10px;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px;">
-            <div id="hi_${m.id}" style="width:56px;height:56px;background:var(--surface2);
-              border:2px solid var(--border2);border-radius:12px;color:var(--text);
-              font-family:var(--font-h);font-size:1.6em;font-weight:800;
-              display:flex;align-items:center;justify-content:center;">–</div>
-            <span style="font-family:var(--font-h);font-size:1.4em;color:var(--muted);">—</span>
-            <div id="ai_${m.id}" style="width:56px;height:56px;background:var(--surface2);
-              border:2px solid var(--border2);border-radius:12px;color:var(--text);
-              font-family:var(--font-h);font-size:1.6em;font-weight:800;
-              display:flex;align-items:center;justify-content:center;">–</div>
-          </div>
-          <button class="btn-express-trigger"
-            ontouchend="event.preventDefault();openExpressMundial('${m.id}')"
-            onclick="openExpressMundial('${m.id}')">
-            ⚡ Predecir este partido
-          </button>
-        </div>` : '';
-
-      html += `
-        <div class="match-card" style="margin-bottom:10px;">
-          <div class="match-meta">
-            <span style="font-size:0.75em;color:var(--gold);font-weight:700;">🌍 Grupo ${m.group} · ${m.venue.split(',')[0]}</span>
-            <span class="badge-time">${m.timeVZ}</span>
-          </div>
-          <div class="match-teams">
-            <div class="team">
-              <span class="team-flag" style="font-size:1.6em;">${m.home.split(' ')[0]}</span>
-              <span class="team-name">${m.home.split(' ').slice(1).join(' ')}</span>
-            </div>
-            <span class="vs-divider">VS</span>
-            <div class="team">
-              <span class="team-flag" style="font-size:1.6em;">${m.away.split(' ')[0]}</span>
-              <span class="team-name">${m.away.split(' ').slice(1).join(' ')}</span>
-            </div>
-          </div>
-          ${predRow}
-        </div>`;
+    byDate[m.date].push({
+      ...m,
+      _numPartido: jornadaOffset + idx + 1
     });
   });
 
-  if (!closed) {
+  const closed = bettingClosed();
+
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+
+  const meses = [
+    '',
+    'Ene','Feb','Mar','Abr','May','Jun',
+    'Jul','Ago','Sep','Oct','Nov','Dic'
+  ];
+
+  Object.keys(byDate).sort().forEach(date => {
+
+    const [y, mo, d] = date.split('-');
+
+    const dt = new Date(date + 'T12:00:00');
+
     html += `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-        <button class="btn btn-ghost" onclick="setDefaultPredsMundial()" style="font-size:0.82em;">🔮 Poner 0-0 a todos</button>
-        <button class="btn btn-primary" onclick="savePredsMundial()">💾 Guardar</button>
+      <div style="
+        font-size:0.7em;
+        font-weight:800;
+        color:var(--primary2);
+        text-transform:uppercase;
+        letter-spacing:1px;
+        margin:12px 0 6px;
+        padding:4px 8px;
+        background:rgba(108,71,255,0.1);
+        border-radius:6px;
+        display:inline-block;
+      ">
+        📅 ${dias[dt.getDay()]} ${+d} ${meses[+mo]}
       </div>
-      <div style="font-size:0.7em;color:var(--muted2);text-align:center;margin-top:6px;">
+    `;
+
+    byDate[date].forEach(m => {
+
+      const predRow = (!closed && puedePredicir)
+        ? `
+          <div style="margin-top:10px;">
+
+            <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px;">
+
+              <div id="hi_${m.id}" style="
+                width:56px;
+                height:56px;
+                background:var(--surface2);
+                border:2px solid var(--border2);
+                border-radius:12px;
+                color:var(--text);
+                font-family:var(--font-h);
+                font-size:1.6em;
+                font-weight:800;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+              ">
+                –
+              </div>
+
+              <span style="
+                font-family:var(--font-h);
+                font-size:1.4em;
+                color:var(--muted);
+              ">
+                —
+              </span>
+
+              <div id="ai_${m.id}" style="
+                width:56px;
+                height:56px;
+                background:var(--surface2);
+                border:2px solid var(--border2);
+                border-radius:12px;
+                color:var(--text);
+                font-family:var(--font-h);
+                font-size:1.6em;
+                font-weight:800;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+              ">
+                –
+              </div>
+
+            </div>
+
+            <button class="btn-express-trigger"
+              ontouchend="event.preventDefault();openExpressMundial('${m.id}')"
+              onclick="openExpressMundial('${m.id}')">
+              ⚡ Predecir este partido
+            </button>
+
+          </div>
+        `
+        : '';
+
+      html += `
+        <div class="match-card" style="margin-bottom:10px;">
+
+          <div class="match-meta">
+
+            <span style="
+              font-size:0.75em;
+              color:var(--gold);
+              font-weight:700;
+            ">
+              🏟️ #${m._numPartido} · Grupo ${m.group} · ${m.venue.split(',')[0]}
+            </span>
+
+            <span class="badge-time">
+              ${m.timeVZ}
+            </span>
+
+          </div>
+
+          <div class="match-teams">
+
+            <div class="team">
+              <span class="team-flag" style="font-size:1.6em;">
+                ${m.home.split(' ')[0]}
+              </span>
+
+              <span class="team-name">
+                ${m.home.split(' ').slice(1).join(' ')}
+              </span>
+            </div>
+
+            <span class="vs-divider">VS</span>
+
+            <div class="team">
+              <span class="team-flag" style="font-size:1.6em;">
+                ${m.away.split(' ')[0]}
+              </span>
+
+              <span class="team-name">
+                ${m.away.split(' ').slice(1).join(' ')}
+              </span>
+            </div>
+
+          </div>
+
+          ${predRow}
+
+        </div>
+      `;
+    });
+  });
+
+  if (!closed && puedePredicir) {
+
+    html += `
+      <div style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:8px;
+        margin-top:8px;
+      ">
+
+        <button class="btn btn-ghost"
+          onclick="setDefaultPredsMundial()"
+          style="font-size:0.82em;">
+          🔮 Poner 0-0 a todos
+        </button>
+
+        <button class="btn btn-primary"
+          onclick="savePredsMundial()">
+          💾 Guardar
+        </button>
+
+      </div>
+
+      <div style="
+        font-size:0.7em;
+        color:var(--muted2);
+        text-align:center;
+        margin-top:6px;
+      ">
         💡 Si no predices antes del pitazo, se guarda 0-0 automáticamente
-      </div>`;
+      </div>
+    `;
   }
 
   el.innerHTML = html;
 
   if (!document.getElementById('_mundialBtnStyle')) {
+
     const st = document.createElement('style');
+
     st.id = '_mundialBtnStyle';
-    st.textContent = `.btn-express-trigger{width:100%;padding:12px;border-radius:12px;
-      background:linear-gradient(135deg,var(--primary),var(--primary2));
-      color:#fff;font-family:var(--font-h);font-size:0.9em;font-weight:800;
-      border:none;cursor:pointer;-webkit-tap-highlight-color:transparent;}`;
+
+    st.textContent = `
+      .btn-express-trigger{
+        width:100%;
+        padding:12px;
+        border-radius:12px;
+        background:linear-gradient(
+          135deg,
+          var(--primary),
+          var(--primary2)
+        );
+        color:#fff;
+        font-family:var(--font-h);
+        font-size:0.9em;
+        font-weight:800;
+        border:none;
+        cursor:pointer;
+        -webkit-tap-highlight-color:transparent;
+      }
+    `;
+
     document.head.appendChild(st);
   }
 }
@@ -6684,7 +6995,7 @@ async function openMyPredictions() {
   }
 }
 
-let mundialConfig = { campeon:8, sub:6, tercero:3, goleador:5 };
+let mundialConfig = { campeon:15, sub:10, tercero:5, goleador:15, golesGoleador:25 };
 
 async function openBetStats(matchId, home, away) {
   openModal('betStatsModal');
@@ -6946,12 +7257,14 @@ async function openMundialModal() {
       $('mCampeon').value    = d.campeon    || '';
       $('mSubcampeon').value = d.subcampeon || '';
       $('mTercero').value    = d.tercero    || '';
-      $('mGoleador').value   = d.goleador   || '';
+     $('mGoleador').value = d.goleador || '';
+      if ($('mGolesGoleador') && d.golesGoleador) $('mGolesGoleador').value = d.golesGoleador;
       // Lock — can't change
       $('mCampeon').disabled    = true;
       $('mSubcampeon').disabled = true;
       $('mTercero').disabled    = true;
       $('mGoleador').disabled   = true;
+      if ($('mGolesGoleador')) $('mGolesGoleador').disabled = true;
       $('mundialSaveBtn').classList.add('hidden');
       $('mundialSavedMsg').classList.remove('hidden');
     }
@@ -6959,20 +7272,26 @@ async function openMundialModal() {
 }
 
 function updateMundialLabels() {
-  $('mPtsCampeonLabel').textContent  = `Vale ${mundialConfig.campeon} pts si aciertas`;
-  $('mPtsSubLabel').textContent      = `Vale ${mundialConfig.sub} pts si aciertas`;
-  $('mPtsTerceroLabel').textContent  = `Vale ${mundialConfig.tercero} pts si aciertas`;
-  $('mPtsGoleadorLabel').textContent = `Vale ${mundialConfig.goleador} pts si aciertas`;
+  $('mPtsCampeonLabel').textContent  = `🏆 Vale ${mundialConfig.campeon} pts si aciertas`;
+  $('mPtsSubLabel').textContent      = `🥈 Vale ${mundialConfig.sub} pts si aciertas`;
+  $('mPtsTerceroLabel').textContent  = `🥉 Vale ${mundialConfig.tercero} pts si aciertas`;
+  $('mPtsGoleadorLabel').textContent = `⚽ Acertar nombre: ${mundialConfig.goleador} pts`;
+  const glbl = $('mPtsGolesGoleadorLabel');
+  const extra = mundialConfig.golesGoleador || 25;
+  if (glbl) glbl.textContent = `🔢 Acertar goles exactos: +${extra} pts extra → total ${mundialConfig.goleador + extra} pts`;
+  const sel = $('mPtsGolesGoleador');
+  if (sel && mundialConfig.golesGoleador) sel.value = mundialConfig.golesGoleador;
 }
 
 async function saveMundialConfig() {
   if (!me.isAdmin) return;
   mundialConfig = {
-    campeon:   +$('mPtsCampeon').value,
-    sub:       +$('mPtsSub').value,
-    tercero:   +$('mPtsTercero').value,
-    goleador:  +$('mPtsGoleador').value,
-    lockedAt:  firebase.firestore.FieldValue.serverTimestamp()
+    campeon:       +$('mPtsCampeon').value,
+    sub:           +$('mPtsSub').value,
+    tercero:       +$('mPtsTercero').value,
+    goleador:      +$('mPtsGoleador').value,
+    golesGoleador: +($('mPtsGolesGoleador')?.value || 25),
+    lockedAt:      firebase.firestore.FieldValue.serverTimestamp()
   };
   try {
     await db.collection('system').doc('mundialConfig').set(mundialConfig);
@@ -6986,6 +7305,8 @@ async function saveMundialPreds() {
   const subcampeon = $('mSubcampeon').value;
   const tercero    = $('mTercero').value;
   const goleador   = $('mGoleador').value.trim();
+  const golesRaw   = $('mGolesGoleador')?.value;
+  const golesGoleador = golesRaw ? +golesRaw : null;
 
   if (!campeon)    { toast('Elige el Campeón','error'); return; }
   if (!subcampeon) { toast('Elige el Subcampeón','error'); return; }
@@ -6995,18 +7316,20 @@ async function saveMundialPreds() {
     toast('No puedes repetir selecciones','error'); return;
   }
 
-  if (!confirm('¿Confirmas tus predicciones? No podrás cambiarlas después.')) return;
+  const resumen = `🥇 ${campeon}\n🥈 ${subcampeon}\n🥉 ${tercero}\n⚽ ${goleador}${golesGoleador?' · '+golesGoleador+' goles':''}`;
+  if (!confirm(`¿Confirmas tus predicciones? No podrán cambiarse.\n\n${resumen}`)) return;
 
   try {
     await db.collection('mundialPreds').doc(me.uid).set({
       userId: me.uid, username: me.username,
       campeon, subcampeon, tercero, goleador,
+      golesGoleador: golesGoleador !== null ? golesGoleador : null,
       ptsConfig: {...mundialConfig},
       evaluated: false,
       savedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // Lock UI
     ['mCampeon','mSubcampeon','mTercero','mGoleador'].forEach(id => $(id).disabled = true);
+    if ($('mGolesGoleador')) $('mGolesGoleador').disabled = true;
     $('mundialSaveBtn').classList.add('hidden');
     $('mundialSavedMsg').classList.remove('hidden');
     toast('✅ Predicciones mundiales guardadas','success');
@@ -7039,7 +7362,7 @@ async function dedupPreds() {
 
       // Agrupar por clave de contenido: userId+groupId+matchId
       // Esto detecta duplicados sin importar el docId
-      const byKey = new Map();
+    const byKey = new Map();
       pSnap.docs.forEach(d => {
         const p = d.data();
         const gid = p.groupId || 'NO_GROUP';
@@ -7103,42 +7426,61 @@ async function dedupPreds() {
 
 async function evalMundial() {
   if (!me.isAdmin) return;
-  const campeon    = prompt('🥇 Campeón real:');    if (!campeon) return;
-  const subcampeon = prompt('🥈 Subcampeón real:'); if (!subcampeon) return;
-  const tercero    = prompt('🥉 Tercer lugar real:');if (!tercero) return;
-  const goleador   = prompt('⚽ Goleador real:');   if (!goleador) return;
+  const campeon    = prompt('🥇 Campeón real:');             if (!campeon) return;
+  const subcampeon = prompt('🥈 Subcampeón real:');          if (!subcampeon) return;
+  const tercero    = prompt('🥉 Tercer lugar real:');        if (!tercero) return;
+  const goleador   = prompt('⚽ Nombre del goleador real:'); if (!goleador) return;
+  const golesReal  = prompt('🔢 Goles que anotó el goleador (número):');
+  const golesRealNum = golesReal ? +golesReal : null;
 
-  if (!confirm(`¿Evaluar con:
-🥇 ${campeon}
-🥈 ${subcampeon}
-🥉 ${tercero}
-⚽ ${goleador}?`)) return;
+  if (!confirm(`¿Evaluar con:\n🥇 ${campeon}\n🥈 ${subcampeon}\n🥉 ${tercero}\n⚽ ${goleador}${golesRealNum!=null?' · '+golesRealNum+' goles':''}`)) return;
+
+  const out = $('adminOut');
+  if (out) out.innerHTML = '⏳ Evaluando predicciones mundiales...';
 
   try {
     const snap = await db.collection('mundialPreds').where('evaluated','==',false).get();
-    let count = 0;
+    let count = 0, totalPts = 0;
     for (const doc of snap.docs) {
-      const p = doc.data();
+      const p   = doc.data();
       const cfg = p.ptsConfig || mundialConfig;
-      let pts = 0;
-      if (p.campeon    === campeon)    pts += cfg.campeon;
-      if (p.subcampeon === subcampeon) pts += cfg.sub;
-      if (p.tercero    === tercero)    pts += cfg.tercero;
-      if (p.goleador?.toLowerCase() === goleador.toLowerCase()) pts += cfg.goleador;
+      let pts   = 0;
+      const desglose = [];
 
-      await doc.ref.update({ evaluated:true, ptsAwarded:pts,
-        realCampeon:campeon, realSub:subcampeon,
-        realTercero:tercero, realGoleador:goleador });
+      if (p.campeon    === campeon)    { pts += cfg.campeon;  desglose.push(`🥇+${cfg.campeon}`); }
+      if (p.subcampeon === subcampeon) { pts += cfg.sub;      desglose.push(`🥈+${cfg.sub}`); }
+      if (p.tercero    === tercero)    { pts += cfg.tercero;  desglose.push(`🥉+${cfg.tercero}`); }
+      if (p.goleador?.toLowerCase() === goleador.toLowerCase()) {
+        pts += cfg.goleador;
+        desglose.push(`⚽+${cfg.goleador}`);
+        if (golesRealNum !== null && p.golesGoleador !== null && +p.golesGoleador === golesRealNum) {
+          const bonus = cfg.golesGoleador || 25;
+          pts += bonus;
+          desglose.push(`🔢+${bonus}`);
+        }
+      }
+
+      await doc.ref.update({
+        evaluated: true, ptsAwarded: pts,
+        realCampeon: campeon, realSub: subcampeon,
+        realTercero: tercero, realGoleador: goleador,
+        realGolesGoleador: golesRealNum !== null ? golesRealNum : null,
+        desglosePoints: desglose.join(' ')
+      });
 
       if (pts > 0) {
         await db.collection('users').doc(p.userId).update({
           points: firebase.firestore.FieldValue.increment(pts)
         });
       }
-      count++;
+      count++; totalPts += pts;
     }
-    toast(`✅ ${count} predicciones mundiales evaluadas`,'success');
-  } catch(e) { toast('Error: '+e.message,'error'); }
+    if (out) out.innerHTML = `✅ ${count} predicciones evaluadas · ${totalPts} pts distribuidos`;
+    toast(`✅ ${count} predicciones mundiales evaluadas · ${totalPts} pts totales`,'success');
+  } catch(e) {
+    if (out) out.innerHTML = `❌ Error: ${e.message}`;
+    toast('Error: '+e.message,'error');
+  }
 }
 
 // ═══════════════════════════════════════════
