@@ -4780,17 +4780,26 @@ function initChat() {
       snap.docs.forEach(d=>{
         const c=d.data();
         const mine=c.uid===me.uid;
+        const canDelete=mine||me.isAdmin;
         const time=c.ts?.toDate?.()||new Date();
         const hm=time.toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
         if(c.type==='system'){
           el.innerHTML+=`<div class="chat-system">${c.text}</div>`;
+        } else if(c.deleted){
+          el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}" style="opacity:0.55;">
+            <span class="chat-name" style="color:var(--muted);">${escapeHtml(c.username||'')}</span>
+            <div class="chat-bubble" style="font-style:italic;color:var(--muted2);background:var(--surface2);border:1px solid var(--border);">🚫 Mensaje eliminado</div>
+            <span class="chat-time">${hm}</span>
+          </div>`;
         } else {
-          const displayName = c.name || c.username || 'Anon';
-          const uColor = userColor(c.username || 'x');
-          const bubbleStyle = `border-color:${uColor}33;`;
+          const displayName=c.name||c.username||'Anon';
+          const uColor=userColor(c.username||'x');
+          const delBtn=canDelete
+            ? `<button onclick="deleteChat('${d.id}')" style="background:none;border:none;color:var(--muted);font-size:0.8em;cursor:pointer;padding:0 3px;vertical-align:middle;" title="Eliminar">🗑️</button>`
+            : '';
           el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}">
-            <span class="chat-name" style="color:${uColor};">${escapeHtml(displayName)}${mine?' <span style="font-size:0.75em;opacity:0.6;">(tú)</span>':''}</span>
-            <div class="chat-bubble" style="${bubbleStyle}">${escapeHtml(c.text)}</div>
+            <span class="chat-name" style="color:${uColor};">${escapeHtml(displayName)}${mine?' <span style="font-size:0.75em;opacity:0.6;">(tú)</span>':''}${delBtn}</span>
+            <div class="chat-bubble" style="border-color:${uColor}33;">${escapeHtml(c.text)}</div>
             <span class="chat-time">${hm}</span>
           </div>`;
         }
@@ -8081,6 +8090,18 @@ async function loadEmergencyAccess() {
       _emergencyUsers.add(me.uid);
     }
   } catch(e) {}
+}
+
+async function deleteChat(docId) {
+  if (!confirm('¿Eliminar este mensaje?')) return;
+  try {
+    await db.collection('chat').doc(docId).update({
+      deleted: true,
+      text: null,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deletedBy: me.uid
+    });
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
 </script>
