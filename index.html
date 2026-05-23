@@ -5500,14 +5500,15 @@ async function adminUsers() {
   html += `<div style="display:flex;gap:8px;margin-bottom:14px;">
     <div style="flex:1;padding:10px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;text-align:center;">
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${predCount}</div>
-      <div style="font-size:0.7em;color:var(--green);font-weight:700;">🟢 Predicaron hoy</div>
+      <div style="font-size:0.7em;color:var(--green);font-weight:700;">🟢 Predicaron</div>
     </div>
-    <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">
-      <div style="font-size:0.7em;color:var(--green);font-weight:700;">🟢 Predicaron hoy</div>
+    <div style="flex:1;padding:10px;background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:10px;text-align:center;">
+      <div style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);">${snap.size}</div>
+      <div style="font-size:0.7em;color:var(--primary2);font-weight:700;">👥 Total</div>
     </div>
     <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${noPredCount}</div>
-      <div style="font-size:0.7em;color:var(--red);font-weight:700;">🔴 Sin predicción</div>
+      <div style="font-size:0.7em;color:var(--red);font-weight:700;">🔴 Sin pred.</div>
     </div>
   </div>`;
 
