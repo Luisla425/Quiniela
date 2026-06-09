@@ -4752,7 +4752,20 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
         setTimeout(() => renderMatches(), 400);
       } // re-render banner con siguiente slot
     } else {
-      toast(`✅ ${preds.length} predicciones guardadas`, 'success');
+      // Una sola quiniela guardada — preguntar si quiere más
+      const masQuinielas = confirm('✅ Predicciones guardadas!\n\n¿Quieres jugar más quinielas?');
+      if (masQuinielas) {
+        const cuantas = parseInt(prompt('¿Cuántas quinielas más quieres jugar? (1 a 9)', '1'));
+        if (!isNaN(cuantas) && cuantas >= 1 && cuantas <= 9) {
+          mqCreate(cuantas + 1);
+        } else {
+          toast('✅ Predicciones guardadas', 'success');
+          setTimeout(() => renderMatches(), 400);
+        }
+      } else {
+        toast('✅ Predicciones guardadas', 'success');
+        setTimeout(() => renderMatches(), 400);
+      }
     }
   } catch(e) {
     toast('Error al guardar: ' + e.message, 'error');
@@ -9066,6 +9079,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
