@@ -4551,8 +4551,11 @@ async function savePreds() {
   }
 
   // ── FLUJO NUEVO: Torneo → Partidos ──────────────────────
-  // Si aún no ha respondido, preguntar primero
-  if (!_mqSetup || !_mqSetup.answered) {
+ // Preguntar siempre al inicio de cada jornada
+  const hoy = _dM[0]?.date || '';
+  if (!_mqSetup || !_mqSetup.answered || _mqSetup.jornadaDate !== hoy) {
+    _mqSetup = null;
+    try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
     _mostrarPreguntaMQ();
     return;
   }
@@ -9074,4 +9077,5 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
