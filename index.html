@@ -4791,11 +4791,11 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
         setTimeout(() => renderMatches(), 400);
       }
     } else {
-      // ── Guardó — resetear MQ y preguntar si quiere otra ──
+      // ── Guardó — preguntar si quiere otra quiniela ──
       toast(`✅ ${apodoLabel} guardada`, 'success', 1500);
       _mqSetup = null;
       try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
-      setTimeout(() => _mostrarPreguntaMQ(), 1800);
+      setTimeout(() => _mostrarPreguntaOtraQuiniela(), 1800);
     }
   } catch(e) {
     toast('Error al guardar: ' + e.message, 'error');
@@ -9108,6 +9108,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
