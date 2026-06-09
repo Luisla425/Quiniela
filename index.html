@@ -4791,19 +4791,16 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
         setTimeout(() => renderMatches(), 400);
       }
     } else {
-      // ── Guardó una quiniela — preguntar si quiere otra ──
+      // ── Guardó — resetear MQ y preguntar si quiere otra ──
       toast(`✅ ${apodoLabel} guardada`, 'success', 1500);
-      setTimeout(() => {
-        _mqSetup = null;
-        try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
-        _mostrarPreguntaOtraQuiniela();
-      }, 1800);
+      _mqSetup = null;
+      try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
+      setTimeout(() => _mostrarPreguntaMQ(), 1800);
     }
   } catch(e) {
     toast('Error al guardar: ' + e.message, 'error');
   }
 }
-
 // ═══════════════════════════════════════════
 // PREDICTIONS SCREEN
 // ═══════════════════════════════════════════
@@ -9111,6 +9108,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
