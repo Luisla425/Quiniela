@@ -3453,7 +3453,7 @@ function renderMatches() {
       </div>
     </div>`;
 
-// ── BANNER OBSERVADOR ──────────────────────
+  // ── BANNER OBSERVADOR ──────────────────────
   if (me.isSpectator) {
     html += `<div id="_spectatorBanner" style="
       background:linear-gradient(135deg,rgba(245,197,66,0.15),rgba(108,71,255,0.1));
@@ -3479,7 +3479,7 @@ function renderMatches() {
 
   // Countdown banner with time remaining
   if (nextClose) {
-    const matchTimeStr = nextClose.time; // UTC time e.g. "20:00:00"
+    const matchTimeStr = nextClose.time;
     const [mh,mm] = matchTimeStr.split(':').map(Number);
     const nowVZ = vzNow();
     const matchVZ = new Date(nowVZ);
@@ -3500,7 +3500,7 @@ function renderMatches() {
       <div class="countdown-status">${vzTime(nextClose.time)}</div>
     </div>`;
   }
- 
+
   if (closed) {
     html += `<div class="countdown-banner" style="background:rgba(255,77,109,0.08);border-color:rgba(255,77,109,0.3);">
       <span style="color:var(--red);font-weight:800;">🔴 Predicciones CERRADAS</span>
@@ -3511,13 +3511,11 @@ function renderMatches() {
   if (!_dM.length) {
     html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Sin partidos. Pulsa Sync.</span></div>`;
   } else {
-    // Cargar setup MQ (async, re-render si cambia)
     loadMQSetup().then(() => {
       const banner = document.getElementById('mqBanner');
       if (banner) banner.outerHTML = buildMQBanner();
     });
 
-    // Leer setup MQ sincrónicamente desde localStorage para el render inicial
     if (_mqSetup === null) {
       try {
         const local = localStorage.getItem(MQ_KEY());
@@ -3527,26 +3525,21 @@ function renderMatches() {
 
     html += '<div id="mqBanner">' + (function(){ try { return buildMQBanner(); } catch(e){ return ''; } })() + '</div>';
 
-    // Si no ha respondido SI/NO → bloquear predicciones
     const mqBlocked = !_mqSetup || !_mqSetup.answered;
     const mqAllDone = _mqSetup && _mqSetup.enabled && _mqSetup.currentIdx >= _mqSetup.total;
     const effectiveClosed = closed || mqBlocked || mqAllDone;
 
     _dM.forEach(m => { html += buildMatchCard(m, effectiveClosed); });
 
-    // ── BANNER PREDICCIONES DEL TORNEO (aparece después del partido 24) ──
     if (!me.isSpectator) {
       const p25 = _aM.find(m => m.date >= '2026-06-18');
       const p25started = p25 && (isLive(p25.status) || isFinished(p25.status));
-      // Mostrar durante toda la J1 (hasta que empiece la J2 / partido 25)
       if (!p25started) {
-  html += buildTournamentBanner(_mundialPredCache, false);
-  loadMundialPredBg();
-}
-       // carga en background sin bloquear el render
+        html += buildTournamentBanner(_mundialPredCache, false);
+        loadMundialPredBg();
       }
     }
-    // ─────────────────────────────────────────────────────────────────────
+
     if (!closed) {
       html += `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
@@ -3562,6 +3555,9 @@ function renderMatches() {
         </div>`;
     }
   }
+
+  el.innerHTML = html;
+}
 
 el.innerHTML = html;
 _loadPublicGroupsStrip();
@@ -4619,7 +4615,7 @@ function resetMQSetup() {
   _mqSetup = null;
   try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
   try { db.collection('users').doc(me.uid).collection('config').doc('multiQuiniela').delete(); } catch(e) {}
-  renderMatches();
+  if (!p25started) {   html += buildTournamentBanner(_mundialPredCache, false);   loadMundialPredBg(); }        // carga en background sin bloquear el render       }     }();
 }
 
 function buildMQBanner() {
@@ -5406,6 +5402,8 @@ async function openGroupWAMenu(code, gname) {
 
   window._groupWAMsgs = quickMsgs;
   document.body.appendChild(modal);
+  
+}
 
 function _buildPizarraText(gname) {   if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;   const medals = ['🥇','🥈','🥉'];   const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});   const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});   let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;   _currentRankData.ranked.forEach((p,i) => {     const pos = medals[i] || `  ${i+1}.`;     msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;   });   msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;   return msg; }  function _buildTop3Text(gname) {   if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;   const ranked = _currentRankData.ranked;   const [p1,p2,p3] = ranked;   return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`; }  function sendGroupWA(idx) {   const msg = window._groupWAMsgs[idx];   window.open(`https://wa.me/?text=${encodeURIComponent(msg.text)}`, '_blank');   document.getElementById('groupWAModal')?.remove(); }  let _currentRankData = { name:'', ranked:[] };
 
