@@ -1011,7 +1011,6 @@ body::before {
   <div id="screenGroups" class="screen hidden"></div>
   <div id="screenSimulator" class="screen hidden"></div>
   <div id="screenAdmin" class="screen hidden"></div>
-  <div id="screenChangePass" class="screen hidden"></div>
 
   <!-- BOTTOM NAV -->
   <nav class="nav">
@@ -1078,30 +1077,6 @@ body::before {
     </div>
     <button class="btn btn-primary" id="createBtn" onclick="doCreateGroup()">🎉 Crear Grupo</button>
     <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('createModal')">Cancelar</button>
-  </div>
-</div>
-
-<!-- Group Selector (for predictions) -->
-<div class="modal-overlay hidden" id="grpPickModal">
-  <div class="modal-box">
-    <div class="modal-handle"></div>
-    <div class="modal-title">👥 ¿Para qué grupo?</div>
-    <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">Estás en varios grupos. Elige para cuál predices esta jornada.</p>
-    <div id="grpPickList"></div>
-    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('grpPickModal')">Cancelar</button>
-  </div>
-</div>
-
-<!-- Group Ranking -->
-<div class="modal-overlay hidden" id="rankModal">
-  <div class="modal-box">
-    <div class="modal-handle"></div>
-    <div id="rankModalTitle" class="modal-title"></div>
-    <div id="rankModalCode" style="font-size:0.78em;color:var(--muted2);margin-bottom:16px;"></div>
-    <div id="rankModalList"></div>
-    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">📲 Compartir Pizarra por WhatsApp</button>
-    <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" id="msgGroupBtn" onclick="openRankWAMenu()">💬 Mensajes al grupo</button>
-    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('rankModal')">Cerrar</button>
   </div>
 </div>
 
@@ -1763,7 +1738,6 @@ async function fetchTimeout(url, ms = 6000, opts = {}) {
 }
 
 // TheSportsDB V2 used exclusively via fetchV2()
-const _afCache = {}; // kept for compat
 
 // ═══════════════════════════════════════════
 // TOURNAMENTS
@@ -2604,11 +2578,6 @@ function switchAuthTab(tab) {
   }
 }
 
-function showReset() {
-  $('formLogin').classList.add('hidden');
-  $('formReset').classList.remove('hidden');
-}
-
 function phoneToEmail(phone, target) {
   const raw = phone.replace(/\D/g,'');
   const code = selectedCountry[target].d.replace('+','');
@@ -3413,6 +3382,55 @@ function varDetail(t) {
 // ═══════════════════════════════════════════
 // RENDER MATCHES
 // ═══════════════════════════════════════════
+async function iniciarFlujOMundial() {
+  // Verificar si ya tiene quinielas guardadas
+  try {
+    const snap = await db.collection('mundialPreds')
+      .where('realUserId', '==', me.uid).get();
+
+    if (!snap.empty) {
+      // Ya tiene al menos una — preguntar
+      const old = document.getElementById('_otraQModal');
+      if (old) old.remove();
+      const modal = document.createElement('div');
+      modal.id = '_otraQModal';
+      modal.className = 'modal-overlay';
+      modal.style.zIndex = '4000';
+      modal.innerHTML = `
+        <div class="modal-box" style="text-align:center;padding:28px 24px;">
+          <div class="modal-handle"></div>
+          <div style="font-size:2em;margin-bottom:10px;">🌍🏆</div>
+          <div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;
+            color:var(--gold);margin-bottom:8px;">
+            Ya tienes ${snap.size} quiniela${snap.size>1?'s':''} jugada${snap.size>1?'s':''}
+          </div>
+          <div style="font-size:0.8em;color:var(--muted2);margin-bottom:20px;line-height:1.5;">
+            ¿Quieres jugar una quiniela adicional?<br>
+            Cada una compite de forma independiente.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button class="btn btn-ghost" onclick="
+              document.getElementById('_otraQModal').remove();">
+              No, gracias
+            </button>
+            <button class="btn btn-primary" onclick="
+              document.getElementById('_otraQModal').remove();
+              abrirFlujoPredicion(null);">
+              Sí, jugar otra 🎯
+            </button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    } else {
+      // Primera vez — arrancar directo
+      abrirFlujoPredicion(null);
+    }
+  } catch(e) {
+    // Si falla la consulta, arrancar directo
+    abrirFlujoPredicion(null);
+  }
+}
+
 function renderMatches() {
   const el = $('screenMatches');
   if (!el) return;
@@ -3438,7 +3456,13 @@ function renderMatches() {
         <button class="btn btn-ghost btn-sm" onclick="openStandings()" title="Tablas de posiciones" style="padding:5px 8px;font-size:0.85em;">📊</button>
         <button class="btn btn-ghost btn-sm" onclick="doSync()" title="Sincronizar" style="padding:5px 8px;font-size:0.85em;">🔄</button>
         <button class="btn btn-ghost btn-sm" onclick="openMyPredictions()" title="Mis predicciones" style="padding:5px 8px;font-size:0.85em;color:var(--gold);">📋</button>
-        <button onclick="abrirFlujoPredicion(null)"
+        <button onclick="verMisQuinielas()"
+          style="padding:6px 10px;border-radius:var(--r-sm);border:2px solid var(--primary2);
+          background:rgba(108,71,255,0.15);color:var(--primary2);
+          font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
+          🎯 Mis Q
+        </button>
+        <button onclick="iniciarFlujOMundial()"
           style="padding:6px 10px;border-radius:var(--r-sm);border:2px solid var(--gold);
           background:rgba(245,197,66,0.15);color:var(--gold);
           font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
@@ -3541,14 +3565,172 @@ function renderMatches() {
     }
   }
 
-el.innerHTML = html;
-_loadPublicGroupsStrip();
+  el.innerHTML = html;
+  _loadPublicGroupsStrip();
 
   // Restore typed predictions
   Object.entries(saved).forEach(([mid,v])=>{
     const hi=$(`hi_${mid}`),ai=$(`ai_${mid}`);
     if(hi)hi.value=v.h; if(ai)ai.value=v.a;
   });
+}
+
+// ── VER MIS QUINIELAS — 70pts + partidos J1 por apodo ────────
+async function verMisQuinielas() {
+  const old = document.getElementById('_misQModal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = '_misQModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '5000';
+  modal.innerHTML = `
+    <div class="modal-box" style="max-height:92vh;overflow-y:auto;">
+      <div class="modal-handle"></div>
+      <div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;
+        margin-bottom:4px;">🎯 Mis Quinielas</div>
+      <div style="font-size:0.75em;color:var(--muted2);margin-bottom:16px;">
+        Todas tus predicciones del Mundial 2026
+      </div>
+      <div id="_misQContent">
+        <div class="empty"><span class="empty-icon">⏳</span></div>
+      </div>
+      <button class="btn btn-ghost" style="margin-top:12px;"
+        onclick="document.getElementById('_misQModal').remove()">
+        Cerrar
+      </button>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const content = document.getElementById('_misQContent');
+
+  try {
+    // Cargar predicciones del torneo (70pts) — todas las del jugador real
+    const mundSnap = await db.collection('mundialPreds')
+      .where('realUserId', '==', me.uid).get();
+
+    // Cargar predicciones de partidos J1 — todos los slots del jugador
+    const predSnap = await db.collection('predictions')
+      .where('realUserId', '==', me.uid)
+      .where('tournamentId', '==', 'mundial').get();
+
+    if (mundSnap.empty && predSnap.empty) {
+      content.innerHTML = `<div class="empty">
+        <span class="empty-icon">🎯</span>
+        <span class="empty-text">Aún no tienes quinielas del Mundial.<br>
+        Toca 🌍🏆 Mundial para empezar.</span>
+      </div>`;
+      return;
+    }
+
+    // Agrupar predicciones de partidos por apodo (slotId)
+    const partidosPorSlot = {};
+    predSnap.docs.forEach(d => {
+      const p = d.data();
+      const apodo = p.username || me.username;
+      if (!partidosPorSlot[apodo]) partidosPorSlot[apodo] = [];
+      partidosPorSlot[apodo].push(p);
+    });
+
+    // Agrupar torneo por apodo
+    const torneosPorSlot = {};
+    mundSnap.docs.forEach(d => {
+      const p = d.data();
+      const apodo = p.username || me.username;
+      torneosPorSlot[apodo] = p;
+    });
+
+    // Unir todos los apodos
+    const todosApodos = new Set([
+      ...Object.keys(torneosPorSlot),
+      ...Object.keys(partidosPorSlot)
+    ]);
+
+    let html = '';
+    let num = 1;
+
+    todosApodos.forEach(apodo => {
+      const torneo = torneosPorSlot[apodo];
+      const partidos = partidosPorSlot[apodo] || [];
+
+      html += `
+        <div style="background:var(--surface2);border:1px solid var(--border2);
+          border-radius:14px;padding:14px;margin-bottom:12px;">
+
+          <!-- Header quiniela -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <div style="background:linear-gradient(135deg,var(--primary),var(--primary2));
+              color:#fff;font-family:var(--font-h);font-weight:900;
+              font-size:0.85em;padding:4px 10px;border-radius:20px;">
+              Q${num}
+            </div>
+            <div style="font-family:var(--font-h);font-weight:800;
+              font-size:0.95em;color:var(--gold);">
+              ${apodo}
+            </div>
+          </div>
+
+          <!-- 70pts torneo -->
+          ${torneo ? `
+            <div style="background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.25);
+              border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+              <div style="font-size:0.65em;color:var(--gold);font-weight:800;
+                text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
+                🌍 Predicciones del Torneo
+              </div>
+              <div style="font-size:0.8em;line-height:2;">
+                🏆 <strong>${torneo.campeon || '—'}</strong><br>
+                🥈 <strong>${torneo.subcampeon || '—'}</strong><br>
+                🥉 <strong>${torneo.tercero || '—'}</strong><br>
+                ⚽ <strong>${torneo.goleador || '—'}</strong>
+                ${torneo.golesGoleador ? ` · <strong>${torneo.golesGoleador} goles</strong>` : ''}
+              </div>
+            </div>` : `
+            <div style="font-size:0.75em;color:var(--muted2);
+              padding:8px;text-align:center;margin-bottom:8px;">
+              Sin predicciones del torneo aún
+            </div>`}
+
+          <!-- Partidos J1 -->
+          ${partidos.length ? `
+            <div style="font-size:0.65em;color:var(--primary2);font-weight:800;
+              text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+              ⚽ Partidos (${partidos.length})
+            </div>
+            ${partidos.slice(0,6).map(p => `
+              <div style="display:flex;justify-content:space-between;
+                align-items:center;padding:5px 0;
+                border-bottom:1px solid var(--border);font-size:0.75em;">
+                <span style="color:var(--muted2);overflow:hidden;
+                  text-overflow:ellipsis;white-space:nowrap;max-width:160px;">
+                  ${p.home} vs ${p.away}
+                </span>
+                <span style="font-family:var(--font-h);color:var(--primary2);
+                  font-weight:800;flex-shrink:0;margin-left:8px;">
+                  ${p.predictedHomeScore}—${p.predictedAwayScore}
+                </span>
+              </div>`).join('')}
+            ${partidos.length > 6 ? `
+              <div style="font-size:0.7em;color:var(--muted2);
+                text-align:center;margin-top:6px;">
+                +${partidos.length - 6} partidos más
+              </div>` : ''}
+          ` : `
+            <div style="font-size:0.75em;color:var(--muted2);
+              padding:8px;text-align:center;">
+              Sin predicciones de partidos aún
+            </div>`}
+        </div>`;
+      num++;
+    });
+
+    content.innerHTML = html;
+
+  } catch(e) {
+    content.innerHTML = `<div class="empty">
+      <span class="empty-text">Error: ${e.message}</span>
+    </div>`;
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -5862,10 +6044,6 @@ async function adminUsers() {
   out.innerHTML=html;
 }
 
-function adminWA(username, phone) {
-  adminWAMenu(username, phone, false);
-}
-
 function adminWAMenu(username, phone, hasPredicted) {
   if(!phone){toast('Sin teléfono registrado','error');return;}
   const num = phone.replace(/[^0-9]/g,'');
@@ -6438,7 +6616,7 @@ function applyScenario(type) {
       case 'myExact': {
         const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
         if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
-        break;
+  break;
       }
       case 'myResult': {
         // Give the correct result but NOT the exact score
@@ -6619,7 +6797,6 @@ function displaySimResults(players, fictResults) {
   html += `<div style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:var(--r-sm);font-size:0.78em;">
     <div style="font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📋 Resultados ficticios usados</div>`;
   fictResults.forEach(fr=>{
-    const rr = fr.homeScore===fr.awayScore?'empate':fr.homeScore>fr.awayScore?fr.home:fr.away;
     html+=`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
       <span style="color:var(--muted2);">${fr.home} ${t('vsLabel')} ${fr.away}</span>
       <span style="font-family:var(--font-h);color:var(--primary2);">${fr.homeScore}—${fr.awayScore}</span>
@@ -8515,51 +8692,6 @@ function _applyExpressPicks() {
 // LIMPIEZA DE PREDICCIONES
 // ═══════════════════════════════════════════
 
-async function migrateMatchIds() {
-  if (!me.isAdmin) return;
-  const out = $('adminOut');
-  out.innerHTML = '⏳ Buscando predicciones con matchId numérico...';
-
-  try {
-    const usersSnap = await db.collection('users').get();
-    const userIds = usersSnap.docs.map(d => d.id);
-    let totalFixed = 0;
-
-    for (let i = 0; i < userIds.length; i++) {
-      const uid = userIds[i];
-      const uname = usersSnap.docs[i].data().username || uid;
-      out.innerHTML = `⏳ Revisando ${uname} (${i+1}/${userIds.length})...`;
-
-      const pSnap = await db.collection('predictions').where('userId','==', uid).get();
-      if (pSnap.empty) continue;
-
-      // Filtrar solo los que tienen matchId como número (typeof number)
-      const toFix = pSnap.docs.filter(d => typeof d.data().matchId === 'number');
-      if (!toFix.length) continue;
-
-      let batch = db.batch();
-      let count = 0;
-      toFix.forEach(d => {
-        batch.update(d.ref, { matchId: String(d.data().matchId) });
-        count++;
-        totalFixed++;
-      });
-      await batch.commit();
-      out.innerHTML = `✅ ${uname}: ${count} corregidos`;
-    }
-
-    if (!totalFixed) {
-      out.innerHTML = `✅ Todo limpio — no hay matchId numéricos. Los double queries ya no son necesarios.`;
-      toast('✅ matchIds ya están como String', 'success');
-    } else {
-      out.innerHTML = `✅ Migración completa: ${totalFixed} predicciones corregidas a String.`;
-      toast(`🔢 ${totalFixed} matchIds migrados`, 'success');
-    }
-  } catch(e) {
-    out.innerHTML = `❌ Error: ${e.message}`;
-    toast('Error: ' + e.message, 'error');
-  }
-}
 
 async function cleanOldPreds() {
   const today = vzDate();
@@ -9108,5 +9240,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+  
   
   
