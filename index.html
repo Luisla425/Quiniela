@@ -4523,6 +4523,40 @@ function _mostrarPreguntaMQ() {
   document.body.appendChild(modal);
 }
 
+function _mostrarPreguntaOtraQuiniela() {
+  const old = document.getElementById('_otraQModal');
+  if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = '_otraQModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '4000';
+  modal.innerHTML = `
+    <div class="modal-box" style="text-align:center;padding:28px 24px;">
+      <div class="modal-handle"></div>
+      <div style="font-size:2em;margin-bottom:10px;">🎯</div>
+      <div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;
+        color:var(--gold);margin-bottom:8px;">
+        ¿Quieres jugar otra quiniela?
+      </div>
+      <div style="font-size:0.8em;color:var(--muted2);margin-bottom:20px;line-height:1.5;">
+        Cada quiniela tiene sus propias predicciones<br>y compite de forma independiente.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-ghost" onclick="
+          document.getElementById('_otraQModal').remove();
+          renderMatches();">
+          No, ya terminé
+        </button>
+        <button class="btn btn-primary" onclick="
+          document.getElementById('_otraQModal').remove();
+          abrirFlujoPredicion(null);">
+          Sí 🎯
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
 async function savePreds() {
   if (!me?.uid) return;
   const _bs = _bettingStatus();
@@ -4546,6 +4580,15 @@ async function savePreds() {
     _mostrarPreguntaMQ();
     return;
   }
+
+  // Si ya respondió UNA SOLA y no ha activado MQ, preguntar de nuevo
+  if (_mqSetup.answered && !_mqSetup.enabled) {
+    _mostrarPreguntaMQ();
+    _mqSetup = null;
+    try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
+    return;
+  }
+
   const activeSlot = mqActiveSlot();
   abrirFlujoPredicion(activeSlot);
 }
@@ -4680,11 +4723,9 @@ function buildMQBanner() {
 // ══════════════════════════════════════════════════════════════════
 
 async function doSavePreds(preds, jDate, group, activeSlot = null) {
-  // userId efectivo: slot virtual para multi-quiniela
   const effectiveUid = activeSlot ? activeSlot.slotId : me.uid;
   const apodoLabel   = activeSlot ? activeSlot.apodo : (me.username || 'tú');
 
-  // Check if already saved for this slot+date
   try {
     const ex = await db.collection('predictions')
       .where('userId','==',effectiveUid)
@@ -4707,7 +4748,6 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
       const snap  = await ref.get();
 
       if (snap.exists) {
-        // Ya existe — actualizar solo el marcador, resetear evaluación
         batch.update(ref, {
           predictedHomeScore: p.h,
           predictedAwayScore: p.a,
@@ -4717,7 +4757,6 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
       } else {
-        // Nueva predicción
         batch.set(ref, {
           userId:    effectiveUid,
           realUserId: me.uid,
@@ -4750,22 +4789,15 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
       } else {
         toast(`🎉 ¡Todas las quinielas guardadas!`, 'success', 4000);
         setTimeout(() => renderMatches(), 400);
-      } // re-render banner con siguiente slot
-    } else {
-      // Una sola quiniela guardada — preguntar si quiere más
-      const masQuinielas = confirm('✅ Predicciones guardadas!\n\n¿Quieres jugar más quinielas?');
-      if (masQuinielas) {
-        const cuantas = parseInt(prompt('¿Cuántas quinielas más quieres jugar? (1 a 9)', '1'));
-        if (!isNaN(cuantas) && cuantas >= 1 && cuantas <= 9) {
-          mqCreate(cuantas + 1);
-        } else {
-          toast('✅ Predicciones guardadas', 'success');
-          setTimeout(() => renderMatches(), 400);
-        }
-      } else {
-        toast('✅ Predicciones guardadas', 'success');
-        setTimeout(() => renderMatches(), 400);
       }
+    } else {
+      // ── Guardó una quiniela — preguntar si quiere otra ──
+      toast(`✅ ${apodoLabel} guardada`, 'success', 1500);
+      setTimeout(() => {
+        _mqSetup = null;
+        try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
+        _mostrarPreguntaOtraQuiniela();
+      }, 1800);
     }
   } catch(e) {
     toast('Error al guardar: ' + e.message, 'error');
@@ -9079,6 +9111,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
