@@ -7354,20 +7354,16 @@ async function _confirmarPasoTorneo() {
 
 // ─── PASO 2: Express de partidos ────────────────────────────
 function _abrirPaso2Partidos() {
-  const pending = _dM.filter(m =>
-    !isLive(m.status) && !isFinished(m.status)
-  );
+  // Usar partidos del fixture mundial de la jornada activa
+  const pending = FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada)
+    .map(m => ({...m, status:'Not Started', tournamentId:'mundial',
+      tournamentName:'Mundial FIFA 2026', tournamentFlag:'🌍🏆'}));
+
   if (!pending.length) {
     toast('⚠️ No hay partidos pendientes para predecir', 'warning', 4000);
     _flujoPredActivo = false;
     return;
   }
-  // Reutilizar el sistema express existente
-  _expressMatches = pending;
-  _expressIdx     = 0;
-  _expressPick    = {};
-  _showExpressMatch();
-}
 
 // ─── Cerrar flujo sin guardar ────────────────────────────────
 function _cerrarFlujo() {
@@ -7918,8 +7914,8 @@ async function openMundialModal() {
       if ($('mGolesGoleador') && d.golesGoleador) $('mGolesGoleador').value = d.golesGoleador;
 
       // Bloquear solo si el partido 25 ya comenzó (jornada 2)
-      const partido25 = _aM.find(m => m._seq === 25 || m.seq === 25 || (Array.isArray(_aM) && _aM.indexOf(m) === 24));
-      const p25started = partido25 && partido25.status && partido25.status !== 'NS' && partido25.status !== 'TBD';
+      const p25 = _aM.find(m => m.date >= '2026-06-18');
+const p25started = p25 && (isLive(p25.status) || isFinished(p25.status));
       if (p25started) {
         $('mCampeon').disabled    = true;
         $('mSubcampeon').disabled = true;
@@ -9077,5 +9073,6 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
