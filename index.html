@@ -1782,30 +1782,22 @@ const TOURNAMENTS = [
 
 // Mundial 2026 — 48 selecciones
 const MUNDIAL_TEAMS = [
-  // Grupo A
-  '🇲🇽 México','🇿🇦 Sudáfrica','🇰🇷 Corea del Sur','🇨🇿 Rep. Checa',
-  // Grupo B
-  '🇨🇦 Canadá','🇨🇭 Suiza','🇶🇦 Qatar','🇧🇦 Bosnia y Herzegovina',
-  // Grupo C
-  '🇧🇷 Brasil','🇲🇦 Marruecos','🇭🇹 Haití','🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',
-  // Grupo D
-  '🇺🇸 Estados Unidos','🇵🇾 Paraguay','🇦🇺 Australia','🇹🇷 Turquía',
-  // Grupo E
-  '🇩🇪 Alemania','🇪🇨 Ecuador','🇨🇮 Costa de Marfil','🇨🇼 Curazao',
-  // Grupo F
-  '🇳🇱 Países Bajos','🇸🇪 Suecia','🇹🇳 Túnez','🇯🇵 Japón',
-  // Grupo G
-  '🇧🇪 Bélgica','🇪🇬 Egipto','🇮🇷 Irán','🇳🇿 Nueva Zelanda',
-  // Grupo H
-  '🇪🇸 España','🇺🇾 Uruguay','🇸🇦 Arabia Saudita','🇨🇻 Cabo Verde',
-  // Grupo I
-  '🇫🇷 Francia','🇸🇳 Senegal','🇮🇶 Iraq','🇳🇴 Noruega',
-  // Grupo J
-  '🇦🇷 Argentina','🇩🇿 Argelia','🇦🇹 Austria','🇯🇴 Jordania',
-  // Grupo K
-  '🇵🇹 Portugal','🇨🇴 Colombia','🇺🇿 Uzbekistán','🇨🇩 R.D. del Congo',
-  // Grupo L
-  '🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra','🇭🇷 Croacia','🇬🇭 Ghana','🇵🇦 Panamá',
+  '🇩🇿 Argelia','🇸🇦 Arabia Saudita','🇦🇷 Argentina',
+  '🇦🇺 Australia','🇦🇹 Austria','🇧🇪 Bélgica',
+  '🇧🇦 Bosnia y Herzegovina','🇧🇷 Brasil','🇨🇻 Cabo Verde',
+  '🇨🇦 Canadá','🇨🇮 Costa de Marfil','🇰🇷 Corea del Sur',
+  '🇭🇷 Croacia','🇨🇼 Curazao','🇪🇨 Ecuador',
+  '🇪🇬 Egipto','🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia','🇪🇸 España',
+  '🇺🇸 Estados Unidos','🇫🇷 Francia','🇬🇭 Ghana',
+  '🇭🇹 Haití','🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra','🇮🇷 Irán',
+  '🇮🇶 Iraq','🇯🇵 Japón','🇯🇴 Jordania',
+  '🇲🇦 Marruecos','🇲🇽 México','🇳🇿 Nueva Zelanda',
+  '🇳🇴 Noruega','🇵🇦 Panamá','🇵🇾 Paraguay',
+  '🇳🇱 Países Bajos','🇵🇹 Portugal','🇶🇦 Qatar',
+  '🇨🇩 R.D. del Congo','🇨🇿 Rep. Checa','🇸🇳 Senegal',
+  '🇿🇦 Sudáfrica','🇸🇪 Suecia','🇨🇭 Suiza',
+  '🇹🇳 Túnez','🇹🇷 Turquía','🇺🇾 Uruguay',
+  '🇺🇿 Uzbekistán',
 ];
 
 
@@ -2747,7 +2739,8 @@ async function doChangePass() {
   if (newPass !== newPass2) { toast('Las contraseñas no coinciden','error'); return; }
   try {
     // Re-authenticate first
-    const user = auth._cU;
+    const user = auth.currentUser;
+if (!user) { toast('No hay sesión activa','error'); return; }
     const cred = firebase.auth.EmailAuthProvider.credential(user.email, oldPass);
     await user.reauthenticateWithCredential(cred);
     await user.updatePassword(newPass);
@@ -2993,6 +2986,7 @@ function showScreen(name) {
   // Unsubscribe chat listener when leaving chat
   if (name !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
 
+  if (name==='matches')      renderMatches();
   if (name==='preds')        renderPreds();
   if (name==='chat')         initChat();
   if (name==='tournaments')  renderTournaments();
@@ -3065,7 +3059,7 @@ async function doSync() {
 
   if (!found.size) { renderMatches(); return; }
 
-  _aM = Array.from(found.values());
+_aM = Array.from(found.values()).filter(m => m.tournamentId !== 'mundial');
 
   // 4) lookupevent ONLY for today's matches (not all matches)
   await refreshDayScores();
@@ -3150,7 +3144,7 @@ function setDayMatches() {
     const nextDate = upcoming[0]?.date;
     pool = nextDate ? _aM.filter(m=>m.date===nextDate) : [];
   }
-  _dM = pool.sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  _dM = pool.filter(m => m.tournamentId !== 'mundial').sort((a,b)=>(a.time||'').localeCompare(b.time||''));
 }
 
 function _isHardLocked() {
@@ -3555,9 +3549,6 @@ function renderMatches() {
         </div>`;
     }
   }
-
-  el.innerHTML = html;
-}
 
 el.innerHTML = html;
 _loadPublicGroupsStrip();
@@ -4507,6 +4498,39 @@ async function autoDefaultPreds() {
     }
   }
 }
+function _mostrarPreguntaMQ() {
+  const old = document.getElementById('_mqModal');
+  if (old) old.remove();
+  const modal = document.createElement('div');
+  modal.id = '_mqModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '4000';
+  modal.innerHTML = `
+    <div class="modal-box" style="text-align:center;padding:28px 24px;">
+      <div class="modal-handle"></div>
+      <div style="font-size:2em;margin-bottom:10px;">🎯</div>
+      <div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;
+        color:var(--gold);margin-bottom:8px;">
+        ¿Cuántas quinielas vas a jugar?
+      </div>
+      <div style="font-size:0.8em;color:var(--muted2);margin-bottom:20px;line-height:1.5;">
+        Cada quiniela tiene sus propias predicciones<br>y compite de forma independiente.
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <button class="btn btn-ghost" onclick="
+          document.getElementById('_mqModal').remove();
+          mqAnswerNo();">
+          Una sola
+        </button>
+        <button class="btn btn-primary" onclick="
+          document.getElementById('_mqModal').remove();
+          mqAskCuantas();">
+          Varias 🎯
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
 
 async function savePreds() {
   if (!me?.uid) return;
@@ -4527,6 +4551,11 @@ async function savePreds() {
   }
 
   // ── FLUJO NUEVO: Torneo → Partidos ──────────────────────
+  // Si aún no ha respondido, preguntar primero
+  if (!_mqSetup || !_mqSetup.answered) {
+    _mostrarPreguntaMQ();
+    return;
+  }
   const activeSlot = mqActiveSlot();
   abrirFlujoPredicion(activeSlot);
 }
@@ -4615,7 +4644,7 @@ function resetMQSetup() {
   _mqSetup = null;
   try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
   try { db.collection('users').doc(me.uid).collection('config').doc('multiQuiniela').delete(); } catch(e) {}
-  if (!p25started) {   html += buildTournamentBanner(_mundialPredCache, false);   loadMundialPredBg(); }        // carga en background sin bloquear el render       }     }();
+  
 }
 
 function buildMQBanner() {
@@ -4726,11 +4755,12 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
       saveMQSetup();
       const next = _mqSetup.quinielas[_mqSetup.currentIdx];
       if (next) {
-        toast(`✅ ${apodoLabel} guardada · Ahora: ${next.apodo}`, 'success', 4000);
+        toast(`✅ ${apodoLabel} guardada · Ahora: ${next.apodo}`, 'success', 2000);
+        setTimeout(() => abrirFlujoPredicion(next), 2200);
       } else {
         toast(`🎉 ¡Todas las quinielas guardadas!`, 'success', 4000);
-      }
-      setTimeout(() => renderMatches(), 400); // re-render banner con siguiente slot
+        setTimeout(() => renderMatches(), 400);
+      } // re-render banner con siguiente slot
     } else {
       toast(`✅ ${preds.length} predicciones guardadas`, 'success');
     }
@@ -6777,6 +6807,13 @@ function renderMundialScreen() {
 
       + '</div>';
   }
+// Banner predicciones del torneo
+  if (!me.isSpectator) {
+    const p25 = FIXTURE_MUNDIAL.find(m => m.date >= '2026-06-18');
+    const p25started = false; // aún no ha empezado J2
+    html += buildTournamentBanner(_mundialPredCache, p25started);
+    loadMundialPredBg();
+  }
 
   html += '<div style="font-size:0.72em;color:var(--muted2);text-align:center;margin-bottom:10px;font-weight:700;">'
     + jornadaMatches.length
@@ -7036,6 +7073,33 @@ function abrirFlujoPredicion(slot) {
     _mostrarPasoTorneo(apodo, null);
   });
 }
+const _diccionarioGoleadores = {
+  'mbappe':'Mbappé','embappe':'Mbappé','mbappe':'Mbappé',
+  'lamin':'Lamine','lamine yamal':'Lamine Yamal',
+  'yamal':'Lamine Yamal','lamin yamal':'Lamine Yamal',
+  'vini':'Vinícius Jr.','vinicius':'Vinícius Jr.',
+  'rodri':'Rodri','haaland':'Haaland','erling':'Haaland',
+  'salah':'Mohamed Salah','momo':'Mohamed Salah',
+  'bellingham':'Jude Bellingham','jude':'Jude Bellingham',
+  'pedri':'Pedri','raphinha':'Raphinha',
+  'lewandowski':'Lewandowski','lewa':'Lewandowski',
+  'messi':'Lionel Messi','leo':'Lionel Messi',
+  'cristiano':'Cristiano Ronaldo','cr7':'Cristiano Ronaldo',
+  'neymar':'Neymar Jr.','ney':'Neymar Jr.',
+  'benzema':'Karim Benzema','karim':'Karim Benzema',
+  'lukaku':'Romelu Lukaku','dembele':'Ousmane Dembélé',
+  'osimhen':'Victor Osimhen','saka':'Bukayo Saka',
+  'pulisic':'Christian Pulisic','weah':'Timothy Weah',
+  'alvarez':'Julián Álvarez','julian':'Julián Álvarez',
+  'darwin':'Darwin Núñez','nunez':'Darwin Núñez',
+};
+
+function _corregirGoleador(input) {
+  const raw = input.value.toLowerCase().trim();
+  if (_diccionarioGoleadores[raw]) {
+    input.value = _diccionarioGoleadores[raw];
+  }
+}
 
 // ─── PASO 1: Predicciones del torneo ────────────────────────
 function _mostrarPasoTorneo(apodo, prevPred) {
@@ -7175,7 +7239,8 @@ function _mostrarPasoTorneo(apodo, prevPred) {
         <input type="text" id="_fGoleador"
           placeholder="Ej: Kylian Mbappé"
           style="text-transform:capitalize;"
-          value="${prevPred?.goleador||''}">
+          value="${prevPred?.goleador||''}"
+          oninput="_corregirGoleador(this)">
       </div>
 
       <div class="field">
@@ -7978,7 +8043,8 @@ async function saveMundialPreds() {
   const campeon    = $('mCampeon').value;
   const subcampeon = $('mSubcampeon').value;
   const tercero    = $('mTercero').value;
-  const goleador   = $('mGoleador').value.trim();
+  const goleadorRaw = $('mGoleador').value.trim();
+  const goleador = _diccionarioGoleadores[goleadorRaw.toLowerCase()] || goleadorRaw;
   const golesRaw   = $('mGolesGoleador')?.value;
   const golesGoleador = golesRaw ? +golesRaw : null;
 
@@ -9008,3 +9074,4 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
