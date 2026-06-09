@@ -3525,15 +3525,6 @@ function renderMatches() {
 
     _dM.forEach(m => { html += buildMatchCard(m, effectiveClosed); });
 
-    if (!me.isSpectator) {
-      const p25 = _aM.find(m => m.date >= '2026-06-18');
-      const p25started = p25 && (isLive(p25.status) || isFinished(p25.status));
-      if (!p25started) {
-        html += buildTournamentBanner(_mundialPredCache, false);
-        loadMundialPredBg();
-      }
-    }
-
     if (!closed) {
       html += `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
@@ -7361,6 +7352,12 @@ function _abrirPaso2Partidos() {
     return;
   }
 
+  _expressMatches = pending;
+  _expressIdx = 0;
+  _expressPick = {};
+  _showExpressMatch();
+}
+
 // ─── Cerrar flujo sin guardar ────────────────────────────────
 function _cerrarFlujo() {
   const ol = document.getElementById('_flujoOverlay');
@@ -9069,4 +9066,5 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
