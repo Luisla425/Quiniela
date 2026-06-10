@@ -3439,8 +3439,17 @@ async function _crearNuevaQuiniela() {
 async function iniciarFlujOMundial() {
   // Verificar si ya tiene quinielas guardadas
   try {
-    const snap = await db.collection('mundialPreds')
+    // Doble query: cubre Q1 antigua (userId==me.uid) y Q2+ (realUserId==me.uid)
+    const _mSnap1 = await db.collection('mundialPreds')
       .where('realUserId', '==', me.uid).get();
+    const _mSnap2 = await db.collection('mundialPreds')
+      .where('userId', '==', me.uid).get();
+    const _mSeen = new Set();
+    const _mDocs = [];
+    _mSnap1.docs.concat(_mSnap2.docs).forEach(d => {
+      if (!_mSeen.has(d.id)) { _mSeen.add(d.id); _mDocs.push(d); }
+    });
+    const snap = { docs: _mDocs, empty: _mDocs.length === 0 };
 
     if (!snap.empty) {
       // Ya tiene al menos una — preguntar
@@ -3659,9 +3668,18 @@ async function verMisQuinielas() {
   const content = document.getElementById('_misQContent');
 
   try {
-    // Cargar predicciones del torneo (70pts) — todas las del jugador real
-    const mundSnap = await db.collection('mundialPreds')
+    // Cargar predicciones del torneo (70pts) — doble query para cubrir Q1 antigua y Q2+
+    const mundSnap1 = await db.collection('mundialPreds')
       .where('realUserId', '==', me.uid).get();
+    const mundSnap2 = await db.collection('mundialPreds')
+      .where('userId', '==', me.uid).get();
+    // Unir sin duplicados (docId como key)
+    const _seenMund = new Set();
+    const _mundDocs = [];
+    mundSnap1.docs.concat(mundSnap2.docs).forEach(d => {
+      if (!_seenMund.has(d.id)) { _seenMund.add(d.id); _mundDocs.push(d); }
+    });
+    const mundSnap = { docs: _mundDocs, empty: _mundDocs.length === 0 };
 
     // Cargar predicciones de partidos Mundial
     // Query 1: docs con realUserId (nuevos, post-fix)
@@ -4478,7 +4496,7 @@ async function openStats(matchId) {
       if (statsList.length > 0) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
         const labels = {
-          'Possession':'Posesión','Ball Possession':'Posesión',
+               'Possession':'Posesión','Ball Possession':'Posesión',
           'Shots Total':'Tiros totales','Total Shots':'Tiros totales',
           'Shots On Target':'Al arco','Shots on Goal':'Al arco',
           'Corners':'Corners','Corner Kicks':'Corners',
@@ -4486,7 +4504,7 @@ async function openStats(matchId) {
           'Offsides':'Fuera de juego','Saves':'Atajadas',
           'Passes':'Pases','Passes Accurate':'Pases precisos'
         };
-                statsList.forEach(s => {
+        statsList.forEach(s => {
           const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
           const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
           const hn    = parseFloat(hv) || 0;
@@ -9427,6 +9445,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
