@@ -4553,8 +4553,9 @@ async function openStats(matchId) {
             };
             html += '<div>'
               + '<div style="font-size:0.75em;font-weight:800;color:' + color + ';margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + tname + '</div>'
-              + sorted.slice(0,11).map(p =>              '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
-                  + '<span>' + posIcon(p.strPosition) + '</span>'
+              + sorted.slice(0,11).map(p =>
+                  '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
+                  + '<span>' + posIcon(p.strPosition) + '</span>' 
                   + '<span style="color:var(--gold);min-width:18px;font-weight:800;">' + (p.strNumber||'') + '</span>'
                   + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (p.strPlayer||'') + '</span>'
                   + '</div>'
@@ -6539,85 +6540,70 @@ function generarPizarraWA() {
     return;
   }
 
-  const medals  = ['🥇','🥈','🥉'];
-  const now     = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
-  const date    = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
-  const anyLive = _aM.some(m => isLive(m.status));
+  const NL = '\n';
+  const medals = ['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49'];
+  const now  = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
+  const anyLive = _aM.some(function(m){ return isLive(m.status); });
 
-  // Partidos activos en este momento
-  const liveMatches = _aM.filter(m => isLive(m.status));
+  // Bloque partidos en vivo
+  const liveMatches = _aM.filter(function(m){ return isLive(m.status); });
   let liveBlock = '';
   if (liveMatches.length) {
-    liveBlock = '🔴 *EN VIVO:*
-';
-    liveMatches.forEach(m => {
+    liveBlock = '\uD83D\uDD34 *EN VIVO:*' + NL;
+    liveMatches.forEach(function(m) {
       const hs = m.homeScore != null ? m.homeScore : '?';
       const as = m.awayScore != null ? m.awayScore : '?';
-      liveBlock += `  ${m.homeFlag||'⚽'} ${m.home} ${hs} — ${as} ${m.away} ${m.awayFlag||'⚽'}
-`;
+      liveBlock += '  ' + (m.homeFlag||'\u26BD') + ' ' + m.home + ' ' + hs + ' - ' + as + ' ' + m.away + ' ' + (m.awayFlag||'\u26BD') + NL;
     });
-    liveBlock += '
-';
+    liveBlock += NL;
   }
 
-  // Partidos finalizados en la jornada de hoy
+  // Bloque resultados de hoy
   const today = vzDate();
-  const finishedToday = _aM.filter(m => isFinished(m.status) && (m.date||'').startsWith(today));
+  const finishedToday = _aM.filter(function(m){ return isFinished(m.status) && (m.date||'').startsWith(today); });
   let finBlock = '';
   if (finishedToday.length) {
-    finBlock = '✅ *Resultados:*
-';
-    finishedToday.forEach(m => {
-      finBlock += `  ${m.homeFlag||'⚽'} ${m.home} ${m.homeScore} — ${m.awayScore} ${m.away} ${m.awayFlag||'⚽'}
-`;
+    finBlock = '\u2705 *Resultados:*' + NL;
+    finishedToday.forEach(function(m) {
+      finBlock += '  ' + (m.homeFlag||'\u26BD') + ' ' + m.home + ' ' + m.homeScore + ' - ' + m.awayScore + ' ' + m.away + ' ' + (m.awayFlag||'\u26BD') + NL;
     });
-    finBlock += '
-';
+    finBlock += NL;
   }
 
   // Tabla de puntos
   let tabla = '';
-  ranked.forEach((p, i) => {
-    const pos    = medals[i] || `${String(i+1).padStart(2)}.`;
-    const nombre = p.username.padEnd(9);
-    const pts    = String(p.grpPts).padStart(3);
-    const exactos = p.grpExact   ? ` ⭐${p.grpExact}`  : '';
-    const correct = p.grpCorrect ? ` 🎯${p.grpCorrect}` : '';
-    const vivo    = p.grpLive    ? ' 🔴'                 : '';
-    tabla += `${pos} ${nombre}${pts}p${exactos}${correct}${vivo}
-`;
+  ranked.forEach(function(p, i) {
+    const pos    = i < 3 ? medals[i] : (i+1) + '.';
+    const nombre = p.username;
+    const pts    = p.grpPts;
+    const ex     = p.grpExact   ? ' \u2B50' + p.grpExact  : '';
+    const co     = p.grpCorrect ? ' \uD83C\uDFAF' + p.grpCorrect : '';
+    const vv     = p.grpLive    ? ' \uD83D\uDD34' : '';
+    tabla += pos + ' ' + nombre + '  ' + pts + 'p' + ex + co + vv + NL;
   });
 
-  const header = anyLive
-    ? `📊 *PIZARRA EN VIVO* · Quiniela LuAn
-`
-    : `📊 *PIZARRA* · Quiniela LuAn
-`;
+  const sep20 = '\u25AC'.repeat(20);
+  const sep19 = '\u2500'.repeat(19);
+  const header = anyLive ? '\uD83D\uDCCA *PIZARRA EN VIVO* \u00B7 Quiniela LuAn' + NL
+                         : '\uD83D\uDCCA *PIZARRA* \u00B7 Quiniela LuAn' + NL;
 
-  const msg =
-    header +
-    `📅 ${date} · ${now}
-` +
-    `${'▬'.repeat(20)}
+  const msg = header
+    + '\uD83D\uDCC5 ' + date + ' \u00B7 ' + now + NL
+    + sep20 + NL + NL
+    + liveBlock
+    + finBlock
+    + '*' + name + '*' + NL
+    + sep19 + NL
+    + tabla
+    + sep20 + NL
+    + '_\uD83D\uDD10 C\u00F3d: ' + code + ' \u00B7 QuinielaLuAn \u00B7 Arichuna_';
 
-` +
-    liveBlock +
-    finBlock +
-    `*${name}*
-` +
-    `${'─'.repeat(20)}
-` +
-    tabla +
-    `${'▬'.repeat(20)}
-` +
-    `_🔐 Cód: ${code} · QuinielaLuAn · Arichuna_`;
+  navigator.clipboard && navigator.clipboard.writeText(msg)
+    .then(function(){ toast('\u2705 Pizarra copiada - p\u00E9gala en el G2', 'success', 3500); })
+    .catch(function(){});
 
-  // Copiar al portapapeles + abrir WA
-  navigator.clipboard?.writeText(msg)
-    .then(() => toast('✅ Pizarra copiada — pégala en el G2', 'success', 3500))
-    .catch(() => {});
-
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
 // ═══════════════════════════════════════════
@@ -9667,6 +9653,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
