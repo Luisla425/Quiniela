@@ -7612,9 +7612,9 @@ async function savePredsMundial() {
   if (!me?.uid) return;
   const preds = [];
   FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada).forEach(m => {
-    const hi = $('hi_' + m.id), ai = $('ai_' + m.id);
-    const h = +(hi?.textContent || hi?.value || 0) || 0;
-    const a = +(ai?.textContent || ai?.value || 0) || 0;
+    const pick = _expressPick[String(m.id)];
+    const h = pick ? pick.h : 0;
+    const a = pick ? pick.a : 0;
     preds.push({ matchId: m.id, h, a, match: m });
   });
   if (!preds.length) { toast('Sin predicciones', 'error'); return; }
@@ -9245,6 +9245,8 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+  
   
   
   
