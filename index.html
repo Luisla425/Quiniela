@@ -7267,7 +7267,27 @@ function renderMundialScreen() {
 let _flujoPredActivo = false;
 let _flujoPredSlot   = null; // slot MQ activo durante el flujo
 
+function abrirFlujoPredicion(slot) {
+  _flujoPredActivo = true;
+  _flujoPredSlot   = slot || null;
 
+  const apodo = slot ? slot.apodo : (me.username || '');
+  const docId = slot ? slot.slotId : me.uid;
+
+  // Para quinielas adicionales (slot existe) → siempre en blanco
+  if (slot) {
+    _mostrarPasoTorneo(apodo, null);
+    return;
+  }
+
+  // Primera quiniela → cargar predicciones previas si existen
+  db.collection('mundialPreds').doc(docId).get().then(doc => {
+    const yaTiene = doc.exists && doc.data()?.campeon;
+    _mostrarPasoTorneo(apodo, yaTiene ? doc.data() : null);
+  }).catch(() => {
+    _mostrarPasoTorneo(apodo, null);
+  });
+}
 const _diccionarioGoleadores = {
   'mbappe':'Mbappé','embappe':'Mbappé','mbappe':'Mbappé',
   'lamin':'Lamine','lamine yamal':'Lamine Yamal',
