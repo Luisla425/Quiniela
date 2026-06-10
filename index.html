@@ -8677,12 +8677,17 @@ function _applyExpressPicks() {
 
   const count = Object.keys(_expressPick).length;
   if (count > 0) {
-    toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
-    // Scroll to save button
-    setTimeout(() => {
-      const btn = document.querySelector('[onclick="savePreds()"]');
-      if (btn) btn.scrollIntoView({ behavior: 'smooth' });
-    }, 400);
+    // Si es flujo Mundial → guardar automático
+    if (_flujoPredActivo) {
+      toast(`✅ ${count} partidos predichos · Guardando...`, 'success', 2000);
+      setTimeout(() => savePredsMundial(), 600);
+    } else {
+      toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
+      setTimeout(() => {
+        const btn = document.querySelector('[onclick="savePreds()"]');
+        if (btn) btn.scrollIntoView({ behavior: 'smooth' });
+      }, 400);
+    }
   } else {
     toast('Sin predicciones guardadas', 'info');
   }
@@ -9240,6 +9245,8 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+  
   
   
   
