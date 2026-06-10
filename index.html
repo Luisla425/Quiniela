@@ -4553,7 +4553,7 @@ async function openStats(matchId) {
             };
             html += '<div>'
               + '<div style="font-size:0.75em;font-weight:800;color:' + color + ';margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + tname + '</div>'
-              + sorted.slice(0,11).map(p =>                   '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
+              + sorted.slice(0,11).map(p =>              '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
                   + '<span>' + posIcon(p.strPosition) + '</span>'
                   + '<span style="color:var(--gold);min-width:18px;font-weight:800;">' + (p.strNumber||'') + '</span>'
                   + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (p.strPlayer||'') + '</span>'
@@ -6626,7 +6626,7 @@ function generarPizarraWA() {
 // Agrupa por jugador, muestra todas sus quinielas con apodo
 // ═══════════════════════════════════════════
 
-async function generarPrediccionesWA(matchId, matchObj) {
+async async function generarPrediccionesWA(matchId, matchObj) {
   if (!matchId || !matchObj) {
     // Si no se pasa partido, buscar el más reciente en juego o próximo
     const live = _aM.find(m => isLive(m.status));
@@ -6730,7 +6730,7 @@ ${'▬'.repeat(22)}
 }
 
 // Shortcut rápido: genera predicciones del partido activo en este momento
-async function generarPrediccionesPartidoActivo() {
+async async function generarPrediccionesPartidoActivo() {
   const live = _aM.find(m => isLive(m.status));
   if (!live) {
     // Si no hay en vivo, tomar el más próximo
@@ -6845,7 +6845,7 @@ async function loadSimulation() {
     const ptMap = {};
     pSnap.docs.forEach(d=>{
       const p=d.data();
-      if(!ptMap[p.userId])  ptMap[p.userId]=0;
+      if(!ptMap[p.userId]) ptMap[p.userId]=0;
       ptMap[p.userId]+=(p.pointsAwarded||0);
     });
 
@@ -9667,6 +9667,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
