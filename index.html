@@ -3778,9 +3778,28 @@ async function verMisQuinielas() {
                 </span>
               </div>`).join('')}
             ${partidos.length > 6 ? `
-              <div style="font-size:0.7em;color:var(--muted2);
-                text-align:center;margin-top:6px;">
-                +${partidos.length - 6} partidos más
+              <div id="expand_${apodo.replace(/[^a-zA-Z0-9]/g,'_')}"
+                onclick="this.style.display='none';document.getElementById('extra_${apodo.replace(/[^a-zA-Z0-9]/g,'_')}').style.display='block'"
+                style="font-size:0.75em;color:var(--primary2);
+                  text-align:center;margin-top:6px;cursor:pointer;
+                  padding:6px;border:1px solid rgba(108,71,255,0.3);
+                  border-radius:8px;background:rgba(108,71,255,0.08);">
+                ▼ +${partidos.length - 6} partidos más (toca para ver)
+              </div>
+              <div id="extra_${apodo.replace(/[^a-zA-Z0-9]/g,'_')}" style="display:none;">
+                ${partidos.slice(6).map(p => `
+                  <div style="display:flex;justify-content:space-between;
+                    align-items:center;padding:5px 0;
+                    border-bottom:1px solid var(--border);font-size:0.75em;">
+                    <span style="color:var(--muted2);overflow:hidden;
+                      text-overflow:ellipsis;white-space:nowrap;max-width:160px;">
+                      ${p.home} vs ${p.away}
+                    </span>
+                    <span style="font-family:var(--font-h);color:var(--primary2);
+                      font-weight:800;flex-shrink:0;margin-left:8px;">
+                      ${p.predictedHomeScore}—${p.predictedAwayScore}
+                    </span>
+                  </div>`).join('')}
               </div>` : ''}
           ` : `
             <div style="font-size:0.75em;color:var(--muted2);
@@ -4460,13 +4479,14 @@ async function openStats(matchId) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
         const labels = {
           'Possession':'Posesión','Ball Possession':'Posesión',
-          'Shots Total':'Tiros totales','Total Shots':'Tiros totales','Shots On Target':'Al arco','Shots on Goal':'Al arco',
+          'Shots Total':'Tiros totales','Total Shots':'Tiros totales',
+          'Shots On Target':'Al arco','Shots on Goal':'Al arco',
           'Corners':'Corners','Corner Kicks':'Corners',
           'Fouls':'Faltas','Yellow Cards':'Amarillas','Red Cards':'Rojas',
           'Offsides':'Fuera de juego','Saves':'Atajadas',
           'Passes':'Pases','Passes Accurate':'Pases precisos'
         };
-        statsList.forEach(s => {
+                statsList.forEach(s => {
           const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
           const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
           const hn    = parseFloat(hv) || 0;
@@ -7881,64 +7901,96 @@ async function openMyPredictions() {
   openModal('myPredsModal');
   $('myPredsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
   try {
-    const snap = await db.collection('predictions').where('userId','==',me.uid).get();
-    const allPreds = snap.docs.map(d=>({id:d.id,...d.data()}));
-    const today = vzDate();
-    const byDate = {};
-    allPreds.forEach(p=>{
-      const d=p.jornadaDate||'Sin fecha';
-      if(!byDate[d]) byDate[d]=[];
-      byDate[d].push(p);
+    // Buscar predicciones de TODAS las quinielas del jugador (Q1, Q2, Q3...)
+    const snap1 = await db.collection('predictions').where('realUserId','==',me.uid).get();
+    const snap2 = await db.collection('predictions').where('userId','==',me.uid).get();
+    const _seen = new Set();
+    const allPreds = [];
+    snap1.docs.concat(snap2.docs).forEach(d => {
+      if (!_seen.has(d.id)) { _seen.add(d.id); allPreds.push({id:d.id,...d.data()}); }
     });
-    const sortedDates = Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-    if(!sortedDates.length){
+    if (!allPreds.length) {
       $('myPredsContent').innerHTML='<div class="empty"><span class="empty-icon">🎯</span><span class="empty-text">Sin predicciones guardadas aún</span></div>';
       return;
     }
-    let html='';
-    sortedDates.slice(0,10).forEach(date=>{
-      const preds=byDate[date];
-      const isToday=date===today;
-      html+=`<div style="margin-bottom:16px;">
-        <div style="font-size:0.7em;font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">
-          📅 ${date}${isToday?' <span style="color:var(--green);">HOY</span>':''}
+    // Agrupar por quiniela (apodo), fallback a me.username para predicciones europeas
+    const byApodo = {};
+    allPreds.forEach(p => {
+      const apodo = p.username || me.username;
+      if (!byApodo[apodo]) byApodo[apodo] = [];
+      byApodo[apodo].push(p);
+    });
+    // Ordenar apodos: Q1 (me.username) primero, luego Q2, Q3... alfabético
+    const apodosOrdenados = Object.keys(byApodo).sort((a, b) => {
+      if (a === me.username) return -1;
+      if (b === me.username) return  1;
+      return a.localeCompare(b);
+    });
+    const today = vzDate();
+    let html = '';
+    apodosOrdenados.forEach((apodo, qi) => {
+      const preds = byApodo[apodo].sort((a, b) =>
+        (a.jornadaDate||'').localeCompare(b.jornadaDate||''));
+      const isOwn = apodo === me.username;
+      const qNum  = qi + 1;
+      const qColor = isOwn ? 'var(--primary2)' : 'var(--gold)';
+      html += `<div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;
+          padding-bottom:6px;border-bottom:2px solid ${qColor}22;">
+          <div style="background:linear-gradient(135deg,var(--primary),var(--primary2));
+            color:#fff;font-family:var(--font-h);font-size:0.85em;font-weight:800;
+            padding:3px 10px;border-radius:12px;">Q${qNum}</div>
+          <div style="font-size:0.9em;font-weight:800;color:${qColor};">${apodo}</div>
+          <div style="font-size:0.7em;color:var(--muted2);margin-left:auto;">
+            ${preds.length} predicción${preds.length!==1?'es':''}</div>
         </div>`;
-      preds.forEach(p=>{
-        const ev=p.evaluated&&p.pointsAwarded!=null;
-        let ptsColor='var(--muted2)',ptsLabel='⏳ Pendiente';
-        if(ev){
-          if(p.pointsAwarded===5){ptsColor='var(--gold)';ptsLabel='⭐ +5 EXACTO';}
-          else if(p.pointsAwarded===3){ptsColor='var(--green)';ptsLabel='✅ +3 Resultado';}
-          else if(p.pointsAwarded===1){ptsColor='var(--primary2)';ptsLabel='💙 +1';}
-          else{ptsColor='var(--red)';ptsLabel='❌ +0 Falló';}
+      preds.forEach(p => {
+        const ev = p.evaluated && p.pointsAwarded != null;
+        let ptsColor = 'var(--muted2)', ptsLabel = '⏳ Pendiente';
+        if (ev) {
+          if (p.pointsAwarded===5)      { ptsColor='var(--gold)';     ptsLabel='⭐ +5 EXACTO'; }
+          else if (p.pointsAwarded===3) { ptsColor='var(--green)';    ptsLabel='✅ +3 Resultado'; }
+          else if (p.pointsAwarded===1) { ptsColor='var(--primary2)'; ptsLabel='💙 +1'; }
+          else                          { ptsColor='var(--red)';      ptsLabel='❌ +0 Falló'; }
         }
-        const matchObj=_aM.find(m=>String(m.id)===String(p.matchId));
-        const homeName=p.home||matchObj?.home||'?';
-        const awayName=p.away||matchObj?.away||'?';
-        const borderExtra=ev&&p.pointsAwarded===5?'border-color:rgba(245,197,66,0.4);':ev&&p.pointsAwarded===3?'border-color:rgba(0,229,160,0.3);':'';
-        html+=`<div style="background:var(--surface2);border:1px solid var(--border);${borderExtra}border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
-          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin-bottom:8px;">
+        const matchObj  = _aM.find(m => String(m.id) === String(p.matchId));
+        const homeName  = p.home || matchObj?.home || '?';
+        const awayName  = p.away || matchObj?.away || '?';
+        const borderExtra = ev && p.pointsAwarded===5
+          ? 'border-color:rgba(245,197,66,0.4);'
+          : ev && p.pointsAwarded===3
+            ? 'border-color:rgba(0,229,160,0.3);' : '';
+        const dateLabel = p.jornadaDate && p.jornadaDate !== today
+          ? `<span style="font-size:0.65em;color:var(--muted2);margin-left:4px;">📅 ${p.jornadaDate}</span>` : '';
+        html += `<div style="background:var(--surface2);border:1px solid var(--border);
+          ${borderExtra}border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;
+            align-items:center;margin-bottom:8px;">
             <div style="text-align:right;font-size:0.82em;font-weight:700;">${homeName}</div>
             <div style="text-align:center;">
-              <div style="font-family:var(--font-h);font-size:1.5em;color:var(--primary2);">${p.predictedHomeScore} — ${p.predictedAwayScore}</div>
-              <div style="font-size:0.65em;color:var(--muted2);">Mi apuesta</div>
+              <div style="font-family:var(--font-h);font-size:1.5em;color:var(--primary2);">
+                ${p.predictedHomeScore} — ${p.predictedAwayScore}</div>
+              <div style="font-size:0.65em;color:var(--muted2);">Mi apuesta${dateLabel}</div>
             </div>
             <div style="text-align:left;font-size:0.82em;font-weight:700;">${awayName}</div>
           </div>
           ${ev
-            ?`<div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-size:0.72em;color:var(--muted2);">Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>
+            ? `<div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:0.72em;color:var(--muted2);">
+                  Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>
                 <div style="font-size:0.82em;font-weight:800;color:${ptsColor};">${ptsLabel}</div>
-              </div>`
-            :`<div style="font-size:0.72em;color:var(--muted2);">${p.groupName?'Grupo: '+p.groupName:''} · ⏳ Sin evaluar</div>`
+               </div>`
+            : `<div style="font-size:0.72em;color:var(--muted2);">
+                ${p.groupName ? 'Grupo: '+p.groupName : ''} · ⏳ Sin evaluar</div>`
           }
         </div>`;
       });
-      html+='</div>';
+      html += '</div>';
     });
-    $('myPredsContent').innerHTML=html;
-  } catch(e){
-    $('myPredsContent').innerHTML=`<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
+    $('myPredsContent').innerHTML = html;
+  } catch(e) {
+    $('myPredsContent').innerHTML =
+      `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
 }
 
@@ -8761,12 +8813,18 @@ function _applyExpressPicks() {
 
   const count = Object.keys(_expressPick).length;
   if (count > 0) {
-    toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
-    // Scroll to save button
-    setTimeout(() => {
-      const btn = document.querySelector('[onclick="savePreds()"]');
-      if (btn) btn.scrollIntoView({ behavior: 'smooth' });
-    }, 400);
+    if (_flujoPredActivo) {
+      // Flujo Mundial — guardar automático
+      toast(`✅ ${count} partidos predichos · Guardando...`, 'success', 2000);
+      setTimeout(() => savePredsMundial(), 600);
+    } else {
+      // Partidos europeos — scroll al botón Guardar
+      toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
+      setTimeout(() => {
+        const btn = document.querySelector('[onclick="savePreds()"]');
+        if (btn) btn.scrollIntoView({ behavior: 'smooth' });
+      }, 400);
+    }
   } else {
     toast('Sin predicciones guardadas', 'info');
   }
@@ -9369,6 +9427,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
