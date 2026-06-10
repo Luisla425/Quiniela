@@ -4496,7 +4496,7 @@ async function openStats(matchId) {
       if (statsList.length > 0) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
         const labels = {
-               'Possession':'Posesión','Ball Possession':'Posesión',
+          'Possession':'Posesión','Ball Possession':'Posesión',
           'Shots Total':'Tiros totales','Total Shots':'Tiros totales',
           'Shots On Target':'Al arco','Shots on Goal':'Al arco',
           'Corners':'Corners','Corner Kicks':'Corners',
@@ -4553,8 +4553,7 @@ async function openStats(matchId) {
             };
             html += '<div>'
               + '<div style="font-size:0.75em;font-weight:800;color:' + color + ';margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + tname + '</div>'
-              + sorted.slice(0,11).map(p =>
-                  '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
+              + sorted.slice(0,11).map(p =>                   '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
                   + '<span>' + posIcon(p.strPosition) + '</span>'
                   + '<span style="color:var(--gold);min-width:18px;font-weight:800;">' + (p.strNumber||'') + '</span>'
                   + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (p.strPlayer||'') + '</span>'
@@ -6035,6 +6034,14 @@ function renderAdmin() {
       <button class="admin-btn warn" onclick="adminEvalManual()">🔧<br>${t('evalManual')}</button>
       <button class="admin-btn accent" onclick="adminShowGroups()">📋<br>${t('groupCodes')}</button>
       <button class="admin-btn full" onclick="adminSync()">${t('syncNow')}</button>
+      <button class="admin-btn full" onclick="generarPizarraWA()"
+        style="background:rgba(37,211,102,0.12);color:#25d366;margin-top:4px;">
+        📊 Pizarra → G2 (WhatsApp)
+      </button>
+      <button class="admin-btn full" onclick="generarPrediccionesPartidoActivo()"
+        style="background:rgba(108,71,255,0.12);color:var(--primary2);margin-top:4px;">
+        📣 Predicciones partido activo → G2
+      </button>
       <button class="admin-btn full" onclick="migrarNumerosJugadores()"
         style="background:rgba(245,197,66,0.15);color:var(--gold);border:2px solid rgba(245,197,66,0.4);font-size:0.82em;line-height:1.4;">
         🔢 Reasignar números jugadores<br>
@@ -6520,6 +6527,221 @@ async function adminReset() {
   }
 }
 
+
+// ═══════════════════════════════════════════
+// PIZARRA G2 — Genera texto completo para enviar al grupo WA G2
+// ═══════════════════════════════════════════
+
+function generarPizarraWA() {
+  const { name, code, ranked } = _currentRankData;
+  if (!ranked || !ranked.length) {
+    toast('Abre primero la Pizarra del grupo para cargar los datos', 'warning', 3000);
+    return;
+  }
+
+  const medals  = ['🥇','🥈','🥉'];
+  const now     = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const date    = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
+  const anyLive = _aM.some(m => isLive(m.status));
+
+  // Partidos activos en este momento
+  const liveMatches = _aM.filter(m => isLive(m.status));
+  let liveBlock = '';
+  if (liveMatches.length) {
+    liveBlock = '🔴 *EN VIVO:*
+';
+    liveMatches.forEach(m => {
+      const hs = m.homeScore != null ? m.homeScore : '?';
+      const as = m.awayScore != null ? m.awayScore : '?';
+      liveBlock += `  ${m.homeFlag||'⚽'} ${m.home} ${hs} — ${as} ${m.away} ${m.awayFlag||'⚽'}
+`;
+    });
+    liveBlock += '
+';
+  }
+
+  // Partidos finalizados en la jornada de hoy
+  const today = vzDate();
+  const finishedToday = _aM.filter(m => isFinished(m.status) && (m.date||'').startsWith(today));
+  let finBlock = '';
+  if (finishedToday.length) {
+    finBlock = '✅ *Resultados:*
+';
+    finishedToday.forEach(m => {
+      finBlock += `  ${m.homeFlag||'⚽'} ${m.home} ${m.homeScore} — ${m.awayScore} ${m.away} ${m.awayFlag||'⚽'}
+`;
+    });
+    finBlock += '
+';
+  }
+
+  // Tabla de puntos
+  let tabla = '';
+  ranked.forEach((p, i) => {
+    const pos    = medals[i] || `${String(i+1).padStart(2)}.`;
+    const nombre = p.username.padEnd(9);
+    const pts    = String(p.grpPts).padStart(3);
+    const exactos = p.grpExact   ? ` ⭐${p.grpExact}`  : '';
+    const correct = p.grpCorrect ? ` 🎯${p.grpCorrect}` : '';
+    const vivo    = p.grpLive    ? ' 🔴'                 : '';
+    tabla += `${pos} ${nombre}${pts}p${exactos}${correct}${vivo}
+`;
+  });
+
+  const header = anyLive
+    ? `📊 *PIZARRA EN VIVO* · Quiniela LuAn
+`
+    : `📊 *PIZARRA* · Quiniela LuAn
+`;
+
+  const msg =
+    header +
+    `📅 ${date} · ${now}
+` +
+    `${'▬'.repeat(20)}
+
+` +
+    liveBlock +
+    finBlock +
+    `*${name}*
+` +
+    `${'─'.repeat(20)}
+` +
+    tabla +
+    `${'▬'.repeat(20)}
+` +
+    `_🔐 Cód: ${code} · QuinielaLuAn · Arichuna_`;
+
+  // Copiar al portapapeles + abrir WA
+  navigator.clipboard?.writeText(msg)
+    .then(() => toast('✅ Pizarra copiada — pégala en el G2', 'success', 3500))
+    .catch(() => {});
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ═══════════════════════════════════════════
+// PREDICCIONES G2 — Genera todas las predicciones de todos los jugadores
+// para un partido específico (5 min después del pitazo)
+// Agrupa por jugador, muestra todas sus quinielas con apodo
+// ═══════════════════════════════════════════
+
+async function generarPrediccionesWA(matchId, matchObj) {
+  if (!matchId || !matchObj) {
+    // Si no se pasa partido, buscar el más reciente en juego o próximo
+    const live = _aM.find(m => isLive(m.status));
+    const next = _aM.find(m => !isFinished(m.status) && !isLive(m.status));
+    matchObj = live || next;
+    if (!matchObj) { toast('No hay partido activo ni próximo', 'warning'); return; }
+    matchId = String(matchObj.id);
+  }
+
+  const toastId = toast('⏳ Cargando predicciones...', 'info', 10000);
+
+  try {
+    // Traer TODAS las predicciones de este partido (cualquier usuario)
+    const snap1 = await db.collection('predictions')
+      .where('matchId', '==', String(matchId)).get();
+    const snap2 = await db.collection('predictions')
+      .where('matchId', '==', Number(matchId)).get();
+
+    // Unir sin duplicados
+    const seen = new Set();
+    const allPreds = [];
+    snap1.docs.concat(snap2.docs).forEach(d => {
+      if (!seen.has(d.id)) { seen.add(d.id); allPreds.push(d.data()); }
+    });
+
+    if (!allPreds.length) {
+      toast('Sin predicciones guardadas para este partido', 'warning', 3000);
+      return;
+    }
+
+    // Agrupar por userId real (p.realUserId || p.userId)
+    // Dentro de cada usuario, agrupar por apodo (username) para multi-quiniela
+    const porUsuario = {};
+    allPreds.forEach(p => {
+      const uid   = p.realUserId || p.userId;
+      const apodo = p.username || uid;
+      if (!porUsuario[uid]) porUsuario[uid] = {};
+      porUsuario[uid][apodo] = p;
+    });
+
+    // Ordenar usuarios por apodo base (sin número)
+    const now   = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+    const date  = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
+
+    const hFlag = matchObj.homeFlag || '🏴';
+    const aFlag = matchObj.awayFlag || '🏴';
+    const home  = matchObj.home || '?';
+    const away  = matchObj.away || '?';
+
+    let msg = `⚽ *PREDICCIONES — ${home} vs ${away}*
+`;
+    msg += `${hFlag} ${home}  🆚  ${away} ${aFlag}
+`;
+    msg += `📅 ${date} · ⏱ ${now}
+`;
+    msg += `${'▬'.repeat(22)}
+
+`;
+
+    // Por cada usuario real, listar sus quinielas
+    const usuarios = Object.values(porUsuario);
+    // Ordenar por apodo base del primer entry
+    usuarios.sort((a, b) => {
+      const na = Object.keys(a)[0] || '';
+      const nb = Object.keys(b)[0] || '';
+      return na.localeCompare(nb);
+    });
+
+    usuarios.forEach(quinielasDeUsuario => {
+      const apodos = Object.keys(quinielasDeUsuario).sort();
+      apodos.forEach(apodo => {
+        const p  = quinielasDeUsuario[apodo];
+        const ph = p.predictedHomeScore ?? '?';
+        const pa = p.predictedAwayScore ?? '?';
+        // Resultado predicho
+        let resultado = '';
+        if (ph > pa)       resultado = `(${home} gana)`;
+        else if (ph < pa)  resultado = `(${away} gana)`;
+        else               resultado = '(Empate)';
+        msg += `👤 *${apodo}*: ${ph} — ${pa} ${resultado}
+`;
+      });
+    });
+
+    const total = allPreds.length;
+    msg += `
+${'▬'.repeat(22)}
+`;
+    msg += `_${total} predicción${total!==1?'es':''} · QuinielaLuAn · Arichuna_`;
+
+    // Copiar + abrir WA
+    navigator.clipboard?.writeText(msg)
+      .then(() => toast('✅ Predicciones copiadas — pégalas en el G2', 'success', 3500))
+      .catch(() => {});
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// Shortcut rápido: genera predicciones del partido activo en este momento
+async function generarPrediccionesPartidoActivo() {
+  const live = _aM.find(m => isLive(m.status));
+  if (!live) {
+    // Si no hay en vivo, tomar el más próximo
+    const next = _aM.find(m => !isFinished(m.status) && !isLive(m.status));
+    if (!next) { toast('No hay partido activo ahora mismo', 'warning'); return; }
+    await generarPrediccionesWA(String(next.id), next);
+  } else {
+    await generarPrediccionesWA(String(live.id), live);
+  }
+}
+
 // ═══════════════════════════════════════════
 // SIMULATOR
 // ═══════════════════════════════════════════
@@ -6623,7 +6845,7 @@ async function loadSimulation() {
     const ptMap = {};
     pSnap.docs.forEach(d=>{
       const p=d.data();
-      if(!ptMap[p.userId]) ptMap[p.userId]=0;
+      if(!ptMap[p.userId])  ptMap[p.userId]=0;
       ptMap[p.userId]+=(p.pointsAwarded||0);
     });
 
@@ -9445,6 +9667,8 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+  
   
   
   
