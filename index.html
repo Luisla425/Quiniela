@@ -3413,6 +3413,29 @@ function varDetail(t) {
 // ═══════════════════════════════════════════
 // RENDER MATCHES
 // ═══════════════════════════════════════════
+async function _crearNuevaQuiniela() {
+  try {
+    toast('⏳ Preparando nueva quiniela...', 'info', 2000);
+    const baseApodo = (me.username || 'Jugador').replace(/\d+$/, '').trim();
+    const counterRef = db.collection('system').doc('playerCounter');
+    const newNum = await db.runTransaction(async (t) => {
+      const doc = await t.get(counterRef);
+      const next = doc.exists ? (doc.data().count || 0) + 1 : 1;
+      t.set(counterRef, { count: next }, { merge: true });
+      return next;
+    });
+    const nuevoSlot = {
+      slotId: `${me.uid}_q${newNum}`,
+      playerNumber: newNum,
+      apodo: `${baseApodo}${newNum}`
+    };
+    toast(`✅ Nueva quiniela: ${nuevoSlot.apodo}`, 'success', 2000);
+    abrirFlujoPredicion(nuevoSlot);
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
 async function iniciarFlujOMundial() {
   // Verificar si ya tiene quinielas guardadas
   try {
@@ -4431,11 +4454,11 @@ async function openStats(matchId) {
           'Offsides':'Fuera de juego','Saves':'Atajadas',
           'Passes':'Pases','Passes Accurate':'Pases precisos'
         };
-        statsList.forEach(s => {
+                statsList.forEach(s => {
           const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
           const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
           const hn    = parseFloat(hv) || 0;
-                    const an    = parseFloat(av) || 0;
+          const an    = parseFloat(av) || 0;
           const total = hn + an;
           const hPct  = total > 0 ? Math.round(hn / total * 100) : 50;
           const label = labels[s.strStat||s.strType||''] || s.strStat || s.strType || '';
@@ -7671,12 +7694,17 @@ async function savePredsMundial() {
 
   if (!confirm('¿Confirmar predicciones del Mundial para "' + group.name + '"?')) return;
 
+  // Usar slotId si es flujo multi-quiniela, si no usar me.uid
+  const effectiveUid = _flujoPredSlot ? _flujoPredSlot.slotId : me.uid;
+  const apodoLabel   = _flujoPredSlot ? _flujoPredSlot.apodo  : me.username;
+
   try {
     const batch = db.batch();
     preds.forEach(p => {
-      const docId = me.uid + '_' + group.id + '_' + p.matchId;
+      const docId = effectiveUid + '_' + group.id + '_' + p.matchId;
       batch.set(db.collection('predictions').doc(docId), {
-        userId: me.uid, username: me.username,
+        userId: effectiveUid, realUserId: me.uid,
+        username: apodoLabel,
         groupId: group.id, groupName: group.name,
         matchId: p.matchId,
         predictedHomeScore: p.h, predictedAwayScore: p.a,
@@ -7687,7 +7715,9 @@ async function savePredsMundial() {
       }, { merge: true });
     });
     await batch.commit();
-    toast('✅ ' + preds.length + ' predicciones del Mundial guardadas', 'success');
+    _flujoPredActivo = false;
+    _flujoPredSlot   = null;
+    toast('✅ ' + preds.length + ' predicciones del Mundial guardadas · ' + apodoLabel, 'success', 3000);
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
@@ -9327,6 +9357,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
