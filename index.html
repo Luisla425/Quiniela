@@ -3239,11 +3239,11 @@ function applyActiveGroupTournaments() {
   }
 }
 
-function setActiveGroup(gid) {
+function setActiveGroup(gid, skipSync) {
   activeGroupId = gid;
   localStorage.setItem('ql_activeGroup_' + me.uid, gid);
   applyActiveGroupTournaments();
-  doSync();
+  if (!skipSync) doSync();
 }
 
 function clearActiveGroup() {
@@ -3288,7 +3288,7 @@ async function _loadPublicGroupsStrip() {
         // Activo: morado con borde fuerte
         // Si es grupo Mundial → también abre la vista de jornadas
         const mundialClick = _isMundialGroup(g)
-          ? `setActiveGroup('${g.id}');renderMundialScreen()`
+          ? `setActiveGroup('${g.id}',true);renderMundialScreen()`
           : `setActiveGroup('${g.id}')`;
         extra += `<button onclick="${mundialClick}"
           style="flex-shrink:0;padding:6px 12px;border-radius:20px;
@@ -3301,7 +3301,7 @@ async function _loadPublicGroupsStrip() {
         // Propio pero no activo: verde
         // Si es grupo Mundial → también abre la vista de jornadas
         const mundialClick2 = _isMundialGroup(g)
-          ? `setActiveGroup('${g.id}');renderMundialScreen()`
+          ? `setActiveGroup('${g.id}',true);renderMundialScreen()`
           : `setActiveGroup('${g.id}')`;
         extra += `<button onclick="${mundialClick2}"
           style="flex-shrink:0;padding:6px 12px;border-radius:20px;
@@ -3663,12 +3663,25 @@ async function verMisQuinielas() {
     const mundSnap = await db.collection('mundialPreds')
       .where('realUserId', '==', me.uid).get();
 
-    // Cargar predicciones de partidos J1 — todos los slots del jugador
-    const predSnap = await db.collection('predictions')
-      .where('realUserId', '==', me.uid)
-      .where('tournamentId', '==', 'mundial').get();
+    // Cargar predicciones de partidos Mundial
+    // Query 1: docs con realUserId (nuevos, post-fix)
+    const predSnap1 = await db.collection('predictions')
+      .where('realUserId', '==', me.uid).get();
+    // Query 2: docs con userId=me.uid sin realUserId (antiguos, pre-fix)
+    const predSnap2 = await db.collection('predictions')
+      .where('userId', '==', me.uid).get();
+    // Unir ambas queries sin duplicados, filtrar solo Mundial
+    const _seenIds = new Set();
+    const _allPredDocs = [];
+    predSnap1.docs.concat(predSnap2.docs).forEach(d => {
+      if (!_seenIds.has(d.id)) {
+        _seenIds.add(d.id);
+        _allPredDocs.push(d);
+      }
+    });
+    const predDocs = { docs: _allPredDocs.filter(d => d.data().tournamentId === 'mundial') };
 
-    if (mundSnap.empty && predSnap.empty) {
+    if (mundSnap.empty && predDocs.docs.length === 0) {
       content.innerHTML = `<div class="empty">
         <span class="empty-icon">🎯</span>
         <span class="empty-text">Aún no tienes quinielas del Mundial.<br>
@@ -3679,7 +3692,7 @@ async function verMisQuinielas() {
 
     // Agrupar predicciones de partidos por apodo (slotId)
     const partidosPorSlot = {};
-    predSnap.docs.forEach(d => {
+    predDocs.docs.forEach(d => {
       const p = d.data();
       const apodo = p.username || me.username;
       if (!partidosPorSlot[apodo]) partidosPorSlot[apodo] = [];
@@ -4447,14 +4460,13 @@ async function openStats(matchId) {
         html += `<div style="font-size:0.7em;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px;">📊 Estadísticas</div>`;
         const labels = {
           'Possession':'Posesión','Ball Possession':'Posesión',
-          'Shots Total':'Tiros totales','Total Shots':'Tiros totales',
-          'Shots On Target':'Al arco','Shots on Goal':'Al arco',
+          'Shots Total':'Tiros totales','Total Shots':'Tiros totales','Shots On Target':'Al arco','Shots on Goal':'Al arco',
           'Corners':'Corners','Corner Kicks':'Corners',
           'Fouls':'Faltas','Yellow Cards':'Amarillas','Red Cards':'Rojas',
           'Offsides':'Fuera de juego','Saves':'Atajadas',
           'Passes':'Pases','Passes Accurate':'Pases precisos'
         };
-                statsList.forEach(s => {
+        statsList.forEach(s => {
           const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
           const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
           const hn    = parseFloat(hv) || 0;
@@ -9357,6 +9369,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
