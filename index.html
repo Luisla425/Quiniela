@@ -1011,6 +1011,7 @@ body::before {
   <div id="screenGroups" class="screen hidden"></div>
   <div id="screenSimulator" class="screen hidden"></div>
   <div id="screenAdmin" class="screen hidden"></div>
+  <div id="screenChangePass" class="screen hidden"></div>
 
   <!-- BOTTOM NAV -->
   <nav class="nav">
@@ -1077,6 +1078,30 @@ body::before {
     </div>
     <button class="btn btn-primary" id="createBtn" onclick="doCreateGroup()">🎉 Crear Grupo</button>
     <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('createModal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Group Selector (for predictions) -->
+<div class="modal-overlay hidden" id="grpPickModal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">👥 ¿Para qué grupo?</div>
+    <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">Estás en varios grupos. Elige para cuál predices esta jornada.</p>
+    <div id="grpPickList"></div>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('grpPickModal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- Group Ranking -->
+<div class="modal-overlay hidden" id="rankModal">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div id="rankModalTitle" class="modal-title"></div>
+    <div id="rankModalCode" style="font-size:0.78em;color:var(--muted2);margin-bottom:16px;"></div>
+    <div id="rankModalList"></div>
+    <button class="btn btn-green" style="margin-top:12px;width:100%;" id="sharePizarraBtn" onclick="sharePizarra()">📲 Compartir Pizarra por WhatsApp</button>
+    <button class="btn btn-ghost" style="margin-top:8px;background:rgba(37,211,102,0.1);border-color:#25d366;color:#25d366;" id="msgGroupBtn" onclick="openRankWAMenu()">💬 Mensajes al grupo</button>
+    <button class="btn btn-ghost" style="margin-top:8px;" onclick="closeModal('rankModal')">Cerrar</button>
   </div>
 </div>
 
@@ -1738,6 +1763,7 @@ async function fetchTimeout(url, ms = 6000, opts = {}) {
 }
 
 // TheSportsDB V2 used exclusively via fetchV2()
+const _afCache = {}; // kept for compat
 
 // ═══════════════════════════════════════════
 // TOURNAMENTS
@@ -2578,6 +2604,11 @@ function switchAuthTab(tab) {
   }
 }
 
+function showReset() {
+  $('formLogin').classList.add('hidden');
+  $('formReset').classList.remove('hidden');
+}
+
 function phoneToEmail(phone, target) {
   const raw = phone.replace(/\D/g,'');
   const code = selectedCountry[target].d.replace('+','');
@@ -3415,7 +3446,7 @@ async function iniciarFlujOMundial() {
             </button>
             <button class="btn btn-primary" onclick="
               document.getElementById('_otraQModal').remove();
-              abrirFlujoPredicion(null);">
+              _crearNuevaQuiniela();">
               Sí, jugar otra 🎯
             </button>
           </div>
@@ -4404,7 +4435,7 @@ async function openStats(matchId) {
           const hv    = String(s.intHome ?? s.strHome ?? '–').replace('%','');
           const av    = String(s.intAway ?? s.strAway ?? '–').replace('%','');
           const hn    = parseFloat(hv) || 0;
-          const an    = parseFloat(av) || 0;
+                    const an    = parseFloat(av) || 0;
           const total = hn + an;
           const hPct  = total > 0 ? Math.round(hn / total * 100) : 50;
           const label = labels[s.strStat||s.strType||''] || s.strStat || s.strType || '';
@@ -6044,6 +6075,10 @@ async function adminUsers() {
   out.innerHTML=html;
 }
 
+function adminWA(username, phone) {
+  adminWAMenu(username, phone, false);
+}
+
 function adminWAMenu(username, phone, hasPredicted) {
   if(!phone){toast('Sin teléfono registrado','error');return;}
   const num = phone.replace(/[^0-9]/g,'');
@@ -6616,7 +6651,7 @@ function applyScenario(type) {
       case 'myExact': {
         const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
         if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
-  break;
+        break;
       }
       case 'myResult': {
         // Give the correct result but NOT the exact score
@@ -6797,6 +6832,7 @@ function displaySimResults(players, fictResults) {
   html += `<div style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:var(--r-sm);font-size:0.78em;">
     <div style="font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📋 Resultados ficticios usados</div>`;
   fictResults.forEach(fr=>{
+    const rr = fr.homeScore===fr.awayScore?'empate':fr.homeScore>fr.awayScore?fr.home:fr.away;
     html+=`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
       <span style="color:var(--muted2);">${fr.home} ${t('vsLabel')} ${fr.away}</span>
       <span style="font-family:var(--font-h);color:var(--primary2);">${fr.homeScore}—${fr.awayScore}</span>
@@ -8683,17 +8719,12 @@ function _applyExpressPicks() {
 
   const count = Object.keys(_expressPick).length;
   if (count > 0) {
-    // Si es flujo Mundial → guardar automático
-    if (_flujoPredActivo) {
-      toast(`✅ ${count} partidos predichos · Guardando...`, 'success', 2000);
-      setTimeout(() => savePredsMundial(), 600);
-    } else {
-      toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
-      setTimeout(() => {
-        const btn = document.querySelector('[onclick="savePreds()"]');
-        if (btn) btn.scrollIntoView({ behavior: 'smooth' });
-      }, 400);
-    }
+    toast(`✅ ${count} predicciones listas — toca Guardar`, 'success');
+    // Scroll to save button
+    setTimeout(() => {
+      const btn = document.querySelector('[onclick="savePreds()"]');
+      if (btn) btn.scrollIntoView({ behavior: 'smooth' });
+    }, 400);
   } else {
     toast('Sin predicciones guardadas', 'info');
   }
@@ -8703,6 +8734,51 @@ function _applyExpressPicks() {
 // LIMPIEZA DE PREDICCIONES
 // ═══════════════════════════════════════════
 
+async function migrateMatchIds() {
+  if (!me.isAdmin) return;
+  const out = $('adminOut');
+  out.innerHTML = '⏳ Buscando predicciones con matchId numérico...';
+
+  try {
+    const usersSnap = await db.collection('users').get();
+    const userIds = usersSnap.docs.map(d => d.id);
+    let totalFixed = 0;
+
+    for (let i = 0; i < userIds.length; i++) {
+      const uid = userIds[i];
+      const uname = usersSnap.docs[i].data().username || uid;
+      out.innerHTML = `⏳ Revisando ${uname} (${i+1}/${userIds.length})...`;
+
+      const pSnap = await db.collection('predictions').where('userId','==', uid).get();
+      if (pSnap.empty) continue;
+
+      // Filtrar solo los que tienen matchId como número (typeof number)
+      const toFix = pSnap.docs.filter(d => typeof d.data().matchId === 'number');
+      if (!toFix.length) continue;
+
+      let batch = db.batch();
+      let count = 0;
+      toFix.forEach(d => {
+        batch.update(d.ref, { matchId: String(d.data().matchId) });
+        count++;
+        totalFixed++;
+      });
+      await batch.commit();
+      out.innerHTML = `✅ ${uname}: ${count} corregidos`;
+    }
+
+    if (!totalFixed) {
+      out.innerHTML = `✅ Todo limpio — no hay matchId numéricos. Los double queries ya no son necesarios.`;
+      toast('✅ matchIds ya están como String', 'success');
+    } else {
+      out.innerHTML = `✅ Migración completa: ${totalFixed} predicciones corregidas a String.`;
+      toast(`🔢 ${totalFixed} matchIds migrados`, 'success');
+    }
+  } catch(e) {
+    out.innerHTML = `❌ Error: ${e.message}`;
+    toast('Error: ' + e.message, 'error');
+  }
+}
 
 async function cleanOldPreds() {
   const today = vzDate();
@@ -9251,6 +9327,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
