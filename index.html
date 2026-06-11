@@ -1015,17 +1015,12 @@ body::before {
 
   <!-- BOTTOM NAV -->
   <nav class="nav">
+    <!-- Nav del Mundial — solo lo necesario -->
     <button class="nav-item active" id="nav-matches" onclick="showScreen('matches')">
-      <span class="nav-icon">⚽</span><span class="nav-label" id="nav-matches-lbl">Partidos</span>
-    </button>
-    <button class="nav-item" id="nav-preds" onclick="showScreen('preds')">
-      <span class="nav-icon">🎯</span><span class="nav-label">Predecir</span>
+      <span class="nav-icon">🌍🏆</span><span class="nav-label">Mundial</span>
     </button>
     <button class="nav-item" id="nav-chat" onclick="showScreen('chat')">
       <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
-    </button>
-    <button class="nav-item" id="nav-tournaments" onclick="showScreen('tournaments')">
-      <span class="nav-icon">🏆</span><span class="nav-label">Torneos</span>
     </button>
     <button class="nav-item" id="nav-groups" onclick="showScreen('groups')">
       <span class="nav-icon">👥</span><span class="nav-label">Grupos</span>
@@ -1769,15 +1764,7 @@ const _afCache = {}; // kept for compat
 // TOURNAMENTS
 // ═══════════════════════════════════════════
 const TOURNAMENTS = [
-  { id:'ucl',      name:'Champions League', flag:'⭐', lid:'4480' },
-  { id:'bundesliga', name:'Bundesliga',     flag:'🇩🇪', lid:'4331' },
-  { id:'ligue1',   name:'Ligue 1',          flag:'🇫🇷', lid:'4334' },
-  { id:'seriea',   name:'Serie A',          flag:'🇮🇹', lid:'4332' },
-  { id:'premier',  name:'Premier League',   flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', lid:'4328' },
-  { id:'laliga',   name:'LaLiga',           flag:'🇪🇸', lid:'4335' },
-  { id:'copadelrey', name:'Copa del Rey', flag:'🏆🇪🇸', lid:'4483', teamBlacklist:['port vale','bristol city','arsenal','chelsea','liverpool','manchester united','manchester city','tottenham','everton','newcastle','brighton','aston villa','wolverhampton','leicester','nottingham forest','brentford','fulham','crystal palace','bournemouth','burnley','west ham','southampton','luton','sheffield united','sheffield wednesday','leeds','sunderland','ipswich','oxford','plymouth','portsmouth','stoke','watford','west brom','coventry','hull','blackburn','swansea','cardiff','middlesbrough','norwich','millwall','derby','preston','blackpool','wigan','bolton','charlton','rotherham','birmingham','reading','huddersfield','peterborough','gillingham','fleetwood','stockport','wrexham','exeter','newport','grimsby','leyton orient','walsall','shrewsbury','northampton','mansfield','bradford','cambridge','swindon','crewe','rochdale','oldham','cheltenham'] },
-  { id:'mundial',  name:'Mundial FIFA 2026',   flag:'🌍🏆', lid:'4429', isMundial:true },
-  { id:'uel',      name:'Europa League',      flag:'🌍', lid:'4481' },
+  { id:'mundial', name:'Mundial FIFA 2026', flag:'🌍🏆', lid:'4429', isMundial:true },
 ];
 
 // Mundial 2026 — 48 selecciones
@@ -1822,8 +1809,7 @@ const FIXTURE_MUNDIAL = [
   { id:'m008', home:'🇦🇺 Australia',      away:'🇹🇷 Turquía',            date:'2026-06-13', timeVZ:'12:00 am', group:'D', jornada:1, venue:'BC Place, Vancouver' },
   // Dom 14/6
   { id:'m009', home:'🇩🇪 Alemania',       away:'🇨🇼 Curazao',            date:'2026-06-14', timeVZ:'2:00 pm',  group:'E', jornada:1, venue:'NRG Stadium, Houston' },
-  { id:'m010', home:'🇳🇱 Países Bajos',   away:'🇯🇵 Japón',              date:'2026-06-14', timeVZ:'5:00 pm',  group:'F', jornada:1, venue:'AT&T Stadium, Dallas' },
-  { id:'m011', home:'🇨🇮 Costa de Marfil',away:'🇪🇨 Ecuador',            date:'2026-06-14', timeVZ:'8:00 pm',  group:'E', jornada:1, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m010', home:'🇳🇱 Países Bajos',   away:'🇯🇵 Japón',              date:'2026-06-14', timeVZ:'5:00 pm',  group:'F', jornada:1, venue:'AT&T Stadium, Dallas' },  { id:'m011', home:'🇨🇮 Costa de Marfil',away:'🇪🇨 Ecuador',            date:'2026-06-14', timeVZ:'8:00 pm',  group:'E', jornada:1, venue:'Lincoln Financial, Filadelfia' },
   { id:'m012', home:'🇸🇪 Suecia',         away:'🇹🇳 Túnez',              date:'2026-06-14', timeVZ:'11:00 pm', group:'F', jornada:1, venue:'Estadio BBVA, Monterrey' },
   // Lun 15/6
   { id:'m013', home:'🇧🇪 Bélgica',        away:'🇪🇬 Egipto',             date:'2026-06-15', timeVZ:'3:00 pm',  group:'G', jornada:1, venue:'Lumen Field, Seattle' },
@@ -1926,9 +1912,10 @@ const COUNTRIES = [
 // STATE
 // ═══════════════════════════════════════════
 let me = null;
-let myTournaments = [];
-let _aM = [];
-let _dM = [];
+let myTournaments = ['mundial'];
+let _wM = []; // Partidos del Mundial FIFA 2026
+let _aM = _wM;  // alias — solo existe el Mundial
+let _dM = [];   // europeos — siempre vacío en modo Mundial
 let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
@@ -2145,189 +2132,14 @@ function statusLabel(s) {
   return map[s] || map[(s||'').toUpperCase()] || s || '—';
 }
 
-function sharePizarra() {
-  const { name, code, ranked } = _currentRankData;
-  if (!ranked || !ranked.length) { toast('Carga la pizarra primero','error'); return; }
-
-  const medals = ['🥇','🥈','🥉'];
-  const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
-  const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
-
-  // Compact header
-  let msg = `⚽ *LuAn* · ${name}\n`;
-  msg += `📅 ${date} ${now}\n`;
-  msg += `${'▬'.repeat(18)}\n`;
-
-  // Compact rows — everything on one line per player
-  ranked.forEach((p, i) => {
-    const pos  = medals[i] || `  ${i+1}.`;
-    const pts  = String(p.grpPts).padStart(3);
-    const name = p.username.toLowerCase().padEnd(8);
-    const ex   = p.grpExact   ? `⭐${p.grpExact}`  : '   ';
-    const co   = p.grpCorrect ? `🎯${p.grpCorrect}` : '';
-    msg += `${pos} ${name} ${pts}p ${ex}${co}\n`;
-  });
-    
-  msg += `${'▬'.repeat(18)}\n`;
-  msg += `_🔐 ${code} · luislárez · Arichuna_`;
-
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-}
+function sharePizarra() {}
 
 // ═══════════════════════════════════════════
 // MENSAJES WA AL GRUPO DESDE CLASIFICACIÓN
 // ═══════════════════════════════════════════
-function openRankWAMenu() {
-  const { name, code, ranked } = _currentRankData;
-  if (!ranked || !ranked.length) { toast('Carga primero la clasificación','error'); return; }
+function openRankWAMenu() {}
 
-  const p1 = ranked[0];
-  const p2 = ranked[1];
-  const p3 = ranked[2];
-  const last = ranked[ranked.length - 1];
-  const gname = name || 'Quiniela LuAn';
-  const appUrl = 'https://luisla425.github.io/Quiniela/';
-  const nombre = me.name || me.username || '';
-
-  const pizarraText = _buildPizarraText(gname);
-  const top3Text = _buildTop3Text(gname);
-
-  const msgs = [
-    // ── Individuales con teléfono ──────────────────────
-    {
-      icon: '🥇',
-      label: `${t('msgTop3').replace('🎉 ','').replace('juntos','')} 🥇 ${p1?.username||'?'}`,
-      phone: p1?.phone || '',
-      text: `🥇 *¡ERES EL LÍDER DE LA JORNADA!* 🥇\n\n¡Felicidades ${p1?.username||''}! 👏\n\nEstuviste fantástico esta jornada en el grupo *"${gname}"*. Obtuviste *${p1?.grpPts||0} puntos*${p1?.grpExact ? `, con ${p1.grpExact} predicciones exactas ⭐` : ''} y fuiste el mejor de todos. ¡Qué ojo para el fútbol! 🎯\n\nSigue así que la corona te espera 👑\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
-    },
-    {
-      icon: '🥈',
-      label: `${t('msgTop3').replace('🎉 ','').replace('juntos','')} 🥈 ${p2?.username||'?'}`,
-      phone: p2?.phone || '',
-      text: `🥈 *¡Gran jornada ${p2?.username||''}!* 🔥\n\nVas en el *2° lugar* del grupo *"${gname}"* con *${p2?.grpPts||0} puntos*. ¡Estás muy cerca de la cima!\n\nUn buen partido puede cambiar todo — no te rindas 💪\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
-    },
-    {
-      icon: '🥉',
-      label: `${t('msgTop3').replace('🎉 ','').replace('juntos','')} 🥉 ${p3?.username||'?'}`,
-      phone: p3?.phone || '',
-      text: `🥉 *¡Top 3 ${p3?.username||''}!* 🏆\n\nVas en el *3er lugar* del grupo *"${gname}"* con *${p3?.grpPts||0} puntos*. ¡Estás en el podio!\n\nLa lucha por arriba está apretada, sigue prediciendo con cabeza 🧠⚽\n\n⚽ Quiniela LuAn\n_— ${nombre}_`
-    },
-    {
-      icon: '💪',
-      label: `Animar al último — ${last?.username||'?'}`,
-      phone: last?.phone || '',
-      text: `💪 *¡Ánimo ${last?.username||''}!* ⚽\n\nEstamos todos en esto juntos y el fútbol siempre da revancha 🔄\n\nCada jornada es una nueva oportunidad. ¡Tú puedes remontar!\n\n_El grupo te apoya — Quiniela LuAn_\n_— ${nombre}_`
-    },
-    // ── Grupales (sin teléfono → copia al portapapeles) ───
-    {
-      icon: '🎉',
-      label: 'Podio completo — Top 3 juntos',
-      phone: '',
-      text: top3Text
-    },
-    {
-      icon: '📊',
-      label: t('msgBoard'),
-      phone: '',
-      text: pizarraText
-    },
-    {
-      icon: '🔥',
-      label: t('msgMotivate'),
-      phone: '',
-      text: `🔥 *¡Resumen de la jornada!* — *${gname}*\n\n${ranked.slice(0,3).map((r,i)=>{const m=['🥇','🥈','🥉'];return `${m[i]} ${r.username} — ${r.grpPts}pts`;}).join('\n')}\n\n¡Gran jornada para todos! La clasificación está apretada y el fútbol siempre sorprende 🎲\n\nLa próxima jornada viene con todo ⚽💥\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '📅',
-      label: t('msgReminder'),
-      phone: '',
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
-    },
-    {
-      icon: '⏰',
-      label: t('msgLastCall'),
-      phone: '',
-      text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta poco para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '🔴',
-      label: t('msgLive'),
-      phone: '',
-      text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar el fútbol ⚽🔥\n\nEntra a la app para ver los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
-    },
-    {
-      icon: '🏁',
-      label: t('msgEnd'),
-      phone: '',
-      text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
-    },
-  ];
-
-  const existing = document.getElementById('rankWAModal');
-  if (existing) existing.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'rankWAModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '6000';
-  modal.innerHTML = `
-    <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-      <div class="modal-handle"></div>
-      <div class="modal-title">${t('msgGroupTitle')}</div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar</div>
-
-      <div style="font-size:0.7em;color:var(--primary2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Personales (abre WhatsApp directo)</div>
-      ${msgs.slice(0,4).map((m,i) => {
-        const hasPhone = m.phone && m.phone.replace(/[^0-9]/g,'').length > 5;
-        return '<button onclick="sendRankWA(' + i + ')"'
-          + ' style="width:100%;margin-bottom:8px;padding:12px 14px;'
-          + 'background:var(--surface2);border:1px solid var(--border2);'
-          + 'border-radius:var(--r-sm);cursor:pointer;text-align:left;'
-          + 'color:var(--text);font-family:var(--font-b);'
-          + 'display:flex;align-items:center;gap:10px;'
-          + (!hasPhone?'opacity:0.5;':'') + '">'
-          + '<span style="font-size:1.4em;flex-shrink:0;">' + m.icon + '</span>'
-          + '<div>'
-          + '<div style="font-size:0.82em;font-weight:700;">' + m.label + '</div>'
-          + (!hasPhone?'<div style="font-size:0.68em;color:var(--red);">Sin número registrado</div>':'')
-          + '</div></button>';
-      }).join('')}
-
-      <div style="font-size:0.7em;color:var(--green);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">Para el grupo de WhatsApp (copia y pega)</div>
-      ${msgs.slice(4).map((m,i) =>
-        '<button onclick="sendRankWA(' + (i+4) + ')"'
-        + ' style="width:100%;margin-bottom:8px;padding:12px 14px;'
-        + 'background:var(--surface2);border:1px solid var(--border2);'
-        + 'border-radius:var(--r-sm);cursor:pointer;text-align:left;'
-        + 'color:var(--text);font-family:var(--font-b);'
-        + 'display:flex;align-items:center;gap:10px;">'
-        + '<span style="font-size:1.4em;flex-shrink:0;">' + m.icon + '</span>'
-        + '<div style="font-size:0.82em;font-weight:700;">' + m.label + '</div>'
-        + '</button>'
-      ).join('')}
-
-      <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
-    </div>`;
-
-  window._rankWAMsgs = msgs;
-  document.body.appendChild(modal);
-}
-
-function sendRankWA(idx) {
-  const msg = window._rankWAMsgs[idx];
-  const phone = msg.phone ? msg.phone.replace(/[^0-9]/g,'') : '';
-
-  if (!phone) {
-    // Group message — copy to clipboard
-    navigator.clipboard?.writeText(msg.text.replace(/\*/g,''))
-      .then(()=>toast('✅ Mensaje copiado — pégalo en tu grupo de WhatsApp','success',4000))
-      .catch(()=>toast('Copia el mensaje manualmente','info',4000));
-  } else {
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg.text)}`, '_blank');
-  }
-  const modal = document.getElementById('rankWAModal');
-  if (modal) modal.remove();
-}
+function sendRankWA() {}
 
 async function inviteToApp() {
   const appUrl = 'https://luisla425.github.io/Quiniela/';
@@ -2590,7 +2402,7 @@ function selectCountry(dial, flag, name) {
   closeModal('countryModal');
 }
 
-// ═════════════════════════════════════
+// ═══════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════
 function switchAuthTab(tab) {
@@ -2770,7 +2582,7 @@ auth.onAuthStateChanged(async user => {
       return;
     }
     me = { uid: user.uid, ...doc.data() };
-    myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1','mundial'];
+    myTournaments = ['mundial'];
     enterApp();
   } else {
     $('authScreen').classList.remove('hidden');
@@ -2818,9 +2630,6 @@ async function enterApp() {
   if (me.isAdmin) {
     $('hdrAdminBadge')?.classList.remove('hidden');
     $('nav-admin')?.classList.remove('hidden');
-  } else {
-    // Jugadores no necesitan la pestaña Torneos — las ligas las gestiona el Admin
-    $('nav-tournaments')?.classList.add('hidden');
   }
 
   startClock();
@@ -2829,6 +2638,7 @@ async function enterApp() {
 await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
 
   showScreen('matches');
+  renderMundialScreen();
 
   // Cargar grupos del jugador y activar el más reciente
   await loadMyGroups();
@@ -2839,16 +2649,20 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
   // • Live games: every 45s
   // • No live games today: every 5 minutes (saves reads)
   // • User typing: skip
-  function scheduleNextSync() {
-    const hasLive = _dM.some(m => isLive(m.status));
+  async function scheduleNextSync() {
+    // Incluir _wM (Mundial) en la detección de partidos en vivo
+    const hasLive = _dM.some(m => isLive(m.status))
+                 || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 45000 : 300000;
     syncTimer = setTimeout(async () => {
       if (!userEnteringPreds) {
-        const hasTodayGames = _dM.length > 0;
+        const hasTodayGames = _dM.length > 0 || _wM.length > 0;
         if (hasTodayGames) await doSync();
         else await autoEval();
-        // Actualizar cache de tarjetas/penaltis solo si hay partidos vivos
+        // Actualizar cache solo si hay partidos vivos
         if (_dM.some(m => isLive(m.status))) await _uLEC();
+        // Redibujar pantalla del Mundial si hay goles nuevos
+        if (_wM.some(m => isLive(m.status))) renderMundialScreen();
       }
       scheduleNextSync();
     }, interval);
@@ -2867,7 +2681,9 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
 
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
-      _dM.forEach(m => {
+      // Incluir partidos del Mundial en el cronómetro
+      const _allLive = [..._dM, ..._wM];
+      _allLive.forEach(m => {
         if (!isLive(m.status)) return;
         const wrap = document.getElementById(`badge_${m.id}`);
         if (!wrap) return;
@@ -2986,6 +2802,8 @@ function showScreen(name) {
   // Unsubscribe chat listener when leaving chat
   if (name !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
 
+  // En modo Mundial: redirigir pantallas europeas
+
   if (name==='matches')      renderMatches();
   if (name==='preds')        renderPreds();
   if (name==='chat')         initChat();
@@ -3030,7 +2848,7 @@ async function doSync() {
     }
   } catch(e) {}
 
-  // 2) V1 next + past per tournament
+  // 2) V1 — Mundial FIFA 2026
   for (const t of TOURNAMENTS) {
     if (!myTournaments.includes(t.id)) continue;
     try {
@@ -3056,16 +2874,29 @@ async function doSync() {
       if (!found.has(d.id)) found.set(d.id,{id:d.id,...d.data()});
     });
   } catch(e) {}
-    if (!found.size) { renderMatches(); return; }
 
-_aM = Array.from(found.values()).filter(m => m.tournamentId !== 'mundial');
+  if (!found.size) { renderMatches(); return; }
+
+  // Modo Mundial: todos los partidos van a _wM
+  // _aM es alias de _wM — se actualiza automáticamente
+  const allMatches = Array.from(found.values());
+  if (allMatches.length) {
+    _wM.length = 0;
+    allMatches.forEach(m => _wM.push(m));
+    // Guardar en Firestore
+    try {
+      const bw = db.batch();
+      allMatches.forEach(m => bw.set(db.collection('matches').doc(String(m.id)), m, {merge:true}));
+      await bw.commit();
+    } catch(e) {}
+  }
 
   // 4) lookupevent ONLY for today's matches (not all matches)
   await refreshDayScores();
 
   // 5) Save to Firestore — only matches from today (reduce writes)
   const today = vzDate();
-  const toWrite = Array.from(found.values()).filter(m => m.date === today);
+  const toWrite = []; // escritura manejada arriba
   if (toWrite.length) {
     try {
       const b = db.batch();
@@ -3084,34 +2915,7 @@ _aM = Array.from(found.values()).filter(m => m.tournamentId !== 'mundial');
   await autoDefaultPreds();
 }
 
-async function refreshDayScores() {
-  const today = vzDate();
-  const targets = _aM.filter(m => m.date===today || m.date===vzDate());
-  if (!targets.length) return;
-
-  const batch = db.batch();
-  for (const m of targets) {
-    try {
-      const r = await fetchTimeout(`${API_V1}/lookupevent.php?id=${m.id}`, 5000);
-      if (!r || !r.ok) continue;
-      const data = await r.json();
-      const ev = data?.events?.[0];
-      if (!ev) continue;
-      const upd = {
-        homeScore: ev.intHomeScore!=null?+ev.intHomeScore:null,
-        awayScore: ev.intAwayScore!=null?+ev.intAwayScore:null,
-        status: ev.strStatus||'Not Started',
-        minute: ev.strProgress||ev.intProgress||null,
-        homeGoals: ev.strHomeGoalDetails||'',
-        awayGoals: ev.strAwayGoalDetails||'',
-      };
-      const idx = _aM.findIndex(x=>String(x.id)===String(m.id));
-      if (idx!==-1) _aM[idx]={..._aM[idx],...upd};
-      batch.set(db.collection('matches').doc(String(m.id)),upd,{merge:true});
-    } catch(e) {}
-  }
-  try { await batch.commit(); } catch(e) {}
-}
+async function refreshDayScores() {}
 
 function parseEvent(ev, t) {
   const hs = ev.intHomeScore??ev.homeScore??null;
@@ -3135,20 +2939,13 @@ function parseEvent(ev, t) {
   };
 }
 
-function setDayMatches() {
-  const today = vzDate();
-  let pool = _aM.filter(m=>m.date===today);
-  if (!pool.length) {
-    const upcoming = _aM.filter(m=>m.date>today).sort((a,b)=>a.date.localeCompare(b.date));
-    const nextDate = upcoming[0]?.date;
-    pool = nextDate ? _aM.filter(m=>m.date===nextDate) : [];
-  }
-  _dM = pool.filter(m => m.tournamentId !== 'mundial').sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-}
+function setDayMatches() {}
 
 function _isHardLocked() {
   // Bloqueo total 5 min después del pitazo — NI EL ADMIN puede cambiar
-  const firstStarted = _dM.find(m => isLive(m.status) || isFinished(m.status));
+  // Usar _wM (Mundial) + FIXTURE como fallback
+  const allM = _wM.length ? _wM : FIXTURE_MUNDIAL;
+  const firstStarted = allM.find(m => isLive(m.status) || isFinished(m.status));
   if (!firstStarted || !firstStarted.time) return false;
   try {
     const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
@@ -3248,7 +3045,7 @@ function setActiveGroup(gid, skipSync) {
 function clearActiveGroup() {
   activeGroupId = null;
   localStorage.removeItem('ql_activeGroup_' + me.uid);
-  myTournaments = me.tournaments || ['ucl','premier','laliga','seriea','bundesliga','ligue1'];
+  myTournaments = ['mundial'];
   doSync();
 }
 
@@ -3521,149 +3318,7 @@ async function iniciarFlujOMundial() {
   }
 }
 
-function renderMatches() {
-  const el = $('screenMatches');
-  if (!el) return;
-
-  // Save typed predictions
-  const saved = {};
-  _dM.forEach(m=>{
-    const hi=$(`hi_${m.id}`),ai=$(`ai_${m.id}`);
-    if(!hi||!ai) return;
-    const hv = hi.tagName==='INPUT' ? hi.value : hi.textContent;
-    const av = ai.tagName==='INPUT' ? ai.value : ai.textContent;
-    if(hv!=='0'||av!=='0') saved[m.id]={h:hv,a:av};
-  });
-
-  const closed = bettingClosed();
-  const nextClose = !closed ? _dM.find(m=>m.status==='Not Started') : null;
-
-  let html = `
-    <div class="section-header">
-      <span class="section-title">⚽ Partidos</span>
-      <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-        <button class="btn btn-ghost btn-sm" onclick="openHowToPredict()" title="¿Cómo predecir?" style="padding:5px 8px;font-size:0.85em;">❓</button>
-        <button class="btn btn-ghost btn-sm" onclick="openStandings()" title="Tablas de posiciones" style="padding:5px 8px;font-size:0.85em;">📊</button>
-        <button class="btn btn-ghost btn-sm" onclick="doSync()" title="Sincronizar" style="padding:5px 8px;font-size:0.85em;">🔄</button>
-        <button class="btn btn-ghost btn-sm" onclick="openMyPredictions()" title="Mis predicciones" style="padding:5px 8px;font-size:0.85em;color:var(--gold);">📋</button>
-        <button onclick="verMisQuinielas()"
-          style="padding:6px 10px;border-radius:var(--r-sm);border:2px solid var(--primary2);
-          background:rgba(108,71,255,0.15);color:var(--primary2);
-          font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
-          🎯 Mis Q
-        </button>
-        <button onclick="iniciarFlujOMundial()"
-          style="padding:6px 10px;border-radius:var(--r-sm);border:2px solid var(--gold);
-          background:rgba(245,197,66,0.15);color:var(--gold);
-          font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
-          🌍🏆 Mundial
-        </button>
-      </div>
-    </div>`;
-
-  // ── BANNER OBSERVADOR ──────────────────────
-  if (me.isSpectator) {
-    html += `<div id="_spectatorBanner" style="
-      background:linear-gradient(135deg,rgba(245,197,66,0.15),rgba(108,71,255,0.1));
-      border:1.5px solid rgba(245,197,66,0.4);border-radius:12px;
-      padding:14px 16px;margin-bottom:12px;text-align:center;">
-      <div style="font-size:1.8em;margin-bottom:6px;">⚽</div>
-      <div style="font-family:var(--font-h);font-size:1em;font-weight:800;
-        color:var(--gold);margin-bottom:4px;">
-        ¿Listo para jugar?
-      </div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:12px;line-height:1.5;">
-        Únete como jugador y predice los marcadores.<br>Compite con la familia Quiniela LuAn.
-      </div>
-      <button onclick="convertToPlayer()"
-        style="padding:12px 24px;border-radius:var(--r-sm);border:none;
-        background:linear-gradient(135deg,var(--primary),var(--primary2));
-        color:#fff;font-family:var(--font-b);font-weight:800;
-        font-size:0.88em;cursor:pointer;">
-        ⚽ ¡Quiero jugar!
-      </button>
-    </div>`;
-  }
-
-  // Countdown banner with time remaining
-  if (nextClose) {
-    const matchTimeStr = nextClose.time;
-    const [mh,mm] = matchTimeStr.split(':').map(Number);
-    const nowVZ = vzNow();
-    const matchVZ = new Date(nowVZ);
-    matchVZ.setHours((mh - 4 + 24) % 24, mm, 0, 0);
-    if (matchVZ < nowVZ) matchVZ.setDate(matchVZ.getDate() + 1);
-    const diffMs = matchVZ - nowVZ;
-    const diffH = Math.floor(diffMs / 3600000);
-    const diffM = Math.floor((diffMs % 3600000) / 60000);
-    const diffS = Math.floor((diffMs % 60000) / 1000);
-    const countdown = diffMs > 0
-      ? (diffH > 0 ? `${diffH}h ${diffM}m` : `${diffM}m ${diffS}s`)
-      : 'AHORA';
-    html += `<div class="countdown-banner">
-      <div>
-        <div class="countdown-label">${t('closeIn')} <strong style="color:var(--red);">${countdown}</strong></div>
-        <div class="countdown-match" style="font-size:0.82em;margin-top:2px;">${nextClose.home} ${t('vsLabel')} ${nextClose.away}</div>
-      </div>
-      <div class="countdown-status">${vzTime(nextClose.time)}</div>
-    </div>`;
-  }
-
-  if (closed) {
-    html += `<div class="countdown-banner" style="background:rgba(255,77,109,0.08);border-color:rgba(255,77,109,0.3);">
-      <span style="color:var(--red);font-weight:800;">🔴 Predicciones CERRADAS</span>
-      <span style="font-size:0.78em;color:var(--muted2);">${t('liveMatches')}</span>
-    </div>`;
-  }
-
-  if (!_dM.length) {
-    html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Sin partidos. Pulsa Sync.</span></div>`;
-  } else {
-    loadMQSetup().then(() => {
-      const banner = document.getElementById('mqBanner');
-      if (banner) banner.outerHTML = buildMQBanner();
-    });
-
-    if (_mqSetup === null) {
-      try {
-        const local = localStorage.getItem(MQ_KEY());
-        if (local) _mqSetup = JSON.parse(local);
-      } catch(e) {}
-    }
-
-    html += '<div id="mqBanner">' + (function(){ try { return buildMQBanner(); } catch(e){ return ''; } })() + '</div>';
-
-    const mqBlocked = !_mqSetup || !_mqSetup.answered;
-    const mqAllDone = _mqSetup && _mqSetup.enabled && _mqSetup.currentIdx >= _mqSetup.total;
-    const effectiveClosed = closed || mqBlocked || mqAllDone;
-
-    _dM.forEach(m => { html += buildMatchCard(m, effectiveClosed); });
-
-    if (!closed) {
-      html += `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-          <button class="btn btn-ghost" onclick="setDefaultPreds()" style="font-size:0.82em;">
-            ${t('setZeroAll')}
-          </button>
-          <button class="btn btn-primary" onclick="savePreds()">
-            ${t('saveBtn')}
-          </button>
-        </div>
-        <div style="font-size:0.7em;color:var(--muted2);text-align:center;margin-top:6px;">
-          ${t('zeroBetWarning')}
-        </div>`;
-    }
-  }
-
-  el.innerHTML = html;
-  _loadPublicGroupsStrip();
-
-  // Restore typed predictions
-  Object.entries(saved).forEach(([mid,v])=>{
-    const hi=$(`hi_${mid}`),ai=$(`ai_${mid}`);
-    if(hi)hi.value=v.h; if(ai)ai.value=v.a;
-  });
-}
+function renderMatches() { renderMundialScreen(); }
 
 // ── VER MIS QUINIELAS — 70pts + partidos J1 por apodo ────────
 async function verMisQuinielas() {
@@ -3939,8 +3594,7 @@ function buildMatchCard(m, closed) {
   const showScore = live || done;
   const cls = live?'live':done?'finished':'';
 
-  // Cronómetro real — solo cuando la API confirma '1H' o '2H'
-  // El badge tiene id="badge_{id}" y un data-kickoff para que el interval lo actualice
+  // Cronómetro real — solo cuando la API confirma '1H' o '2H'  // El badge tiene id="badge_{id}" y un data-kickoff para que el interval lo actualice
   let kickoffMs = 0;
   let cronPhase = ''; // '1H' | 'HT' | '2H' | 'ET' | 'P'
   if (live && m.date && m.time) {
@@ -4768,45 +4422,7 @@ function setDefaultPreds() {
 }
 
 // Auto-save 0-0 for any match that starts without a prediction
-async function autoDefaultPreds() {
-  if (!me?.uid) return;
-  const jDate = _dM[0]?.date;
-  if (!jDate) return;
-
-  const grpSnap = await db.collection('groups').get();
-  const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()}))
-    .filter(g => g.members?.some(m => m.userId === me.uid));
-  if (!myGroups.length) return;
-
-  // Find matches that just started (live) with no prediction
-  const liveMtchs = _dM.filter(m => isLive(m.status));
-  if (!liveMtchs.length) return;
-
-  for (const group of myGroups) {
-    for (const m of liveMtchs) {
-      // Check if prediction exists
-      const existing = await db.collection('predictions')
-        .where('userId','==',me.uid)
-        .where('matchId','==',String(m.id))
-        .where('groupId','==',group.id)
-        .limit(1).get();
-      if (!existing.empty) continue; // already predicted
-
-      // Auto-save 0-0 — use same docId to prevent duplicates
-      const docId = `${me.uid}_${group.id}_${m.id}`;
-      await db.collection('predictions').doc(docId).set({
-        userId: me.uid, username: me.username,
-        groupId: group.id, groupName: group.name,
-        matchId: String(m.id),
-        predictedHomeScore: 0, predictedAwayScore: 0,
-        home: m.home, away: m.away,
-        tournamentId: m.tournamentId, jornadaDate: jDate,
-        evaluated: false, isDefault: true,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: false });
-    }
-  }
-}
+async function autoDefaultPreds() {}
 function _mostrarPreguntaMQ() {
   const old = document.getElementById('_mqModal');
   if (old) old.remove();
@@ -4875,41 +4491,7 @@ function _mostrarPreguntaOtraQuiniela() {
   document.body.appendChild(modal);
 }
 
-async function savePreds() {
-  if (!me?.uid) return;
-  const _bs = _bettingStatus();
-  if (_bs.locked) {
-    if (_bs.hardLock)
-      toast('🔒 Bloqueo total — 5 min desde el inicio. Nadie puede cambiar.','error',5000);
-    else
-      toast(_bs.msg || '⏰ Caducó el tiempo de permitir cambiar predicciones.','error',5000);
-    return;
-  }
-
-  if (!_dM.length) { toast('Sin partidos disponibles','error'); return; }
-
-  if (_mqSetup?.enabled && _mqSetup.currentIdx >= _mqSetup.total) {
-    toast('⚠️ Ya guardaste todas tus quinielas para esta jornada','warning',4000);
-    return;
-  }
-
-  // ── FLUJO NUEVO: Torneo → Partidos ──────────────────────
- if (!_mqSetup || !_mqSetup.answered) {
-    _mostrarPreguntaMQ();
-    return;
-  }
-
-  // Si ya respondió UNA SOLA y no ha activado MQ, preguntar de nuevo
-  if (_mqSetup.answered && !_mqSetup.enabled) {
-    _mostrarPreguntaMQ();
-    _mqSetup = null;
-    try { localStorage.removeItem(MQ_KEY()); } catch(e) {}
-    return;
-  }
-
-  const activeSlot = mqActiveSlot();
-  abrirFlujoPredicion(activeSlot);
-}
+async function savePreds() {}
 
 // ══════════════════════════════════════════════════════════════════
 //  SISTEMA MULTI-QUINIELA
@@ -5122,77 +4704,7 @@ async function doSavePreds(preds, jDate, group, activeSlot = null) {
 // ═══════════════════════════════════════════
 // PREDICTIONS SCREEN
 // ═══════════════════════════════════════════
-async function renderPreds() {
-  const el = $('screenPreds');
-  el.innerHTML = '<div class="empty"><span class="empty-icon">⏳</span></div>';
-  const closed = bettingClosed();
-  const canSearch = true;
-
-  let html = `<div class="section-header">
-    <span class="section-title">🎯 Mis Predicciones</span>
-    <button class="btn btn-ghost btn-sm" style="font-size:0.75em;padding:5px 10px;" onclick="openMyPredictions()">${t('viewMyPreds')}</button>
-  </div>`;
-
-  // Search section
-  if (!canSearch) {
-    html += `<div class="locked-box">
-      <span class="lock-icon">🔒</span>
-      <p>${t('lockedPreds')}</p>
-      <small>${t('lockedPredsSmall')}</small>
-    </div>`;
-  } else {
-    html += `<div class="card" style="margin-bottom:14px;">
-      <p style="font-weight:700;font-size:0.85em;margin-bottom:10px;">${t('viewOthersPreds')}</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div class="field" style="margin:0;"><input type="text" id="su1" placeholder="${t('player1')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su2" placeholder="${t('player2')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su3" placeholder="${t('player3')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="field" style="margin:0;"><input type="text" id="su4" placeholder="${t('player4')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-      </div>
-      <div class="field" style="margin-bottom:8px;"><input type="text" id="su5" placeholder="${t('player5opt')}" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()"></div>
-      <button class="btn btn-ghost btn-sm" onclick="searchPreds()">${t('search')}</button>
-      <div id="searchRes" style="margin-top:12px;"></div>
-    </div>`;
-  }
-
-  html += `<div style="font-weight:800;font-size:0.82em;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);margin-bottom:10px;">${t('yourPreds')}</div>`;
-
-  try {
-    // Limit to 30 most recent predictions (reduce reads)
-    const snap = await db.collection('predictions').where('userId','==',me.uid).orderBy('timestamp','desc').limit(30).get();
-    if (snap.empty) {
-      html += `<div class="empty"><span class="empty-icon">📭</span><span class="empty-text">Aún no has predicho</span></div>`;
-    } else {
-      snap.docs.forEach(d=>{
-        const p = d.data();
-        const match = _aM.find(m=>String(m.id)===String(p.matchId));
-        const hasReal = match && match.homeScore!=null;
-        let ptsCls = 'pts-pending', ptsLabel = '⏳';
-        if (p.evaluated) {
-          if (p.pointsAwarded===5) { ptsCls='pts-5'; ptsLabel='⭐ 5pts'; }
-          else if (p.pointsAwarded===3) { ptsCls='pts-3'; ptsLabel='🎯 3pts'; }
-          else { ptsCls='pts-0'; ptsLabel='❌ 0pts'; }
-        } else if (hasReal && effectivelyFinished(match)) {
-          ptsLabel='⏳ Eval.';
-        }
-        html += `
-          <div class="pred-item">
-            <div>
-              <div class="pred-match-name">${p.home}</div>
-              <div class="pred-match-sub">${t('vsLabel')} ${p.away}</div>
-            </div>
-            <div class="pred-score-box">${p.predictedHomeScore}—${p.predictedAwayScore}</div>
-            ${hasReal?`<div class="pred-real-box">${t('realPts')}<span class="pred-real-score">${match.homeScore}—${match.awayScore}</span></div>`:'<div></div>'}
-            <div class="pred-pts-box ${ptsCls}">${ptsLabel}</div>
-          </div>`;
-      });
-    }
-  } catch(e) {
-    html += `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
-  }
-
-  el.innerHTML = html;
-}
+function renderPreds() {}
 
 async function searchPreds() {
   const names = ['su1','su2','su3','su4','su5'].map(id=>$(id)?.value.trim().toUpperCase()).filter(Boolean);
@@ -5411,46 +4923,11 @@ function tLeague(id) {
   return t(map[id] || id);
 }
 
-function renderTournaments() {
-  const el = $('screenTournaments');
-  let html = `<div class="section-header"><span class="section-title">${t('secTournaments')}</span></div>
-    <button class="btn btn-ghost" style="width:100%;margin-bottom:12px;" onclick="openStandings()">
-      ${t('viewStandingsBtn')}
-    </button>
-    <div class="card-glow" style="margin-bottom:14px;cursor:pointer;" onclick="openMundialModal()">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <span style="font-size:2em;">🌍🏆</span>
-        <div style="flex:1;">
-          <div style="font-family:var(--font-h);font-size:1em;color:var(--gold);">${tLeague('mundial')}</div>
-          <div style="font-size:0.75em;color:var(--muted2);margin-top:2px;">${t('mundialDesc')}</div>
-        </div>
-        <span style="font-size:1.5em;">→</span>
-      </div>
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialChamp')}</span>
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialRunner')}</span>
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialThird')}</span>
-        <span style="font-size:0.72em;background:rgba(245,197,66,0.15);color:var(--gold);padding:4px 10px;border-radius:20px;font-weight:700;">${t('mundialScorer')}</span>
-      </div>
-    </div>
-    <p style="color:var(--muted2);font-size:0.85em;margin-bottom:16px;">${t('selectLeagues')}</p>`;
-  TOURNAMENTS.forEach(tr=>{
-    const sel = myTournaments.includes(tr.id);
-    html += `<div class="tourn-item ${sel?'selected':''}" onclick="toggleTournament('${tr.id}',this)">
-      <div class="tourn-left">
-        <span style="font-size:1.3em;">${tr.flag}</span>
-        <span>${tLeague(tr.id)}</span>
-      </div>
-      <div class="tourn-check">${sel?'✓':''}</div>
-    </div>`;
-  });
-  html += `<button class="btn btn-primary" style="margin-top:8px;" onclick="saveTournaments()">${t('saveSelection')}</button>`;
-  el.innerHTML = html;
-}
+function renderTournaments() {}
 
 function toggleTournament(id, el) {
   const sel = myTournaments.includes(id);
-  if(sel) myTournaments=myTournaments.filter(t=>t!==id); else myTournaments.push(id);
+  if(sel) myTournaments = ['mundial']; else myTournaments.push(id);
   el.classList.toggle('selected',!sel);
   el.querySelector('.tourn-check').textContent=!sel?'✓':'';
 }
@@ -5600,10 +5077,7 @@ function renderLigasPanel() {
   panel.innerHTML = html;
 }
 
-function suggestLeagueWA() {
-  const text = `⚽ Hola, soy ${me.name||me.username} en Quiniela LuAn.\n\n💡 Quiero sugerir agregar una nueva liga al sistema. ¿Podemos hablar?\n\n_Quiniela LuAn_`;
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-}
+function suggestLeagueWA() {}
 
 function switchGrpTab(tab) {
   ['grupos','ligas'].forEach(t => {
@@ -5659,7 +5133,12 @@ async function deleteGroup(gid, name) {
   try {
     toast('🗑️ Eliminando grupo y datos...','info',3000);
     // Borrar todas las predicciones del grupo
-    const preds = await db.collection('predictions').where('groupId','==',gid).get();
+    const preds = await db.collection('predictions')
+      .where('groupId','==',gid)
+      .where('tournamentId','==','mundial').get();
+    const predsSnap2 = preds.empty
+      ? await db.collection('predictions').where('groupId','==',gid).get()
+      : preds;
     if (preds.docs.length) {
       const b = db.batch();
       preds.docs.forEach(d => b.delete(d.ref));
@@ -5684,108 +5163,9 @@ function shareGroup(code, name) {
 }
 
 // ── Menú WA directo (sin clasificación cargada) ─────────────
-async function openGroupWAMenu(code, gname) {
-  const existing = document.getElementById('groupWAModal');
-  if (existing) existing.remove();
+function openGroupWAMenu() {}
 
-  const nombre = me.name || me.username || '';
-  const appUrl = 'https://luisla425.github.io/Quiniela/';
-
-  // Leer todos los grupos para listarlos en el mensaje de invitación
-  let todosLosGrupos = [];
-  try {
-    const snap = await db.collection('groups').get();
-    todosLosGrupos = snap.docs.map(d => d.data());
-  } catch(e) {}
-
-  const gruposLista = todosLosGrupos.length
-    ? todosLosGrupos.map(g => {
-        const flag = (g.tournaments||[]).map(tid=>{const t=TOURNAMENTS.find(t=>t.id===tid);return t?.flag||'';}).filter(Boolean).slice(0,1).join('');
-        return `  ${flag} *${g.name}*`;
-      }).join('\n')
-    : `  *${gname}*`;
-
-  const quickMsgs = [
-    {
-      icon: '📣',
-      label: t('msgInvite'),
-      text: `📣 *¡QUINIELA LuAn!* ⚽\n\nHola 👋 Te invito a participar en la quiniela del grupo *"${gname}"*.\n\n✅ *¿Cómo entrar?*\n1️⃣ Abre: ${appUrl}\n2️⃣ Toca *"Registrarse"*\n3️⃣ Completa: Nombre, apodo (máx 8 letras), teléfono y contraseña\n\n👆 *¿Cómo unirte al grupo?*\nUna vez dentro, ve a *Partidos* y toca el nombre del grupo en el cintillo de arriba — con ese solo toque ya quedas dentro 👌\n\n👥 *Grupos disponibles:*\n${gruposLista}\n\n🎯 *¿Cómo predecir?*\nToca *"⚡ Predecir este partido"* en cada match y elige el resultado.\n\n⚠️ Predice antes del pitazo o se registra 0-0 automáticamente.\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
-    },
-    {
-      icon: '📅',
-      label: t('msgReminder'),
-      text: `⚽ *¡Ojo! Se viene la jornada* 👀\n\nRecuerden entrar a *Quiniela LuAn* y colocar sus predicciones *antes del pitazo inicial*.\n\n✅ *Cómo registrar tus pronósticos* ⚽\nEs muy fácil. En el botón *"⚡ PREDECIR ESTE PARTIDO"*, sigue estos pasos:\n\n▶️ *Si hay un ganador:*\nToca primero el nombre de tu equipo favorito (no importa si es local —izquierda— o visitante —derecha—). Luego selecciona cuántos goles anotará. Por último, elige los goles del equipo perdedor.\n💡 _Tip: Si marcas 1 gol al ganador, el sistema asigna automáticamente 0 al perdedor._\n\n🤝 *Si es empate:*\nToca el botón *Empate*, selecciona la cantidad de goles ¡y listo!\n\n⚠️ Si no predices a tiempo, se te registra 0-0 automáticamente en todos los partidos.\n\n📲 ${appUrl}\n\n¡Suerte a todos! 🎯\n_— ${nombre}_`
-    },
-    {
-      icon: '⏰',
-      label: t('msgLastCall'),
-      text: `⏰ *¡ÚLTIMO AVISO!* — *Quiniela LuAn*\n\nFalta menos de 1 hora para el primer partido del grupo *"${gname}"*.\n\n🚨 El que no haya predicho todavía, tiene el tiempo encima. ¡Corre!\n\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '🔴',
-      label: t('msgLive'),
-      text: `🔴 *¡ARRANCARON LOS PARTIDOS!* — *${gname}*\n\nLas predicciones ya cerraron. Ahora es solo disfrutar y sufrir el fútbol ⚽🔥\n\nEntra a la app para seguir los marcadores en vivo:\n📲 ${appUrl}\n\n¡Ánimo a todos! 💪\n_— ${nombre}_`
-    },
-    {
-      icon: '🏁',
-      label: t('msgEnd'),
-      text: `🏁 *¡JORNADA CERRADA!* — *Quiniela LuAn*\n\nYa terminaron todos los partidos del grupo *"${gname}"*. ¿Cómo quedaste?\n\n📊 Revisa la clasificación en la app:\n📲 ${appUrl}\n\n¡Que comience el análisis! 🧠⚽\n_— ${nombre}_`
-    },
-    {
-      icon: '📊',
-      label: t('msgBoard'),
-      text: _buildPizarraText(gname)
-    },
-    {
-      icon: '🎉',
-      label: t('msgTop3'),
-      text: _buildTop3Text(gname)
-    },
-    {
-      icon: '🔥',
-      label: t('msgMotivate'),
-      text: `🔥 *¡La próxima jornada se viene cargada!* — *${gname}*\n\nLa tabla está apretada, cualquiera puede escalar. Un buen ojo en las predicciones lo puede cambiar todo 🎯\n\nPredicción + suerte + conocimiento = Campeón 🏆\n\n📲 ${appUrl}\n\n_— ${nombre}_`
-    },
-    {
-      icon: '📢',
-      label: t('msgAnnounce'),
-      text: `📢 *Aviso del grupo "${gname}"* — Quiniela LuAn ⚽\n\nHola a todos, recuerden estar pendientes de la app para no perderse ninguna jornada.\n\n📲 ${appUrl}\n\n¡Éxito a todos! 💪\n_— ${nombre}_`
-    },
-    {
-      icon: '🌟',
-      label: t('msgWelcomeGroup'),
-      text: `🌟 *¡Bienvenidos al grupo "${gname}"!* ⚽\n\nYa estamos todos listos para competir en *Quiniela LuAn*.\n\nReglas simples:\n✅ Predice antes del primer partido\n✅ Los puntos se calculan automáticamente\n✅ Exacto = 3pts · Resultado correcto = 1pt\n\n📲 ${appUrl}\n\n¡Que gane el mejor! 🏆\n_— ${nombre}_`
-    },
-  ];
-
-  const modal = document.createElement('div');
-  modal.id = 'groupWAModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '6000';
-  modal.innerHTML = `
-    <div class="modal-box" style="max-height:90vh;overflow-y:auto;">
-      <div class="modal-handle"></div>
-      <div class="modal-title">${t('msgGroupTitle2')}</div>
-      <div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">${gname} · Toca para enviar por WhatsApp</div>
-      ${quickMsgs.map((m,i) => `
-        <button onclick="sendGroupWA(${i})"
-          style="width:100%;margin-bottom:8px;padding:12px 14px;
-          background:var(--surface2);border:1px solid var(--border2);
-          border-radius:var(--r-sm);cursor:pointer;text-align:left;
-          color:var(--text);font-family:var(--font-b);
-          display:flex;align-items:center;gap:10px;">
-          <span style="font-size:1.5em;flex-shrink:0;">${m.icon}</span>
-          <div style="font-size:0.82em;font-weight:700;">${m.label}</div>
-        </button>`).join('')}
-      <button class="btn btn-ghost" style="margin-top:4px;" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
-    </div>`;
-
-  window._groupWAMsgs = quickMsgs;
-  document.body.appendChild(modal);
-  
-}
-
-function _buildPizarraText(gname) {   if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;   const medals = ['🥇','🥈','🥉'];   const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});   const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});   let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;   _currentRankData.ranked.forEach((p,i) => {     const pos = medals[i] || `  ${i+1}.`;     msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;   });   msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;   return msg; }  function _buildTop3Text(gname) {   if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;   const ranked = _currentRankData.ranked;   const [p1,p2,p3] = ranked;   return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`; }  function sendGroupWA(idx) {   const msg = window._groupWAMsgs[idx];   window.open(`https://wa.me/?text=${encodeURIComponent(msg.text)}`, '_blank');   document.getElementById('groupWAModal')?.remove(); }  let _currentRankData = { name:'', ranked:[] };
+function _buildPizarraText(gname) {   if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;   const medals = ['🥇','🥈','🥉'];   const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});   const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});   let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;   _currentRankData.ranked.forEach((p,i) => {     const pos = medals[i] || `  ${i+1}.`;     msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;   });   msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;   return msg; }  function _buildTop3Text(gname) {   if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;   const ranked = _currentRankData.ranked;   const [p1,p2,p3] = ranked;   return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`; }  function sendGroupWA() {}  let _currentRankData = { name:'', ranked:[] };
 
 async function openGroupRanking(gid) {
   const existing = document.getElementById('_pizarraScreen');
@@ -5842,7 +5222,12 @@ async function openGroupRanking(gid) {
   memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0}; });
 
   try {
-    const pSnap = await db.collection('predictions').where('groupId','==',gid).get();
+    const pSnap = await db.collection('predictions')
+      .where('groupId','==',gid)
+      .where('tournamentId','==','mundial').get();
+    const predsSnap2 = pSnap.empty
+      ? await db.collection('predictions').where('groupId','==',gid).get()
+      : pSnap;
     pSnap.docs.forEach(d => {
       const p = d.data();
       if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0};
@@ -5984,8 +5369,7 @@ async function autoEval() {
   );
   if(!active.length) return;
 
-  let updated = 0;
-  for(const match of active) {
+  let updated = 0;  for(const match of active) {
     const rh = +match.homeScore;
     const ra = +match.awayScore;
     const isFinal = effectivelyFinished(match);
@@ -6241,8 +5625,8 @@ _— Luis Lárez_`
       label: '📅 Hay jornada hoy — A predecir',
       icon: '🔥',
       text: `🔥 *¡Hay jornada hoy!* — Quiniela LuAn
-      
-      Hola ${nombre}! Hoy hay partidos 🎯
+
+Hola ${nombre}! Hoy hay partidos 🎯
 
 Recuerda predecir tus marcadores *antes del inicio del primer partido*.
 
@@ -6565,10 +5949,18 @@ async function adminReset() {
 // PIZARRA G2 — Genera texto completo para enviar al grupo WA G2
 // ═══════════════════════════════════════════
 
-function generarPizarraWA() {
-  const { name, code, ranked } = _currentRankData;
+async function generarPizarraWA() {
+  if (!_currentRankData || !_currentRankData.ranked || !_currentRankData.ranked.length) {
+    if (!activeGroupId) { toast('Primero activa un grupo', 'warning', 3000); return; }
+    toast('Cargando pizarra...', 'info', 2000);
+    await openGroupRanking(activeGroupId);
+    await new Promise(function(r){ setTimeout(r, 1500); });
+  }
+  const ranked = _currentRankData.ranked;
+  const name   = _currentRankData.name || 'Grupo';
+  const code   = _currentRankData.code || '';
   if (!ranked || !ranked.length) {
-    toast('Abre primero la Pizarra del grupo para cargar los datos', 'warning', 3000);
+    toast('Sin datos de clasificacion aun', 'warning', 3000);
     return;
   }
 
@@ -6644,120 +6036,55 @@ function generarPizarraWA() {
 // Agrupa por jugador, muestra todas sus quinielas con apodo
 // ═══════════════════════════════════════════
 
-async function generarPrediccionesWA(matchId, matchObj) {
-  if (!matchId || !matchObj) {
-    // Si no se pasa partido, buscar el más reciente en juego o próximo
-    const live = _aM.find(m => isLive(m.status));
-    const next = _aM.find(m => !isFinished(m.status) && !isLive(m.status));
-    matchObj = live || next;
-    if (!matchObj) { toast('No hay partido activo ni próximo', 'warning'); return; }
-    matchId = String(matchObj.id);
-  }
-
-  const toastId = toast('⏳ Cargando predicciones...', 'info', 10000);
-
+async function generarPrediccionesWA() {
+  toast("Cargando predicciones de J1...", "info", 4000);
   try {
-    // Traer TODAS las predicciones de este partido (cualquier usuario)
-    const snap1 = await db.collection('predictions')
-      .where('matchId', '==', String(matchId)).get();
-    const snap2 = await db.collection('predictions')
-      .where('matchId', '==', Number(matchId)).get();
-
-    // Unir sin duplicados
-    const seen = new Set();
-    const allPreds = [];
-    snap1.docs.concat(snap2.docs).forEach(d => {
+    var snap1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
+    var snap2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
+    var seen = new Set(); var allPreds = [];
+    snap1.docs.concat(snap2.docs).forEach(function(d) {
       if (!seen.has(d.id)) { seen.add(d.id); allPreds.push(d.data()); }
     });
-
-    if (!allPreds.length) {
-      toast('Sin predicciones guardadas para este partido', 'warning', 3000);
-      return;
-    }
-
-    // Agrupar por userId real (p.realUserId || p.userId)
-    // Dentro de cada usuario, agrupar por apodo (username) para multi-quiniela
-    const porUsuario = {};
-    allPreds.forEach(p => {
-      const uid   = p.realUserId || p.userId;
-      const apodo = p.username || uid;
-      if (!porUsuario[uid]) porUsuario[uid] = {};
-      porUsuario[uid][apodo] = p;
+    if (!allPreds.length) { toast("Sin predicciones guardadas aun", "warning", 3000); return; }
+    var porApodo = {};
+    allPreds.forEach(function(p) {
+      var ap = p.username || "Jugador";
+      if (!porApodo[ap]) porApodo[ap] = {};
+      porApodo[ap][String(p.matchId)] = p;
     });
-
-    // Ordenar usuarios por apodo base (sin número)
-    const now   = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
-    const date  = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
-
-    const hFlag = matchObj.homeFlag || '🏴';
-    const aFlag = matchObj.awayFlag || '🏴';
-    const home  = matchObj.home || '?';
-    const away  = matchObj.away || '?';
-
-    let msg = `⚽ *PREDICCIONES — ${home} vs ${away}*
-`;
-    msg += `${hFlag} ${home}  🆚  ${away} ${aFlag}
-`;
-    msg += `📅 ${date} · ⏱ ${now}
-`;
-    msg += `${'▬'.repeat(22)}
-
-`;
-
-    // Por cada usuario real, listar sus quinielas
-    const usuarios = Object.values(porUsuario);
-    // Ordenar por apodo base del primer entry
-    usuarios.sort((a, b) => {
-      const na = Object.keys(a)[0] || '';
-      const nb = Object.keys(b)[0] || '';
-      return na.localeCompare(nb);
-    });
-
-    usuarios.forEach(quinielasDeUsuario => {
-      const apodos = Object.keys(quinielasDeUsuario).sort();
-      apodos.forEach(apodo => {
-        const p  = quinielasDeUsuario[apodo];
-        const ph = p.predictedHomeScore ?? '?';
-        const pa = p.predictedAwayScore ?? '?';
-        // Resultado predicho
-        let resultado = '';
-        if (ph > pa)       resultado = `(${home} gana)`;
-        else if (ph < pa)  resultado = `(${away} gana)`;
-        else               resultado = '(Empate)';
-        msg += `👤 *${apodo}*: ${ph} — ${pa} ${resultado}
-`;
+    var apodos = Object.keys(porApodo).sort();
+    var total  = apodos.length;
+    var j1fix  = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
+    var fecha  = vzNow().toLocaleDateString("es-VE",{day:"2-digit",month:"short"});
+    var NL     = "\n";
+    var SEP    = "\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC\u25AC";
+    var mensajes = apodos.map(function(apodo, qi) {
+      var preds = porApodo[apodo];
+      var lineas = ""; var partidos = 0;
+      j1fix.forEach(function(m, ix) {
+        var p  = preds[String(m.id)];
+        var ph = p ? p.predictedHomeScore : "?";
+        var pa = p ? p.predictedAwayScore : "?";
+        var hS = m.home.split(" ").slice(1).join(" ");
+        var aS = m.away.split(" ").slice(1).join(" ");
+        lineas += (ix+1) + ". " + m.home.split(" ")[0] + " " + hS + " " + ph + "-" + pa + " " + aS + " " + m.away.split(" ")[0] + NL;
+        if (p) partidos++;
       });
+      var msg = "\u26BD *PREDICCIONES J1 - " + apodo + "*" + NL
+              + "Jornada 1 " + fecha + " " + (qi+1) + "/" + total + NL
+              + SEP + NL
+              + lineas
+              + SEP + NL
+              + "_" + partidos + "/24 predicciones - QuinielaLuAn_";
+      return { apodo: apodo, partidos: partidos, msg: msg };
     });
-
-    const total = allPreds.length;
-    msg += `
-${'▬'.repeat(22)}
-`;
-    msg += `_${total} predicción${total!==1?'es':''} · QuinielaLuAn · Arichuna_`;
-
-    // Copiar + abrir WA
-    navigator.clipboard?.writeText(msg)
-      .then(() => toast('✅ Predicciones copiadas — pégalas en el G2', 'success', 3500))
-      .catch(() => {});
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
+    _mostrarModalEnvioQ(mensajes);
+  } catch(e) { toast("Error: " + e.message, "error"); }
 }
 
 // Shortcut rápido: genera predicciones del partido activo en este momento
 async function generarPrediccionesPartidoActivo() {
-  const live = _aM.find(m => isLive(m.status));
-  if (!live) {
-    // Si no hay en vivo, tomar el más próximo
-    const next = _aM.find(m => !isFinished(m.status) && !isLive(m.status));
-    if (!next) { toast('No hay partido activo ahora mismo', 'warning'); return; }
-    await generarPrediccionesWA(String(next.id), next);
-  } else {
-    await generarPrediccionesWA(String(live.id), live);
-  }
+  await generarPrediccionesWA();
 }
 
 
@@ -6964,7 +6291,7 @@ async function loadSimulation() {
       .sort((a,b)=>b.groupPoints-a.groupPoints)
       .map((p,i)=>({...p, originalRank:i+1}));
 
-    // Choose matches
+    // Choose matches — incluye europeos Y partidos del Mundial
     const today = vzDate();
     simMatches = matchFilter==='pending'
       ? _dM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
@@ -6972,38 +6299,98 @@ async function loadSimulation() {
 
     if (!simMatches.length)
       simMatches = _aM.filter(m=>m.date>=today).slice(0,8);
+
+    // Fallback 1: _wM en memoria (cargado por doSync desde la API)
+    if (!simMatches.length && typeof _wM !== 'undefined' && _wM.length) {
+      simMatches = matchFilter==='pending'
+        ? _wM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+        : _wM;
+      if (!simMatches.length) simMatches = _wM;
+    }
+
+    // Fallback 2: partidos del Mundial desde Firestore (si ya se guardaron)
+    if (!simMatches.length) {
+      try {
+        const wSnap = await db.collection('matches')
+          .where('tournamentId','==','mundial').get();
+        if (!wSnap.empty) {
+          const allW = wSnap.docs.map(d=>({id:d.id,...d.data()}));
+          simMatches = matchFilter==='pending'
+            ? allW.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+            : allW;
+          if (!simMatches.length) simMatches = allW;
+        }
+      } catch(e) {}
+    }
+
+    // Fallback 3: FIXTURE_MUNDIAL hardcodeado — siempre disponible
+    if (!simMatches.length && typeof FIXTURE_MUNDIAL !== 'undefined' && FIXTURE_MUNDIAL.length) {
+      // Enriquecer con estado real si hay datos en memoria
+      const jornadaSel = simJornadaSel ? parseInt($('simJornadaSel')?.value||'1') : 1;
+      const allW = FIXTURE_MUNDIAL
+        .filter(m => m.jornada === jornadaSel)
+        .map(m => {
+          // Buscar si hay marcador real en Firestore/memoria
+          const live = _aM.find(x => String(x.id) === String(m.id));
+          return live ? {...m, ...live} : {...m, status:'Not Started', tournamentId:'mundial'};
+        });
+      simMatches = matchFilter==='pending'
+        ? allW.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+        : allW;
+      if (!simMatches.length) simMatches = allW;
+    }
+
     if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
 
-    // ── Load predictions: try groupId AND no-groupId (legacy) ──
-    simPredictions = {};
+    // ── Load predictions — soporta jugadores multi-quiniela (Q1, Q2, Q3) ──
+    simPredictions = {}; // { uid: { apodo: [preds] } }
     const matchIds = simMatches.map(m=>String(m.id));
 
     for (const player of simPlayers) {
-      // Query 1: predictions with this groupId
-      const q1 = await db.collection('predictions')
-        .where('userId','==',player.id)
-        .where('groupId','==',gid).get();
+      const uid = player.id;
 
-      // Query 2: predictions without groupId (legacy, same user)
-      const q2 = await db.collection('predictions')
-        .where('userId','==',player.id).get();
+      // Query A: por userId==uid (Q1 clásica y legado)
+      const qA1 = await db.collection('predictions')
+        .where('userId','==',uid).where('groupId','==',gid).get();
+      const qA2 = await db.collection('predictions')
+        .where('userId','==',uid).get();
 
-      // Merge, deduplicate by matchId, prefer groupId version
-      const allPreds = {};
-      q2.docs.forEach(d=>{ const p=d.data(); allPreds[String(p.matchId)]=p; });
-      q1.docs.forEach(d=>{ const p=d.data(); allPreds[String(p.matchId)]=p; }); // overwrite with group version
+      // Query B: por realUserId==uid (Q2, Q3 multi-quiniela)
+      const qB = await db.collection('predictions')
+        .where('realUserId','==',uid).get();
 
-      simPredictions[player.id] = Object.values(allPreds)
-        .filter(p=>matchIds.includes(String(p.matchId)));
+      // Unir todo sin duplicados, agrupar por apodo (username)
+      const seenIds = new Set();
+      const byApodo = {};
+
+      // Orden: qA2 → qA1 (groupId gana) → qB
+      [qA2, qA1, qB].forEach(snap => {
+        snap.docs.forEach(d => {
+          if (seenIds.has(d.id)) return;
+          seenIds.add(d.id);
+          const p = d.data();
+          if (!matchIds.includes(String(p.matchId))) return;
+          const apodo = p.username || player.username || uid;
+          if (!byApodo[apodo]) byApodo[apodo] = {};
+          // Guardar por matchId — groupId version sobreescribe
+          const existing = byApodo[apodo][String(p.matchId)];
+          if (!existing || p.groupId === gid) {
+            byApodo[apodo][String(p.matchId)] = p;
+          }
+        });
+      });
+
+      // Convertir a arrays
+      simPredictions[uid] = {};
+      Object.entries(byApodo).forEach(([apodo, predsMap]) => {
+        simPredictions[uid][apodo] = Object.values(predsMap);
+      });
     }
 
     // Debug: log what we found
     console.log('SimPredictions loaded:');
     simPlayers.forEach(p=>{
-      console.log(`  ${p.username}: ${simPredictions[p.id]?.length||0} predicciones`);
-      simPredictions[p.id]?.forEach(pr=>
-        console.log(`    matchId=${pr.matchId} → ${pr.predictedHomeScore}-${pr.predictedAwayScore}`)
-      );
+      console.log(`  ${p.username}: ${Object.values(simPredictions[p.id]||{}).reduce((s,a)=>s+a.length,0)} predicciones`);
     });
 
     $('simSetup').classList.remove('hidden');
@@ -7043,39 +6430,55 @@ function applyScenario(type) {
     toast('Carga una simulación primero', 'warning');
     return;
   }
-  let applied = 0;
 
+  // Helper: buscar predicción del usuario actual en cualquier quiniela
+  function myPred(matchId) {
+    const myQ = simPredictions[me.uid] || {};
+    for (const preds of Object.values(myQ)) {
+      const p = preds.find(p => String(p.matchId) === String(matchId));
+      if (p) return p;
+    }
+    return null;
+  }
+
+  // Helper: buscar predicción del líder (primera fila tras ordenar)
+  function leaderPred(matchId) {
+    const leader = simPlayers[0];
+    if (!leader) return null;
+    const lQ = simPredictions[leader.id] || {};
+    for (const preds of Object.values(lQ)) {
+      const p = preds.find(p => String(p.matchId) === String(matchId));
+      if (p) return p;
+    }
+    return null;
+  }
+
+  let applied = 0;
   simMatches.forEach(m => {
     const hi = $(`simH_${m.id}`);
     const ai = $(`simA_${m.id}`);
     if (!hi || !ai) return;
-
     let h = null, a = null;
 
     switch(type) {
       case 'myExact': {
-        const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
+        const p = myPred(m.id);
         if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
         break;
       }
       case 'myResult': {
-        // Give the correct result but NOT the exact score
-        const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
+        const p = myPred(m.id);
         if (p) {
           const ph = +p.predictedHomeScore, pa = +p.predictedAwayScore;
-          if (ph > pa)       { h = ph+1; a = pa; }       // local wins but diff score
-          else if (ph < pa)  { h = ph;   a = pa+1; }     // visitor wins but diff score
-          else               { h = ph+1; a = pa+1; }     // draw but diff score
+          if (ph > pa)      { h = ph+1; a = pa; }
+          else if (ph < pa) { h = ph;   a = pa+1; }
+          else              { h = ph+1; a = pa+1; }
         }
         break;
       }
       case 'leaderExact': {
-        // Leader = first in ranking (index 0 after sort)
-        const leader = simPlayers[0];
-        if (leader) {
-          const p = simPredictions[leader.id]?.find(p => String(p.matchId)===String(m.id));
-          if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
-        }
+        const p = leaderPred(m.id);
+        if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
         break;
       }
       case 'nobody':
@@ -7088,9 +6491,7 @@ function applyScenario(type) {
     }
 
     if (h !== null && a !== null) {
-      hi.value = h;
-      ai.value = a;
-      // Force visual update on the input elements
+      hi.value = h; ai.value = a;
       hi.dispatchEvent(new Event('input'));
       ai.dispatchEvent(new Event('input'));
       applied++;
@@ -7098,11 +6499,8 @@ function applyScenario(type) {
   });
 
   if (type==='myExact'||type==='myResult'||type==='leaderExact') {
-    if (applied === 0) {
-      toast('⚠️ Sin predicciones tuyas cargadas — asegúrate de haber predicho primero','warning',4000);
-    } else {
-      toast(`✅ ${applied} partidos actualizados con el escenario`,'success');
-    }
+    if (applied===0) toast('⚠️ Sin predicciones tuyas cargadas', 'warning', 4000);
+    else toast(`✅ ${applied} partidos actualizados`, 'success');
   }
 }
 
@@ -7129,15 +6527,29 @@ function runSimulation() {
     };
   });
 
-  const results = simPlayers.map(player => {
+  // Expandir jugadores multi-quiniela — cada apodo es una fila en la tabla
+  const rowsToSim = [];
+  simPlayers.forEach(player => {
+    const byApodo = simPredictions[player.id] || {};
+    const apodos  = Object.keys(byApodo);
+
+    if (!apodos.length) {
+      // Sin predicciones en ninguna quiniela → una fila con 0-0
+      rowsToSim.push({ ...player, _apodo: player.username, _preds: [] });
+    } else {
+      apodos.forEach(apodo => {
+        rowsToSim.push({ ...player, _apodo: apodo, _preds: byApodo[apodo] || [] });
+      });
+    }
+  });
+
+  const results = rowsToSim.map(row => {
     let gained=0, exactGained=0, resultGained=0, missingPreds=0;
-    const preds = simPredictions[player.id] || [];
+    const preds = row._preds;
 
     fictResults.forEach(fr => {
       const pred = preds.find(p => String(p.matchId) === String(fr.matchId));
-
       if (!pred) {
-        // ── Sin predicción → se le asigna 0-0 automáticamente ──
         missingPreds++;
         const pts = calcPoints(0, 0, fr.homeScore, fr.awayScore);
         gained += pts;
@@ -7157,8 +6569,9 @@ function runSimulation() {
     });
 
     return {
-      ...player,
-      fictPoints:    player.groupPoints + gained,
+      ...row,
+      username:   row._apodo,
+      fictPoints: row.groupPoints + gained,
       gained,
       exactGained,
       resultGained,
@@ -7266,7 +6679,7 @@ let _mundialJornada = 1;
 function getMundialJornadaStatus(jornada) {
   const now = vzNow();
   if (jornada === 1) {
-    const close = new Date('2026-06-11T17:00:00Z');
+    const close = new Date('2026-06-11T20:10:00Z'); // 3:10pm Puebla CDT
     return { open: now < close, notYet: false, closeTime: close, msg: now >= close ? '⛔ Jornada 1 cerrada' : null };
   }
   if (jornada === 2) {
@@ -7336,20 +6749,27 @@ function renderMundialScreen() {
   let html = `
     <div class="section-header">
       <span class="section-title">🌍🏆 Mundial FIFA 2026</span>
-
       <div style="display:flex;gap:4px;">
         <button class="btn btn-ghost btn-sm"
           onclick="openHowToPredict()"
-          style="padding:5px 8px;font-size:0.85em;">
-          ❓
-        </button>
-
-        <button class="btn btn-ghost btn-sm"
-          onclick="renderMatches()"
-          style="padding:5px 8px;font-size:0.85em;">
-          ← Volver
-        </button>
+          style="padding:5px 8px;font-size:0.85em;">❓</button>
       </div>
+    </div>
+
+    <!-- Botones rápidos del jugador -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <button onclick="verMisQuinielas()"
+        style="padding:10px;border-radius:var(--r-sm);border:1px solid var(--primary2);
+        background:rgba(108,71,255,0.1);color:var(--primary2);
+        font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
+        🎯 Mis Quinielas
+      </button>
+      <button onclick="openMyPredictions()"
+        style="padding:10px;border-radius:var(--r-sm);border:1px solid var(--green);
+        background:rgba(0,229,160,0.1);color:var(--green);
+        font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">
+        📋 Mis Predicciones
+      </button>
     </div>
 
     <div style="display:flex;gap:6px;margin-bottom:10px;">
@@ -7460,7 +6880,8 @@ function renderMundialScreen() {
 // Banner predicciones del torneo
   if (!me.isSpectator) {
     const p25 = FIXTURE_MUNDIAL.find(m => m.date >= '2026-06-18');
-    const p25started = false; // aún no ha empezado J2
+    const p25live    = _wM.find(m => m.date >= '2026-06-18');
+    const p25started  = p25live && (isLive(p25live.status) || isFinished(p25live.status));
     html += buildTournamentBanner(_mundialPredCache, p25started);
     loadMundialPredBg();
   }
@@ -8089,7 +7510,7 @@ async function savePredsMundial() {
         username: apodoLabel,
         groupId: group.id, groupName: group.name,
         matchId: p.matchId,
-        predictedHomeScore: p.h, predictedAwayScore: p.a,
+          predictedHomeScore: p.h, predictedAwayScore: p.a,
         home: p.match.home, away: p.match.away,
         tournamentId: 'mundial', jornadaDate: jDate,
         evaluated: false,
@@ -8670,20 +8091,28 @@ async function saveMundialConfig() {
 async function loadMundialPredBg() {
   if (!me.uid || _mundialPredLoaded) return;
   try {
-    const doc = await db.collection('mundialPreds').doc(me.uid).get();
-    _mundialPredCache  = doc.exists ? doc.data() : null;
+    // Doble query: Q1 (userId==me.uid) y Q2+ (realUserId==me.uid)
+    const snap1 = await db.collection('mundialPreds').where('realUserId','==',me.uid).get();
+    const snap2 = await db.collection('mundialPreds').where('userId','==',me.uid).get();
+    const seen = new Set(); const docs = [];
+    snap1.docs.concat(snap2.docs).forEach(d => {
+      if (!seen.has(d.id)) { seen.add(d.id); docs.push(d.data()); }
+    });
+    // _mundialPredCache = primera quiniela (Q1)
+    _mundialPredCache  = docs.length ? docs[0] : null;
     _mundialPredLoaded = true;
-    // Actualizar banner si está visible en pantalla
+    // Actualizar banner con número total de quinielas
     const banner = document.getElementById('_tournamentBanner');
     if (banner) {
-      const p25 = _aM.find(m => m.date >= '2026-06-18');
+      const p25    = _wM.find(m => m.date >= '2026-06-18') ||
+                     FIXTURE_MUNDIAL.find(m => m.date >= '2026-06-18');
       const locked = p25 && (isLive(p25.status) || isFinished(p25.status));
-      banner.outerHTML = buildTournamentBanner(_mundialPredCache, locked);
+      banner.outerHTML = buildTournamentBanner(_mundialPredCache, locked, docs.length);
     }
   } catch(e) {}
 }
 
-function buildTournamentBanner(pred, locked) {
+function buildTournamentBanner(pred, locked, totalQ) {
   const hasPred = pred && pred.campeon;
   const borderColor = locked ? 'rgba(255,77,109,0.45)' : 'rgba(245,197,66,0.55)';
   const bgColor     = locked ? 'rgba(255,77,109,0.07)' : 'rgba(245,197,66,0.09)';
@@ -8700,7 +8129,7 @@ function buildTournamentBanner(pred, locked) {
         ⚽ Goleador: <strong>${pred.goleador}</strong>${pred.golesGoleador!=null?' · <strong>'+pred.golesGoleador+' goles</strong>':''}
       </div>
       ${!locked
-        ? `<button onclick="openMundialModal()" style="margin-top:10px;width:100%;padding:9px;border-radius:var(--r-sm);border:1.5px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">✏️ Editar predicciones</button>`
+        ? `<button onclick="iniciarFlujOMundial()" style="margin-top:10px;width:100%;padding:9px;border-radius:var(--r-sm);border:1.5px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">🌍 ${totalQ||1} quiniela${(totalQ||1)>1?'s':''} · Jugar otra / Editar</button>`
         : `<div style="font-size:0.72em;color:var(--red);margin-top:8px;font-weight:700;">🔒 Bloqueadas — el partido 25 ya comenzó</div>`
       }`;
   } else if (locked) {
@@ -8717,7 +8146,7 @@ function buildTournamentBanner(pred, locked) {
         <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:5px 2px;">⚽<br><strong>${mundialConfig.goleador}</strong><br>pts</div>
         <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:5px 2px;">🎯<br><strong>${mundialConfig.golesGoleador}</strong><br>pts</div>
       </div>
-      <button onclick="openMundialModal()" style="width:100%;padding:11px;border-radius:var(--r-sm);border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-family:var(--font-b);font-weight:800;font-size:0.88em;cursor:pointer;">
+      <button onclick="iniciarFlujOMundial()" style="width:100%;padding:11px;border-radius:var(--r-sm);border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-family:var(--font-b);font-weight:800;font-size:0.88em;cursor:pointer;">
         🌍 Predecir Campeón · Goleador · Goles
       </button>`;
   }
@@ -8934,6 +8363,31 @@ let _expressStep    = 1;   // 1=winner, 2=goalsHome, 3=goalsAway
 let _expressWinner  = '';  // 'home'|'draw'|'away'
 let _expressTmpH    = 0;
 
+// Volver al partido anterior en el flujo express
+function _goBackExpress() {
+  if (_expressIdx <= 0) return;
+  _expressIdx--;
+  // Limpiar la predicción del partido actual (que no llegó a guardarse)
+  const m = _expressMatches[_expressIdx];
+  delete _expressPick[String(m.id)];
+  // Limpiar UI del partido anterior
+  _applyPickToUI(m.id, '–', '–');
+  const hiEl = document.getElementById(`hi_${m.id}`);
+  const aiEl = document.getElementById(`ai_${m.id}`);
+  if (hiEl) { hiEl.textContent='–'; hiEl.classList.remove('set'); }
+  if (aiEl) { aiEl.textContent='–'; aiEl.classList.remove('set'); }
+  // Revertir botón visual
+  const card = hiEl?.closest?.('.match-card');
+  if (card) {
+    const btn = card.querySelector('.btn-express-trigger');
+    if (btn) {
+      btn.innerHTML = '⚡ Predecir este partido';
+      btn.style.background = 'linear-gradient(135deg,var(--primary),var(--primary2))';
+    }
+  }
+  _showExpressMatch();
+}
+
 function openExpress(matchId) {
   // Build queue: this match first, then remaining pending matches
   const pending = _dM.filter(m => !isLive(m.status) && !isFinished(m.status));
@@ -9020,6 +8474,8 @@ function _renderExpress_Step1(m) {
         ✈️<br>${m.away.split(' ')[0]}
       </button>
     </div>
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);">← Volver al anterior</button>' : ''}
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);margin-bottom:4px;">← Volver</button>' : ''}
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar este partido</button>`;
 }
 
@@ -9045,6 +8501,8 @@ function _renderExpress_GoalsDraw(m) {
     <div class="goal-picker">
       ${nums.map(n => '<div class="goal-num" ontouchend="event.preventDefault();_pickDraw(' + n + ')" onclick="_pickDraw(' + n + ')">' + n + '</div>').join('')}
     </div>
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);">← Volver al anterior</button>' : ''}
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);margin-bottom:4px;">← Volver</button>' : ''}
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
 }
 
@@ -9070,6 +8528,8 @@ function _renderExpress_GoalsWinner(m, side) {
     <div class="goal-picker">
       ${nums.map(n => '<div class="goal-num" ontouchend="event.preventDefault();_pickWinnerGoals(' + n + ')" onclick="_pickWinnerGoals(' + n + ')">' + n + '</div>').join('')}
     </div>
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);">← Volver al anterior</button>' : ''}
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);margin-bottom:4px;">← Volver</button>' : ''}
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
 }
 
@@ -9107,6 +8567,8 @@ function _pickWinnerGoals(n) {
     <div class="goal-picker">
       ${nums.filter(x => x < n).map(x => '<div class="goal-num" ontouchend="event.preventDefault();_pickLoserGoals(' + x + ')" onclick="_pickLoserGoals(' + x + ')">' + x + '</div>').join('')}
     </div>
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);">← Volver al anterior</button>' : ''}
+    ${_expressIdx > 0 ? '<button class="express-skip" onclick="_goBackExpress()" style="background:rgba(108,71,255,0.1);border-color:var(--primary2);color:var(--primary2);margin-bottom:4px;">← Volver</button>' : ''}
     <button class="express-skip" onclick="_skipMatch()">⏭ Saltar</button>`;
 }
 
@@ -9437,8 +8899,19 @@ async function adminDashboard() {
       .filter(u => !u.isSpectator)
       .sort((a,b) => (a.playerNumber||0)-(b.playerNumber||0));
 
-    const predsSnap = await db.collection('predictions').where('jornadaDate','==',today).get();
-    const predIds = new Set(predsSnap.docs.map(d => d.data().userId));
+    // Para el Mundial: buscar por tournamentId (jornadaDate es '2026-mundial-j1', no fecha real)
+    const _ps1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    const _ps2 = await db.collection('predictions').where('jornadaDate','==',today).get();
+    const _psSeen = new Set(); const _psDocs = [];
+    _ps1.docs.concat(_ps2.docs).forEach(d => {
+      if (!_psSeen.has(d.id)) { _psSeen.add(d.id); _psDocs.push(d.data()); }
+    });
+    // Construir set de userIds que predicaron (incluye realUserId para multi-Q)
+    const predIds = new Set();
+    _psDocs.forEach(p => {
+      if (p.userId)     predIds.add(p.userId);
+      if (p.realUserId) predIds.add(p.realUserId);
+    });
 
     const emgSnap = await db.collection('emergencyAccess')
       .where('jornadaDate','==',today).where('active','==',true).get();
@@ -9451,7 +8924,8 @@ async function adminDashboard() {
 
     // Tiempo restante
     let tiempoHtml = '';
-    const firstP = _dM.find(m => !isLive(m.status) && !isFinished(m.status));
+    // Para el Mundial usar _wM o FIXTURE_MUNDIAL
+    const firstP = [..._wM, ...FIXTURE_MUNDIAL].find(m => !isLive(m.status) && !isFinished(m.status));
     if (firstP?.time) {
       const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
       const [hh,mm] = firstP.time.split(':').map(Number);
@@ -9525,7 +8999,34 @@ async function adminDashboard() {
       </div>`;
     });
 
-    html += `<button class="btn btn-ghost" style="margin-top:10px;font-size:0.8em;" onclick="adminDashboard()">🔄 Actualizar</button>`;
+    // Contar quinielas registradas
+    try {
+      var qSnap = await db.collection('mundialPreds').get();
+      var totalQ = qSnap.size;
+      var qPorU  = {};
+      qSnap.docs.forEach(function(d) {
+        var uid2 = d.data().realUserId || d.data().userId;
+        if (!qPorU[uid2]) qPorU[uid2] = 0;
+        qPorU[uid2]++;
+      });
+      var jugQ   = Object.keys(qPorU).length;
+      var multiQ = Object.values(qPorU).filter(function(n){ return n>1; }).length;
+      html += '<div style="background:rgba(108,71,255,0.1);border:1px solid rgba(108,71,255,0.3);border-radius:10px;padding:12px;margin-top:12px;">';
+      html += '<div style="font-family:var(--font-h);font-size:0.82em;font-weight:800;color:var(--primary2);margin-bottom:8px;">QUINIELAS REGISTRADAS</div>';
+      html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;margin-bottom:8px;">';
+      html += '<div><div style="font-family:var(--font-h);font-size:1.6em;color:var(--gold);">' + totalQ + '</div><div style="font-size:0.65em;color:var(--muted2);">TOTAL Q</div></div>';
+      html += '<div><div style="font-family:var(--font-h);font-size:1.6em;color:var(--primary2);">' + jugQ + '</div><div style="font-size:0.65em;color:var(--muted2);">JUGADORES</div></div>';
+      html += '<div><div style="font-family:var(--font-h);font-size:1.6em;color:var(--green);">' + multiQ + '</div><div style="font-size:0.65em;color:var(--muted2);">MULTI-Q</div></div>';
+      html += '</div>';
+      Object.entries(qPorU).sort(function(a,b){return b[1]-a[1];}).forEach(function(e2){
+        if (e2[1] > 1) {
+          var u3 = users.find(function(u){ return u.id===e2[0]; });
+          html += '<div style="font-size:0.75em;padding:2px 0;color:var(--gold);">' + (u3?u3.username:e2[0].slice(0,8)) + ': ' + e2[1] + ' Q</div>';
+        }
+      });
+      html += '</div>';
+    } catch(e3) {}
+    html += '<button class="btn btn-ghost" style="margin-top:10px;font-size:0.8em;" onclick="adminDashboard()">Actualizar</button>';
     out.innerHTML = html;
   } catch(e) {
     out.innerHTML = `<div style="color:var(--red);font-size:0.85em;">❌ Error: ${e.message}</div>`;
@@ -9777,6 +9278,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
