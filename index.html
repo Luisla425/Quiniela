@@ -1812,8 +1812,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m010', home:'🇳🇱 Países Bajos',   away:'🇯🇵 Japón',              date:'2026-06-14', timeVZ:'5:00 pm',  group:'F', jornada:1, venue:'AT&T Stadium, Dallas' },
   { id:'m011', home:'🇨🇮 Costa de Marfil',away:'🇪🇨 Ecuador',            date:'2026-06-14', timeVZ:'8:00 pm',  group:'E', jornada:1, venue:'Lincoln Financial, Filadelfia' },
   { id:'m012', home:'🇸🇪 Suecia',         away:'🇹🇳 Túnez',              date:'2026-06-14', timeVZ:'11:00 pm', group:'F', jornada:1, venue:'Estadio BBVA, Monterrey' },
-  // Lun 15/6
-  { id:'m013', home:'🇧🇪 Bélgica',        away:'🇪🇬 Egipto',             date:'2026-06-15', timeVZ:'3:00 pm',  group:'G', jornada:1, venue:'Lumen Field, Seattle' },  { id:'m014', home:'🇪🇸 España',         away:'🇨🇻 Cabo Verde',         date:'2026-06-15', timeVZ:'2:00 pm',  group:'H', jornada:1, venue:'Mercedes-Benz Stadium, Atlanta' },
+  // Lun 15/6  { id:'m013', home:'🇧🇪 Bélgica',        away:'🇪🇬 Egipto',             date:'2026-06-15', timeVZ:'3:00 pm',  group:'G', jornada:1, venue:'Lumen Field, Seattle' },
+  { id:'m014', home:'🇪🇸 España',         away:'🇨🇻 Cabo Verde',         date:'2026-06-15', timeVZ:'2:00 pm',  group:'H', jornada:1, venue:'Mercedes-Benz Stadium, Atlanta' },
   { id:'m015', home:'🇸🇦 Arabia Saudita', away:'🇺🇾 Uruguay',            date:'2026-06-15', timeVZ:'8:00 pm',  group:'H', jornada:1, venue:'Hard Rock Stadium, Miami' },
   { id:'m016', home:'🇮🇷 Irán',           away:'🇳🇿 Nueva Zelanda',      date:'2026-06-15', timeVZ:'9:00 pm',  group:'G', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
   // Mar 16/6
@@ -3617,10 +3617,11 @@ function buildMatchCard(m, closed) {
     // Dos chips estilo marcador de TV:
     // [🔴 45:00] [+? | 02:12]  ← chip principal fijo + chip de tiempo añadido corriendo
     badge = `<span id="badge_${m.id}" data-kickoff="${kickoffMs}" data-phase="${cronPhase}"
-      style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;">
+          style="display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;">
       <span id="badge_main_${m.id}" class="badge-live">🔴 ${statusTxt}</span>
       <span id="badge_extra_${m.id}" style="display:none;
-        background:#1a1a2e;color:#ffd700;border:1px solid #ffd700;        border-radius:5px;font-size:0.72em;font-family:var(--font-h);
+        background:#1a1a2e;color:#ffd700;border:1px solid #ffd700;
+        border-radius:5px;font-size:0.72em;font-family:var(--font-h);
         font-weight:900;padding:1px 5px;letter-spacing:0.5px;white-space:nowrap;"></span>
     </span>`;
   } else if (done) {
@@ -5402,7 +5403,7 @@ async function autoEval() {
 
         const upd = {
           livePoints: pts,
-          liveHome: rh,
+                    liveHome: rh,
           liveAway: ra,
           liveStatus: match.status,
         };
@@ -5416,7 +5417,8 @@ async function autoEval() {
 
           // Update user totals (only once, when finalizing)
           if(pts > 0) {
-            const userUpd = {points: firebase.firestore.FieldValue.increment(pts)};            if(pts===5) userUpd.exactPredictions = firebase.firestore.FieldValue.increment(1);
+            const userUpd = {points: firebase.firestore.FieldValue.increment(pts)};
+            if(pts===5) userUpd.exactPredictions = firebase.firestore.FieldValue.increment(1);
             if(pts===3) userUpd.correctResults = firebase.firestore.FieldValue.increment(1);
             await db.collection('users').doc(p.userId).update(userUpd);
           }
@@ -6041,171 +6043,142 @@ async function generarPizarraWA() {
 // Agrupa por jugador, muestra todas sus quinielas con apodo
 // ═══════════════════════════════════════════
 
-async function generarPrediccionesWA(matchId, matchObj) {
-  if (!matchId || !matchObj) {
-    // Si no se pasa partido, buscar el más reciente en juego o próximo
-    const live = _aM.find(m => isLive(m.status));
-    const next = _aM.find(m => !isFinished(m.status) && !isLive(m.status));
-    matchObj = live || next;
-    if (!matchObj) { toast('No hay partido activo ni próximo', 'warning'); return; }
-    matchId = String(matchObj.id);
-  }
-
-  const toastId = toast('⏳ Cargando predicciones...', 'info', 10000);
-
+async function generarPrediccionesWA() {
+  // Carga TODAS las predicciones de J1 del Mundial agrupadas por apodo
+  toast('⏳ Cargando predicciones de J1...', 'info', 4000);
   try {
-    // Traer predicciones: por matchId (string y number) + fallback por tournamentId
+    // Traer todas las predicciones del Mundial
     const snap1 = await db.collection('predictions')
-      .where('matchId', '==', String(matchId)).get();
+      .where('tournamentId', '==', 'mundial').get();
     const snap2 = await db.collection('predictions')
-      .where('matchId', '==', Number(matchId)).get();
-    // Fallback: si matchId no coincide, buscar todas las del Mundial de hoy
-    let snap3 = { docs: [] };
-    if (snap1.empty && snap2.empty) {
-      snap3 = await db.collection('predictions')
-        .where('tournamentId', '==', 'mundial').get();
-    }
-    // Unir sin duplicados, filtrar por matchId o por partido más cercano
-    const seen = new Set();
-    const allPreds = [];
-    snap1.docs.concat(snap2.docs).concat(snap3.docs).forEach(d => {
-      if (!seen.has(d.id)) {
-        seen.add(d.id);
-        const p = d.data();
-        // Si vino del fallback, filtrar solo los del partido correcto
-        if (snap3.docs.find(x => x.id === d.id)) {
-          if (String(p.matchId) !== String(matchId) && p.home !== matchObj.home) return;
-        }
-        allPreds.push(p);
-      }
+      .where('jornadaDate', '==', '2026-mundial-j1').get();
+
+    const seen = new Set(); const allPreds = [];
+    snap1.docs.concat(snap2.docs).forEach(d => {
+      if (!seen.has(d.id)) { seen.add(d.id); allPreds.push(d.data()); }
     });
 
     if (!allPreds.length) {
-      // Último recurso: mostrar TODAS las predicciones del Mundial de J1
-      const snapAll = await db.collection('predictions')
-        .where('tournamentId', '==', 'mundial').get();
-      if (snapAll.empty) {
-        toast('Sin predicciones del Mundial guardadas aún', 'warning', 3000);
-        return;
-      }
-      // Filtrar por el partido que coincida por home/away
-      const byHome = snapAll.docs.map(d=>d.data())
-        .filter(p => p.home === matchObj.home || p.away === matchObj.away);
-      if (byHome.length) {
-        allPreds.push(...byHome);
-      } else {
-        // Mostrar todas las del primer partido del día
-        allPreds.push(...snapAll.docs.slice(0,50).map(d=>d.data()));
-      }
+      toast('Sin predicciones del Mundial guardadas aún', 'warning', 3000);
+      return;
     }
 
-    // Agrupar por userId real (p.realUserId || p.userId)
-    // Dentro de cada usuario, agrupar por apodo (username) para multi-quiniela
-    const porUsuario = {};
+    // Agrupar por apodo (username)
+    const porApodo = {};
     allPreds.forEach(p => {
-      const uid   = p.realUserId || p.userId;
-      const apodo = p.username || uid;
-      if (!porUsuario[uid]) porUsuario[uid] = {};
-      porUsuario[uid][apodo] = p;
+      const apodo = p.username || 'Jugador';
+      if (!porApodo[apodo]) porApodo[apodo] = {};
+      porApodo[apodo][String(p.matchId)] = p;
     });
 
-    // Ordenar usuarios por apodo base (sin número)
-    const now   = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
-    const date  = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
+    // Ordenar apodos
+    const apodos = Object.keys(porApodo).sort();
+    const total  = apodos.length;
 
-    const hFlag = matchObj.homeFlag || '🏴';
-    const aFlag = matchObj.awayFlag || '🏴';
-    const home  = matchObj.home || '?';
-    const away  = matchObj.away || '?';
+    // Fixture J1 para ordenar los 24 partidos
+    const j1 = FIXTURE_MUNDIAL.filter(m => m.jornada === 1);
 
-    let msg = `⚽ *PREDICCIONES — ${home} vs ${away}*
-`;
-    msg += `${hFlag} ${home}  🆚  ${away} ${aFlag}
-`;
-    msg += `📅 ${date} · ⏱ ${now}
-`;
-    msg += `${'▬'.repeat(22)}
+    const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
 
-`;
+    // Generar un mensaje por apodo y mostrar modal de envío uno a uno
+    const mensajes = apodos.map((apodo, qi) => {
+      const preds = porApodo[apodo];
+      let lines = '';
+      let partidos = 0;
 
-    // Por cada usuario real, listar sus quinielas
-    const usuarios = Object.values(porUsuario);
-    // Ordenar por apodo base del primer entry
-    usuarios.sort((a, b) => {
-      const na = Object.keys(a)[0] || '';
-      const nb = Object.keys(b)[0] || '';
-      return na.localeCompare(nb);
-    });
-
-    usuarios.forEach(quinielasDeUsuario => {
-      const apodos = Object.keys(quinielasDeUsuario).sort();
-      apodos.forEach(apodo => {
-        const p  = quinielasDeUsuario[apodo];
-        const ph = p.predictedHomeScore ?? '?';
-        const pa = p.predictedAwayScore ?? '?';
-        // Resultado predicho
-        let resultado = '';
-        if (ph > pa)       resultado = `(${home} gana)`;
-        else if (ph < pa)  resultado = `(${away} gana)`;
-        else               resultado = '(Empate)';
-        msg += `👤 *${apodo}*: ${ph} — ${pa} ${resultado}
-`;
+      j1.forEach((m, idx) => {
+        const p = preds[String(m.id)];
+        const ph = p ? p.predictedHomeScore : '?';
+        const pa = p ? p.predictedAwayScore : '?';
+        const homeShort = m.home.split(' ').slice(1).join(' ');
+        const awayShort = m.away.split(' ').slice(1).join(' ');
+        lines += (idx+1) + '. ' + m.home.split(' ')[0] + ' ' + homeShort + ' ' + ph + '-' + pa + ' ' + awayShort + ' ' + m.away.split(' ')[0] + '
+';
+        if (p) partidos++;
       });
+
+      return {
+        apodo,
+        partidos,
+        msg:
+          '⚽ *PREDICCIONES J1 — ' + apodo + '*
+' +
+          '📅 ' + date + ' · ' + (qi+1) + '/' + total + '
+' +
+          '▬'.repeat(22) + '
+' +
+          lines +
+          '▬'.repeat(22) + '
+' +
+          '_' + partidos + '/24 predicciones · QuinielaLuAn_'
+      };
     });
 
-    const total = allPreds.length;
-    msg += `
-${'▬'.repeat(22)}
-`;
-    msg += `_${total} predicción${total!==1?'es':''} · QuinielaLuAn · Arichuna_`;
-
-    // Copiar + abrir WA
-    navigator.clipboard?.writeText(msg)
-      .then(() => toast('✅ Predicciones copiadas — pégalas en el G2', 'success', 3500))
-      .catch(() => {});
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    // Mostrar modal con lista de quinielas para enviar una a una
+    _mostrarModalEnvioQ(mensajes);
 
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   }
 }
 
-// Shortcut rápido: genera predicciones del partido activo en este momento
+// Modal de envío uno a uno
+function _mostrarModalEnvioQ(mensajes) {
+  const old = document.getElementById('_envioQModal');
+  if (old) old.remove();
+
+  window._envioQMensajes = mensajes;
+  window._envioQIdx = 0;
+
+  const modal = document.createElement('div');
+  modal.id = '_envioQModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '6000';
+  modal.innerHTML = '<div class="modal-box" style="max-height:88vh;overflow-y:auto;">'
+    + '<div class="modal-handle"></div>'
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:var(--gold);margin-bottom:4px;">📣 Enviar Predicciones J1</div>'
+    + '<div style="font-size:0.78em;color:var(--muted2);margin-bottom:14px;">'
+    + mensajes.length + ' quinielas · Toca cada una para enviar al G2</div>'
+    + '<div id="_envioQList"></div>'
+    + '<button class="btn btn-ghost" style="margin-top:10px;" onclick="document.getElementById('_envioQModal').remove()">Cerrar</button>'
+    + '</div>';
+
+  document.body.appendChild(modal);
+  _renderEnvioQList();
+}
+
+function _renderEnvioQList() {
+  const list = document.getElementById('_envioQList');
+  if (!list) return;
+  const msgs = window._envioQMensajes || [];
+  list.innerHTML = msgs.map((m, i) => {
+    const sent = window._envioQSent && window._envioQSent[i];
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">'
+      + '<div style="flex:1;">'
+      + '<div style="font-weight:800;font-size:0.88em;color:' + (sent?'var(--green)':'var(--text)') + ';">'
+      + (sent?'✅ ':'📤 ') + m.apodo + '</div>'
+      + '<div style="font-size:0.68em;color:var(--muted2);">' + m.partidos + '/24 predicciones</div>'
+      + '</div>'
+      + '<button onclick="_enviarQMsg(' + i + ')" style="padding:8px 14px;border-radius:8px;border:none;'
+      + 'background:' + (sent?'rgba(0,229,160,0.15)':'linear-gradient(135deg,#25D366,#128C7E)') + ';'
+      + 'color:' + (sent?'var(--green)':'#fff') + ';font-family:var(--font-b);font-weight:800;font-size:0.78em;cursor:pointer;">'
+      + (sent?'Reenviар':'📲 Enviar') + '</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _enviarQMsg(idx) {
+  const msgs = window._envioQMensajes || [];
+  const m = msgs[idx];
+  if (!m) return;
+  window._envioQSent = window._envioQSent || {};
+  window._envioQSent[idx] = true;
+  window.open('https://wa.me/?text=' + encodeURIComponent(m.msg), '_blank');
+  setTimeout(() => _renderEnvioQList(), 500);
+}
+
 async function generarPrediccionesPartidoActivo() {
-  // Buscar partido en vivo en _wM (Mundial) o FIXTURE_MUNDIAL
-  const allM = _wM.length ? _wM : FIXTURE_MUNDIAL;
-  const live = allM.find(m => isLive(m.status));
-
-  if (live) {
-    await generarPrediccionesWA(String(live.id), live);
-    return;
-  }
-
-  // No hay en vivo — usar el primer partido del fixture de hoy
-  const today = vzDate();
-  const todayMatch = FIXTURE_MUNDIAL.find(m => m.date === today && m.jornada === _mundialJornada);
-  if (todayMatch) {
-    await generarPrediccionesWA(String(todayMatch.id), {
-      ...todayMatch,
-      tournamentName: 'Mundial FIFA 2026',
-      tournamentFlag: '🌍🏆'
-    });
-    return;
-  }
-
-  // Fallback — primer partido del fixture
-  const firstMatch = FIXTURE_MUNDIAL.find(m => m.jornada === _mundialJornada) || FIXTURE_MUNDIAL[0];
-  if (firstMatch) {
-    await generarPrediccionesWA(String(firstMatch.id), {
-      ...firstMatch,
-      tournamentName: 'Mundial FIFA 2026',
-      tournamentFlag: '🌍🏆'
-    });
-    return;
-  }
-
-  toast('No hay partido activo ahora mismo', 'warning');
+  await generarPrediccionesWA();
 }
 
 
@@ -7600,11 +7573,12 @@ function setDefaultPredsMundial() {
 async function savePredsMundial() {
   if (!me?.uid) return;
   const preds = [];
-  FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada).forEach(m => {    const pick = _expressPick[String(m.id)];
+  FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada).forEach(m => {
+    const pick = _expressPick[String(m.id)];
     const h = pick ? pick.h : 0;
     const a = pick ? pick.a : 0;
     preds.push({ matchId: m.id, h, a, match: m });
-  });
+  });  
   if (!preds.length) { toast('Sin predicciones', 'error'); return; }
 
   const grpSnap = await db.collection('groups').get();
@@ -9395,6 +9369,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
