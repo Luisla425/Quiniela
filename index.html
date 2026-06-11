@@ -2483,8 +2483,8 @@ function _setCronOffset(matchId, deltaSec, mode) {
   const lbl = document.getElementById('_cronOffsetLbl');
   if (lbl) lbl.textContent = `${cur>0?'+':''}${cur} min`;
   toast(`⏱ Offset: ${cur>0?'+':''}${cur} min`, 'info', 1500);
-}
-
+}    
+      
 // ── Admin: tiempo añadido / prórroga ──────────────────────
 function _askAdminExtraTime(m) {
   if (!me?.isAdmin) return;
@@ -2674,7 +2674,7 @@ async function doRegister() {
       if (btn) { btn.disabled=false; btn.textContent='Crear cuenta →'; }
       return;
     }
-
+      
     // Step 3: Número solo para jugadores reales
     const isSpectator = _selectedRol === 'observador';
     const allSnap = await db.collection('users').get();
@@ -2854,8 +2854,8 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
     }, interval);
   }
   scheduleNextSync();
-
-  // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
+      
+        // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
   // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
   // Chip añadido:    [+? | 00:01] arranca automático al pasar 45:00 / 90:00
   //                 Si la API manda el tiempo añadido, reemplaza '?' con el número
@@ -4555,7 +4555,7 @@ async function openStats(matchId) {
               + '<div style="font-size:0.75em;font-weight:800;color:' + color + ';margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + tname + '</div>'
               + sorted.slice(0,11).map(p =>
                   '<div style="font-size:0.7em;padding:3px 0;border-bottom:1px solid var(--border);display:flex;gap:4px;align-items:center;">'
-                  + '<span>' + posIcon(p.strPosition) + '</span>' 
+                  + '<span>' + posIcon(p.strPosition) + '</span>'
                   + '<span style="color:var(--gold);min-width:18px;font-weight:800;">' + (p.strNumber||'') + '</span>'
                   + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (p.strPlayer||'') + '</span>'
                   + '</div>'
@@ -6148,8 +6148,7 @@ async function adminUsers() {
       </div>
       <div style="font-size:0.72em;color:var(--muted2);margin-bottom:8px;">${u.phoneDisplay||uphone||'—'} · Inv: ${u.personalInviteCode||'—'}</div>
       <div style="display:flex;gap:6px;margin-bottom:6px;">
-        <button class="btn-wa" style="flex:1;" onclick="adminWAMenu('${uname}','${uphone}',${predicted})">${t('waBtn')}</button>
-        <button style="flex:1;padding:9px;background:rgba(245,197,66,0.15);border:1px solid rgba(245,197,66,0.3);color:var(--gold);border-radius:var(--r-sm);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="adminResetUserPass('${uname}','${uphone}','${d.id}')">${t('resetPassBtn')}</button>
+        <button class="btn-wa" style="flex:1;" onclick="adminWAMenu('${uname}','${uphone}',${predicted})">${t('waBtn')}</button>        <button style="flex:1;padding:9px;background:rgba(245,197,66,0.15);border:1px solid rgba(245,197,66,0.3);color:var(--gold);border-radius:var(--r-sm);font-family:var(--font-b);font-weight:700;font-size:0.75em;cursor:pointer;" onclick="adminResetUserPass('${uname}','${uphone}','${d.id}')">${t('resetPassBtn')}</button>
       </div>
     </div>`;
   });
@@ -6612,7 +6611,7 @@ function generarPizarraWA() {
 // Agrupa por jugador, muestra todas sus quinielas con apodo
 // ═══════════════════════════════════════════
 
-async async function generarPrediccionesWA(matchId, matchObj) {
+async function generarPrediccionesWA(matchId, matchObj) {
   if (!matchId || !matchObj) {
     // Si no se pasa partido, buscar el más reciente en juego o próximo
     const live = _aM.find(m => isLive(m.status));
@@ -6716,7 +6715,7 @@ ${'▬'.repeat(22)}
 }
 
 // Shortcut rápido: genera predicciones del partido activo en este momento
-async async function generarPrediccionesPartidoActivo() {
+async function generarPrediccionesPartidoActivo() {
   const live = _aM.find(m => isLive(m.status));
   if (!live) {
     // Si no hay en vivo, tomar el más próximo
@@ -9653,6 +9652,8 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+     
   
   
   
