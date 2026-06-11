@@ -1846,8 +1846,9 @@ const FIXTURE_MUNDIAL = [
   { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m027', home:'🇨🇦 Canadá',         away:'🇶🇦 Qatar',              date:'2026-06-18', timeVZ:'6:00 pm',  group:'B', jornada:2, venue:'BC Place, Vancouver' },
   { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
-  // Jue 19/6  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
-  { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
+  // Jue 19/6
+  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
+    { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
   { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
   { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
   // Vie 20/6
@@ -3762,7 +3763,7 @@ async function verMisQuinielas() {
     let num = 1;
 
     todosApodos.forEach(apodo => {
-            const torneo = torneosPorSlot[apodo];
+      const torneo = torneosPorSlot[apodo];
       const partidos = partidosPorSlot[apodo] || [];
 
       html += `
@@ -3770,7 +3771,7 @@ async function verMisQuinielas() {
           border-radius:14px;padding:14px;margin-bottom:12px;">
 
           <!-- Header quiniela -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <div style="background:linear-gradient(135deg,var(--primary),var(--primary2));
               color:#fff;font-family:var(--font-h);font-weight:900;
               font-size:0.85em;padding:4px 10px;border-radius:20px;">
@@ -5642,7 +5643,7 @@ async function doCreateGroup() {
       createdAt:new Date().toISOString(),
       members:[{userId:me.uid,username:me.username,joinedAt:new Date().toISOString(),isAdmin:true}]
     });
-    closeModal('createModal');
+        closeModal('createModal');
     $('createName').value='';
     // Activar este grupo automáticamente
     await loadMyGroups();
@@ -6964,7 +6965,7 @@ async function loadSimulation() {
       .sort((a,b)=>b.groupPoints-a.groupPoints)
       .map((p,i)=>({...p, originalRank:i+1}));
 
-    // Choose matches — incluye partidos del Mundial (no están en _dM ni _aM)
+    // Choose matches — incluye europeos Y partidos del Mundial
     const today = vzDate();
     simMatches = matchFilter==='pending'
       ? _dM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
@@ -6973,7 +6974,7 @@ async function loadSimulation() {
     if (!simMatches.length)
       simMatches = _aM.filter(m=>m.date>=today).slice(0,8);
 
-    // Fallback: cargar partidos del Mundial desde Firestore
+    // Fallback 1: partidos del Mundial desde Firestore (si ya se guardaron)
     if (!simMatches.length) {
       try {
         const wSnap = await db.collection('matches')
@@ -6983,11 +6984,28 @@ async function loadSimulation() {
           simMatches = matchFilter==='pending'
             ? allW.filter(m=>!isFinished(m.status)&&!isLive(m.status))
             : allW;
-          // Si sigue vacío (todos terminados) tomar todos
           if (!simMatches.length) simMatches = allW;
         }
       } catch(e) {}
     }
+
+    // Fallback 2: FIXTURE_MUNDIAL hardcodeado — siempre disponible
+    if (!simMatches.length && typeof FIXTURE_MUNDIAL !== 'undefined' && FIXTURE_MUNDIAL.length) {
+      // Enriquecer con estado real si hay datos en memoria
+      const jornadaSel = simJornadaSel ? parseInt($('simJornadaSel')?.value||'1') : 1;
+      const allW = FIXTURE_MUNDIAL
+        .filter(m => m.jornada === jornadaSel)
+        .map(m => {
+          // Buscar si hay marcador real en Firestore/memoria
+          const live = _aM.find(x => String(x.id) === String(m.id));
+          return live ? {...m, ...live} : {...m, status:'Not Started', tournamentId:'mundial'};
+        });
+      simMatches = matchFilter==='pending'
+        ? allW.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+        : allW;
+      if (!simMatches.length) simMatches = allW;
+    }
+
     if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
 
     // ── Load predictions: try groupId AND no-groupId (legacy) ──
@@ -7824,13 +7842,12 @@ function _mostrarPasoTorneo(apodo, prevPred) {
           Paso 1 de 2 — Predicciones del Torneo
         </div>
         <div style="font-size:0.78em;color:var(--muted2);margin-top:4px;">
-          ${apodo} · Hasta <strong style="color:var(--gold);">${totalPts} puntos</strong> en juego
-        </div>
+          ${apodo} · Hasta <strong style="color:var(--gold);">${totalPts} puntos</strong> en juego        </div>
       </div>
 
       <!-- Info puntos -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:16px;">
-        ${[         
+        ${[
           ['🏆','Campeón',mundialConfig.campeon||15],
           ['🥈','Sub',mundialConfig.sub||10],
           ['🥉','3ro',mundialConfig.tercero||5],
@@ -9793,6 +9810,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
      
