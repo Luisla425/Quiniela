@@ -2943,7 +2943,9 @@ function setDayMatches() {}
 
 function _isHardLocked() {
   // Bloqueo total 5 min después del pitazo — NI EL ADMIN puede cambiar
-  const firstStarted = _dM.find(m => isLive(m.status) || isFinished(m.status));
+  // Usar _wM (Mundial) + FIXTURE como fallback
+  const allM = _wM.length ? _wM : FIXTURE_MUNDIAL;
+  const firstStarted = allM.find(m => isLive(m.status) || isFinished(m.status));
   if (!firstStarted || !firstStarted.time) return false;
   try {
     const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
@@ -3549,10 +3551,11 @@ async function _uLEC() {
           }
         } catch(e) {}
       }
+
       // ── Stats: posesión ──────────────────────────────────
       let possession = null;
       try {
-        const sr = await fetch(`${API_V1}/lookupeventstats.php?id=${mid}`);
+                const sr = await fetch(`${API_V1}/lookupeventstats.php?id=${mid}`);
         const sd = await sr.json();
         const stats = sd?.eventstats || sd?.stats || [];
         const possStat = stats.find(s =>
@@ -5131,7 +5134,14 @@ async function deleteGroup(gid, name) {
   try {
     toast('🗑️ Eliminando grupo y datos...','info',3000);
     // Borrar todas las predicciones del grupo
-    const preds = await db.collection('predictions').where('groupId','==',gid).get();
+    const preds = await db.collection('predictions')
+      .where('groupId','==',gid)
+      .where('tournamentId','==','mundial').get();
+    // Fallback: si no hay con tournamentId, buscar sin filtro (predicciones antiguas)
+    let predsSnap2 = predsSnap;
+    if (predsSnap.empty) {
+      predsSnap2 = await db.collection('predictions').where('groupId','==',gid).get();
+    }
     if (preds.docs.length) {
       const b = db.batch();
       preds.docs.forEach(d => b.delete(d.ref));
@@ -5215,7 +5225,14 @@ async function openGroupRanking(gid) {
   memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0}; });
 
   try {
-    const pSnap = await db.collection('predictions').where('groupId','==',gid).get();
+    const pSnap = await db.collection('predictions')
+      .where('groupId','==',gid)
+      .where('tournamentId','==','mundial').get();
+    // Fallback: si no hay con tournamentId, buscar sin filtro (predicciones antiguas)
+    let predsSnap2 = predsSnap;
+    if (predsSnap.empty) {
+      predsSnap2 = await db.collection('predictions').where('groupId','==',gid).get();
+    }
     pSnap.docs.forEach(d => {
       const p = d.data();
       if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0};
@@ -5295,7 +5312,6 @@ async function openGroupRanking(gid) {
           ? 'rgba(245,197,66,0.3)'
           : 'var(--border)'};
         ${isTop ? 'box-shadow:0 2px 12px rgba(245,197,66,0.1);' : ''}">
-
         <div style="font-family:var(--font-h);font-size:${isTop?'1.6em':'1.2em'};
           min-width:40px;text-align:center;">${medal}</div>
 
@@ -5303,7 +5319,7 @@ async function openGroupRanking(gid) {
           <div style="font-weight:800;font-size:${isTop?'1em':'0.92em'};
             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
             ${u.username}
-                        ${isMe ? '<span style="color:var(--primary2);font-size:0.72em;"> (tú)</span>' : ''}
+            ${isMe ? '<span style="color:var(--primary2);font-size:0.72em;"> (tú)</span>' : ''}
           </div>
           <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">
             ⭐ ${u.grpExact} exactos &nbsp;·&nbsp; 🎯 ${u.grpCorrect} correctos
@@ -6436,10 +6452,7 @@ async function loadSimulation() {
     // Debug: log what we found
     console.log('SimPredictions loaded:');
     simPlayers.forEach(p=>{
-      console.log(`  ${p.username}: ${simPredictions[p.id]?.length||0} predicciones`);
-      simPredictions[p.id]?.forEach(pr=>
-        console.log(`    matchId=${pr.matchId} → ${pr.predictedHomeScore}-${pr.predictedAwayScore}`)
-      );
+      console.log(`  ${p.username}: ${Object.values(simPredictions[p.id]||{}).reduce((s,a)=>s+a.length,0)} predicciones`);
     });
 
     $('simSetup').classList.remove('hidden');
@@ -7444,10 +7457,10 @@ async function _confirmarPasoTorneo() {
       userId:    docId,
       realUserId: me.uid,
       username:  _flujoPredSlot ? _flujoPredSlot.apodo : me.username,
-      campeon, subcampeon: sub, tercero, goleador,
-      golesGoleador: golesNum,
+      campeon, subcampeon: sub, tercero, goleador,      golesGoleador: golesNum,
       ptsConfig: {...mundialConfig},
-      evaluated: false,      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+      evaluated: false,
+      savedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     _mundialPredLoaded = false; // invalidar caché del banner
   } catch(e) {
@@ -9259,4 +9272,5 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
