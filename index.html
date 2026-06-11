@@ -1015,16 +1015,22 @@ body::before {
 
   <!-- BOTTOM NAV -->
   <nav class="nav">
-    <button class="nav-item active" id="nav-matches" onclick="showScreen('matches')">
+    <!-- Nav europeo — oculto durante el Mundial -->
+    <button class="nav-item" id="nav-matches" onclick="showScreen('matches')"
+      style="display:none;">
       <span class="nav-icon">⚽</span><span class="nav-label" id="nav-matches-lbl">Partidos</span>
     </button>
-    <button class="nav-item" id="nav-preds" onclick="showScreen('preds')">
+    <button class="nav-item" id="nav-preds" onclick="showScreen('preds')"
+      style="display:none;">
       <span class="nav-icon">🎯</span><span class="nav-label">Predecir</span>
     </button>
+    <!-- Chat siempre visible -->
     <button class="nav-item" id="nav-chat" onclick="showScreen('chat')">
       <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
     </button>
-    <button class="nav-item" id="nav-tournaments" onclick="showScreen('tournaments')">
+    <!-- Torneos oculto durante el Mundial -->
+    <button class="nav-item" id="nav-tournaments" onclick="showScreen('tournaments')"
+      style="display:none;">
       <span class="nav-icon">🏆</span><span class="nav-label">Torneos</span>
     </button>
     <button class="nav-item" id="nav-groups" onclick="showScreen('groups')">
@@ -1293,6 +1299,12 @@ body::before {
 </div>
 
 <script>
+// ══════════════════════════════════════════
+// MODO MUNDIAL — true = solo Mundial, false = modo normal
+// Cambia a false cuando termine el Mundial
+const MUNDIAL_ACTIVO = true;
+// ══════════════════════════════════════════
+
 // ── CAPTURA GLOBAL DE ERRORES — muestra cualquier crash en pantalla ──
 window.addEventListener('error', function(e) {
   const msg = `❌ ERROR: ${e.message}\n📍 ${e.filename?.split('/').pop()}:${e.lineno}`;
@@ -1848,8 +1860,7 @@ const FIXTURE_MUNDIAL = [
   { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
   // Jue 19/6
   { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
-    { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
-  { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },  { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
   { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
   // Vie 20/6
   { id:'m033', home:'🇳🇱 Países Bajos',   away:'🇸🇪 Suecia',             date:'2026-06-20', timeVZ:'2:00 pm',  group:'F', jornada:2, venue:'NRG Stadium, Houston' },
@@ -1929,6 +1940,7 @@ let me = null;
 let myTournaments = [];
 let _aM = [];
 let _dM = [];
+let _wM = []; // Partidos del Mundial FIFA 2026
 let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
@@ -2828,7 +2840,13 @@ async function enterApp() {
   setLang(currentLang);
 await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
 
-  showScreen('matches');
+  // Pantalla de inicio: Mundial si está activo, Partidos si no
+  if (typeof MUNDIAL_ACTIVO !== 'undefined' && MUNDIAL_ACTIVO) {
+    showScreen('matches'); // renderMundialScreen vive dentro de screenMatches
+    renderMundialScreen();
+  } else {
+    showScreen('matches');
+  }
 
   // Cargar grupos del jugador y activar el más reciente
   await loadMyGroups();
@@ -2839,16 +2857,20 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
   // • Live games: every 45s
   // • No live games today: every 5 minutes (saves reads)
   // • User typing: skip
-  function scheduleNextSync() {
-    const hasLive = _dM.some(m => isLive(m.status));
+  async function scheduleNextSync() {
+    // Incluir _wM (Mundial) en la detección de partidos en vivo
+    const hasLive = _dM.some(m => isLive(m.status))
+                 || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 45000 : 300000;
     syncTimer = setTimeout(async () => {
       if (!userEnteringPreds) {
-        const hasTodayGames = _dM.length > 0;
+        const hasTodayGames = _dM.length > 0 || _wM.length > 0;
         if (hasTodayGames) await doSync();
         else await autoEval();
-        // Actualizar cache de tarjetas/penaltis solo si hay partidos vivos
+        // Actualizar cache solo si hay partidos vivos
         if (_dM.some(m => isLive(m.status))) await _uLEC();
+        // Redibujar pantalla del Mundial si hay goles nuevos
+        if (_wM.some(m => isLive(m.status))) renderMundialScreen();
       }
       scheduleNextSync();
     }, interval);
@@ -2867,7 +2889,9 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
 
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
-      _dM.forEach(m => {
+      // Incluir partidos del Mundial en el cronómetro
+      const _allLive = [..._dM, ..._wM];
+      _allLive.forEach(m => {
         if (!isLive(m.status)) return;
         const wrap = document.getElementById(`badge_${m.id}`);
         if (!wrap) return;
@@ -2986,6 +3010,16 @@ function showScreen(name) {
   // Unsubscribe chat listener when leaving chat
   if (name !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
 
+  // En modo Mundial: redirigir pantallas europeas
+  if (typeof MUNDIAL_ACTIVO !== 'undefined' && MUNDIAL_ACTIVO) {
+    // 'matches' es válido — es donde vive el Mundial
+    if (['preds','tournaments'].includes(name)) {
+      toast('⚽ Durante el Mundial esta sección no está disponible 🌍🏆', 'info', 3000);
+      showScreen('matches');
+      renderMundialScreen();
+      return;
+    }
+  }
   if (name==='matches')      renderMatches();
   if (name==='preds')        renderPreds();
   if (name==='chat')         initChat();
@@ -3031,7 +3065,11 @@ async function doSync() {
   } catch(e) {}
 
   // 2) V1 next + past per tournament
-  for (const t of TOURNAMENTS) {
+  // En modo Mundial: solo sincronizar el Mundial
+  const tourneysToSync = (typeof MUNDIAL_ACTIVO !== 'undefined' && MUNDIAL_ACTIVO)
+    ? TOURNAMENTS.filter(t => t.id === 'mundial')
+    : TOURNAMENTS;
+  for (const t of tourneysToSync) {
     if (!myTournaments.includes(t.id)) continue;
     try {
       const r = await fetchTimeout(`${API_V1}/eventsnextleague.php?id=${t.lid}`, 6000);
@@ -3061,12 +3099,24 @@ async function doSync() {
 
 _aM = Array.from(found.values()).filter(m => m.tournamentId !== 'mundial');
 
+  // Guardar partidos del Mundial en _wM (para simulador y pantalla Mundial)
+  const _wMNew = Array.from(found.values()).filter(m => m.tournamentId === 'mundial');
+  if (_wMNew.length) {
+    _wM = _wMNew;
+    // Guardar en Firestore para acceso offline y simulador
+    try {
+      const bw = db.batch();
+      _wMNew.forEach(m => bw.set(db.collection('matches').doc(String(m.id)), m, {merge:true}));
+      await bw.commit();
+    } catch(e) {}
+  }
+
   // 4) lookupevent ONLY for today's matches (not all matches)
   await refreshDayScores();
 
   // 5) Save to Firestore — only matches from today (reduce writes)
   const today = vzDate();
-  const toWrite = Array.from(found.values()).filter(m => m.date === today);
+  const toWrite = Array.from(found.values()).filter(m => m.date === today && m.tournamentId !== 'mundial');
   if (toWrite.length) {
     try {
       const b = db.batch();
@@ -3748,8 +3798,7 @@ async function verMisQuinielas() {
     // Agrupar torneo por apodo
     const torneosPorSlot = {};
     mundSnap.docs.forEach(d => {
-      const p = d.data();
-      const apodo = p.username || me.username;
+      const p = d.data();      const apodo = p.username || me.username;
       torneosPorSlot[apodo] = p;
     });
 
@@ -3771,7 +3820,7 @@ async function verMisQuinielas() {
           border-radius:14px;padding:14px;margin-bottom:12px;">
 
           <!-- Header quiniela -->
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
             <div style="background:linear-gradient(135deg,var(--primary),var(--primary2));
               color:#fff;font-family:var(--font-h);font-weight:900;
               font-size:0.85em;padding:4px 10px;border-radius:20px;">
@@ -5643,10 +5692,9 @@ async function doCreateGroup() {
       createdAt:new Date().toISOString(),
       members:[{userId:me.uid,username:me.username,joinedAt:new Date().toISOString(),isAdmin:true}]
     });
-        closeModal('createModal');
+    closeModal('createModal');
     $('createName').value='';
-    // Activar este grupo automáticamente
-    await loadMyGroups();
+    // Activar este grupo automáticamente    await loadMyGroups();
     setActiveGroup(ref.id);
     toast(`✅ Grupo "${name}" creado · Código: ${code}`,'success',5000);
     renderGroups();
@@ -6974,7 +7022,15 @@ async function loadSimulation() {
     if (!simMatches.length)
       simMatches = _aM.filter(m=>m.date>=today).slice(0,8);
 
-    // Fallback 1: partidos del Mundial desde Firestore (si ya se guardaron)
+    // Fallback 1: _wM en memoria (cargado por doSync desde la API)
+    if (!simMatches.length && typeof _wM !== 'undefined' && _wM.length) {
+      simMatches = matchFilter==='pending'
+        ? _wM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
+        : _wM;
+      if (!simMatches.length) simMatches = _wM;
+    }
+
+    // Fallback 2: partidos del Mundial desde Firestore (si ya se guardaron)
     if (!simMatches.length) {
       try {
         const wSnap = await db.collection('matches')
@@ -6989,7 +7045,7 @@ async function loadSimulation() {
       } catch(e) {}
     }
 
-    // Fallback 2: FIXTURE_MUNDIAL hardcodeado — siempre disponible
+    // Fallback 3: FIXTURE_MUNDIAL hardcodeado — siempre disponible
     if (!simMatches.length && typeof FIXTURE_MUNDIAL !== 'undefined' && FIXTURE_MUNDIAL.length) {
       // Enriquecer con estado real si hay datos en memoria
       const jornadaSel = simJornadaSel ? parseInt($('simJornadaSel')?.value||'1') : 1;
@@ -7008,27 +7064,49 @@ async function loadSimulation() {
 
     if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
 
-    // ── Load predictions: try groupId AND no-groupId (legacy) ──
-    simPredictions = {};
+    // ── Load predictions — soporta jugadores multi-quiniela (Q1, Q2, Q3) ──
+    simPredictions = {}; // { uid: { apodo: [preds] } }
     const matchIds = simMatches.map(m=>String(m.id));
 
     for (const player of simPlayers) {
-      // Query 1: predictions with this groupId
-      const q1 = await db.collection('predictions')
-        .where('userId','==',player.id)
-        .where('groupId','==',gid).get();
+      const uid = player.id;
 
-      // Query 2: predictions without groupId (legacy, same user)
-      const q2 = await db.collection('predictions')
-        .where('userId','==',player.id).get();
+      // Query A: por userId==uid (Q1 clásica y legado)
+      const qA1 = await db.collection('predictions')
+        .where('userId','==',uid).where('groupId','==',gid).get();
+      const qA2 = await db.collection('predictions')
+        .where('userId','==',uid).get();
 
-      // Merge, deduplicate by matchId, prefer groupId version
-      const allPreds = {};
-      q2.docs.forEach(d=>{ const p=d.data(); allPreds[String(p.matchId)]=p; });
-      q1.docs.forEach(d=>{ const p=d.data(); allPreds[String(p.matchId)]=p; }); // overwrite with group version
+      // Query B: por realUserId==uid (Q2, Q3 multi-quiniela)
+      const qB = await db.collection('predictions')
+        .where('realUserId','==',uid).get();
 
-      simPredictions[player.id] = Object.values(allPreds)
-        .filter(p=>matchIds.includes(String(p.matchId)));
+      // Unir todo sin duplicados, agrupar por apodo (username)
+      const seenIds = new Set();
+      const byApodo = {};
+
+      // Orden: qA2 → qA1 (groupId gana) → qB
+      [qA2, qA1, qB].forEach(snap => {
+        snap.docs.forEach(d => {
+          if (seenIds.has(d.id)) return;
+          seenIds.add(d.id);
+          const p = d.data();
+          if (!matchIds.includes(String(p.matchId))) return;
+          const apodo = p.username || player.username || uid;
+          if (!byApodo[apodo]) byApodo[apodo] = {};
+          // Guardar por matchId — groupId version sobreescribe
+          const existing = byApodo[apodo][String(p.matchId)];
+          if (!existing || p.groupId === gid) {
+            byApodo[apodo][String(p.matchId)] = p;
+          }
+        });
+      });
+
+      // Convertir a arrays
+      simPredictions[uid] = {};
+      Object.entries(byApodo).forEach(([apodo, predsMap]) => {
+        simPredictions[uid][apodo] = Object.values(predsMap);
+      });
     }
 
     // Debug: log what we found
@@ -7077,39 +7155,55 @@ function applyScenario(type) {
     toast('Carga una simulación primero', 'warning');
     return;
   }
-  let applied = 0;
 
+  // Helper: buscar predicción del usuario actual en cualquier quiniela
+  function myPred(matchId) {
+    const myQ = simPredictions[me.uid] || {};
+    for (const preds of Object.values(myQ)) {
+      const p = preds.find(p => String(p.matchId) === String(matchId));
+      if (p) return p;
+    }
+    return null;
+  }
+
+  // Helper: buscar predicción del líder (primera fila tras ordenar)
+  function leaderPred(matchId) {
+    const leader = simPlayers[0];
+    if (!leader) return null;
+    const lQ = simPredictions[leader.id] || {};
+    for (const preds of Object.values(lQ)) {
+      const p = preds.find(p => String(p.matchId) === String(matchId));
+      if (p) return p;
+    }
+    return null;
+  }
+
+  let applied = 0;
   simMatches.forEach(m => {
     const hi = $(`simH_${m.id}`);
     const ai = $(`simA_${m.id}`);
     if (!hi || !ai) return;
-
     let h = null, a = null;
 
     switch(type) {
       case 'myExact': {
-        const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
+        const p = myPred(m.id);
         if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
         break;
       }
       case 'myResult': {
-        // Give the correct result but NOT the exact score
-        const p = simPredictions[me.uid]?.find(p => String(p.matchId)===String(m.id));
+        const p = myPred(m.id);
         if (p) {
           const ph = +p.predictedHomeScore, pa = +p.predictedAwayScore;
-          if (ph > pa)       { h = ph+1; a = pa; }       // local wins but diff score
-          else if (ph < pa)  { h = ph;   a = pa+1; }     // visitor wins but diff score
-          else               { h = ph+1; a = pa+1; }     // draw but diff score
+          if (ph > pa)      { h = ph+1; a = pa; }
+          else if (ph < pa) { h = ph;   a = pa+1; }
+          else              { h = ph+1; a = pa+1; }
         }
         break;
       }
       case 'leaderExact': {
-        // Leader = first in ranking (index 0 after sort)
-        const leader = simPlayers[0];
-        if (leader) {
-          const p = simPredictions[leader.id]?.find(p => String(p.matchId)===String(m.id));
-          if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
-        }
+        const p = leaderPred(m.id);
+        if (p) { h = +p.predictedHomeScore; a = +p.predictedAwayScore; }
         break;
       }
       case 'nobody':
@@ -7122,9 +7216,7 @@ function applyScenario(type) {
     }
 
     if (h !== null && a !== null) {
-      hi.value = h;
-      ai.value = a;
-      // Force visual update on the input elements
+      hi.value = h; ai.value = a;
       hi.dispatchEvent(new Event('input'));
       ai.dispatchEvent(new Event('input'));
       applied++;
@@ -7132,11 +7224,8 @@ function applyScenario(type) {
   });
 
   if (type==='myExact'||type==='myResult'||type==='leaderExact') {
-    if (applied === 0) {
-      toast('⚠️ Sin predicciones tuyas cargadas — asegúrate de haber predicho primero','warning',4000);
-    } else {
-      toast(`✅ ${applied} partidos actualizados con el escenario`,'success');
-    }
+    if (applied===0) toast('⚠️ Sin predicciones tuyas cargadas', 'warning', 4000);
+    else toast(`✅ ${applied} partidos actualizados`, 'success');
   }
 }
 
@@ -7163,15 +7252,29 @@ function runSimulation() {
     };
   });
 
-  const results = simPlayers.map(player => {
+  // Expandir jugadores multi-quiniela — cada apodo es una fila en la tabla
+  const rowsToSim = [];
+  simPlayers.forEach(player => {
+    const byApodo = simPredictions[player.id] || {};
+    const apodos  = Object.keys(byApodo);
+
+    if (!apodos.length) {
+      // Sin predicciones en ninguna quiniela → una fila con 0-0
+      rowsToSim.push({ ...player, _apodo: player.username, _preds: [] });
+    } else {
+      apodos.forEach(apodo => {
+        rowsToSim.push({ ...player, _apodo: apodo, _preds: byApodo[apodo] || [] });
+      });
+    }
+  });
+
+  const results = rowsToSim.map(row => {
     let gained=0, exactGained=0, resultGained=0, missingPreds=0;
-    const preds = simPredictions[player.id] || [];
+    const preds = row._preds;
 
     fictResults.forEach(fr => {
       const pred = preds.find(p => String(p.matchId) === String(fr.matchId));
-
       if (!pred) {
-        // ── Sin predicción → se le asigna 0-0 automáticamente ──
         missingPreds++;
         const pts = calcPoints(0, 0, fr.homeScore, fr.awayScore);
         gained += pts;
@@ -7191,8 +7294,9 @@ function runSimulation() {
     });
 
     return {
-      ...player,
-      fictPoints:    player.groupPoints + gained,
+      ...row,
+      username:   row._apodo,
+      fictPoints: row.groupPoints + gained,
       gained,
       exactGained,
       resultGained,
@@ -7827,8 +7931,7 @@ function _mostrarPasoTorneo(apodo, prevPred) {
       animation:slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
     ">
       <!-- Barra progreso -->
-      <div style="display:flex;gap:6px;margin-bottom:18px;">
-        <div style="flex:1;height:5px;border-radius:3px;
+      <div style="display:flex;gap:6px;margin-bottom:18px;">        <div style="flex:1;height:5px;border-radius:3px;
           background:linear-gradient(90deg,var(--primary),var(--primary2));"></div>
         <div style="flex:1;height:5px;border-radius:3px;
           background:var(--border2);"></div>
@@ -7842,7 +7945,8 @@ function _mostrarPasoTorneo(apodo, prevPred) {
           Paso 1 de 2 — Predicciones del Torneo
         </div>
         <div style="font-size:0.78em;color:var(--muted2);margin-top:4px;">
-          ${apodo} · Hasta <strong style="color:var(--gold);">${totalPts} puntos</strong> en juego        </div>
+          ${apodo} · Hasta <strong style="color:var(--gold);">${totalPts} puntos</strong> en juego
+        </div>
       </div>
 
       <!-- Info puntos -->
@@ -9810,6 +9914,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
