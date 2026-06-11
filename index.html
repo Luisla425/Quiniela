@@ -8162,7 +8162,7 @@ function buildTournamentBanner(pred, locked) {
         ⚽ Goleador: <strong>${pred.goleador}</strong>${pred.golesGoleador!=null?' · <strong>'+pred.golesGoleador+' goles</strong>':''}
       </div>
       ${!locked
-        ? `<button onclick="openMundialModal()" style="margin-top:10px;width:100%;padding:9px;border-radius:var(--r-sm);border:1.5px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">✏️ Editar predicciones</button>`
+        ? `<button onclick="iniciarFlujOMundial()" style="margin-top:10px;width:100%;padding:9px;border-radius:var(--r-sm);border:1.5px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">🌍 Mis Quinielas / Nueva</button>`
         : `<div style="font-size:0.72em;color:var(--red);margin-top:8px;font-weight:700;">🔒 Bloqueadas — el partido 25 ya comenzó</div>`
       }`;
   } else if (locked) {
@@ -8179,7 +8179,7 @@ function buildTournamentBanner(pred, locked) {
         <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:5px 2px;">⚽<br><strong>${mundialConfig.goleador}</strong><br>pts</div>
         <div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:5px 2px;">🎯<br><strong>${mundialConfig.golesGoleador}</strong><br>pts</div>
       </div>
-      <button onclick="openMundialModal()" style="width:100%;padding:11px;border-radius:var(--r-sm);border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-family:var(--font-b);font-weight:800;font-size:0.88em;cursor:pointer;">
+      <button onclick="iniciarFlujOMundial()" style="width:100%;padding:11px;border-radius:var(--r-sm);border:none;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;font-family:var(--font-b);font-weight:800;font-size:0.88em;cursor:pointer;">
         🌍 Predecir Campeón · Goleador · Goles
       </button>`;
   }
@@ -9239,6 +9239,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
