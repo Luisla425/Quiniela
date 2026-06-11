@@ -1801,10 +1801,9 @@ const FIXTURE_MUNDIAL = [
   { id:'m002', home:'🇰🇷 Corea del Sur',  away:'🇨🇿 Rep. Checa',         date:'2026-06-11', timeVZ:'10:00 pm', group:'A', jornada:1, venue:'Estadio Akron, Guadalajara' },
   // Vie 12/6
   { id:'m003', home:'🇨🇦 Canadá',         away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-12', timeVZ:'3:00 pm',  group:'B', jornada:1, venue:'BMO Field, Toronto' },
-    { id:'m004', home:'🇺🇸 Estados Unidos', away:'🇵🇾 Paraguay',           date:'2026-06-12', timeVZ:'9:00 pm',  group:'D', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m004', home:'🇺🇸 Estados Unidos', away:'🇵🇾 Paraguay',           date:'2026-06-12', timeVZ:'9:00 pm',  group:'D', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
   // Sáb 13/6
-  { id:'m005', home:'🇶🇦 Qatar',          away:'🇨🇭 Suiza',              date:'2026-06-13', timeVZ:'3:00 pm',  group:'B', jornada:1, venue:"Levi's Stadium, San Francisco" },
-  { id:'m006', home:'🇧🇷 Brasil',         away:'🇲🇦 Marruecos',          date:'2026-06-13', timeVZ:'6:00 pm',  group:'C', jornada:1, venue:'MetLife Stadium, Nueva York' },
+  { id:'m005', home:'🇶🇦 Qatar',          away:'🇨🇭 Suiza',              date:'2026-06-13', timeVZ:'3:00 pm',  group:'B', jornada:1, venue:"Levi's Stadium, San Francisco" },  { id:'m006', home:'🇧🇷 Brasil',         away:'🇲🇦 Marruecos',          date:'2026-06-13', timeVZ:'6:00 pm',  group:'C', jornada:1, venue:'MetLife Stadium, Nueva York' },
   { id:'m007', home:'🇭🇹 Haití',          away:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',           date:'2026-06-13', timeVZ:'9:00 pm',  group:'C', jornada:1, venue:'Gillette Stadium, Boston' },
   { id:'m008', home:'🇦🇺 Australia',      away:'🇹🇷 Turquía',            date:'2026-06-13', timeVZ:'12:00 am', group:'D', jornada:1, venue:'BC Place, Vancouver' },
   // Dom 14/6
@@ -3536,7 +3535,8 @@ async function _uLEC() {
       // ── Timeline: V2 primero, V1 fallback ───────────────
       let timeline = [];
       try {
-        const r = await fetchV2(`/lookup/event_timeline/${mid}`);        if (Array.isArray(r?.timeline) && r.timeline.length) timeline = r.timeline;
+        const r = await fetchV2(`/lookup/event_timeline/${mid}`);
+        if (Array.isArray(r?.timeline) && r.timeline.length) timeline = r.timeline;
       } catch(e) {}
       if (!timeline.length) {
         try {
@@ -3549,7 +3549,6 @@ async function _uLEC() {
           }
         } catch(e) {}
       }
-
       // ── Stats: posesión ──────────────────────────────────
       let possession = null;
       try {
@@ -5284,7 +5283,8 @@ async function openGroupRanking(gid) {
 
       html += `<div style="
         display:flex;align-items:center;gap:12px;
-        padding:14px 12px;border-radius:12px;margin-bottom:8px;        background:${isMe
+        padding:14px 12px;border-radius:12px;margin-bottom:8px;
+        background:${isMe
           ? 'rgba(108,71,255,0.15)'
           : isTop
           ? 'rgba(245,197,66,0.07)'
@@ -5303,7 +5303,7 @@ async function openGroupRanking(gid) {
           <div style="font-weight:800;font-size:${isTop?'1em':'0.92em'};
             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
             ${u.username}
-            ${isMe ? '<span style="color:var(--primary2);font-size:0.72em;"> (tú)</span>' : ''}
+                        ${isMe ? '<span style="color:var(--primary2);font-size:0.72em;"> (tú)</span>' : ''}
           </div>
           <div style="font-size:0.7em;color:var(--muted2);margin-top:2px;">
             ⭐ ${u.grpExact} exactos &nbsp;·&nbsp; 🎯 ${u.grpCorrect} correctos
@@ -6922,7 +6922,8 @@ function renderMundialScreen() {
 // Banner predicciones del torneo
   if (!me.isSpectator) {
     const p25 = FIXTURE_MUNDIAL.find(m => m.date >= '2026-06-18');
-    const p25started = false; // aún no ha empezado J2
+    const p25live    = _wM.find(m => m.date >= '2026-06-18');
+    const p25started  = p25live && (isLive(p25live.status) || isFinished(p25live.status));
     html += buildTournamentBanner(_mundialPredCache, p25started);
     loadMundialPredBg();
   }
@@ -7427,7 +7428,7 @@ async function _confirmarPasoTorneo() {
   const campeon   = document.getElementById('_fCampeon')?.value;
   const sub       = document.getElementById('_fSub')?.value;
   const tercero   = document.getElementById('_fTercero')?.value;
-    const goleador  = document.getElementById('_fGoleador')?.value.trim();
+  const goleador  = document.getElementById('_fGoleador')?.value.trim();
   const golesRaw  = document.getElementById('_fGolesGoleador')?.value;
   const golesNum  = golesRaw ? +golesRaw : null;
 
@@ -7446,8 +7447,7 @@ async function _confirmarPasoTorneo() {
       campeon, subcampeon: sub, tercero, goleador,
       golesGoleador: golesNum,
       ptsConfig: {...mundialConfig},
-      evaluated: false,
-      savedAt: firebase.firestore.FieldValue.serverTimestamp()
+      evaluated: false,      savedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     _mundialPredLoaded = false; // invalidar caché del banner
   } catch(e) {
@@ -8132,20 +8132,28 @@ async function saveMundialConfig() {
 async function loadMundialPredBg() {
   if (!me.uid || _mundialPredLoaded) return;
   try {
-    const doc = await db.collection('mundialPreds').doc(me.uid).get();
-    _mundialPredCache  = doc.exists ? doc.data() : null;
+    // Doble query: Q1 (userId==me.uid) y Q2+ (realUserId==me.uid)
+    const snap1 = await db.collection('mundialPreds').where('realUserId','==',me.uid).get();
+    const snap2 = await db.collection('mundialPreds').where('userId','==',me.uid).get();
+    const seen = new Set(); const docs = [];
+    snap1.docs.concat(snap2.docs).forEach(d => {
+      if (!seen.has(d.id)) { seen.add(d.id); docs.push(d.data()); }
+    });
+    // _mundialPredCache = primera quiniela (Q1)
+    _mundialPredCache  = docs.length ? docs[0] : null;
     _mundialPredLoaded = true;
-    // Actualizar banner si está visible en pantalla
+    // Actualizar banner con número total de quinielas
     const banner = document.getElementById('_tournamentBanner');
     if (banner) {
-      const p25 = _aM.find(m => m.date >= '2026-06-18');
+      const p25    = _wM.find(m => m.date >= '2026-06-18') ||
+                     FIXTURE_MUNDIAL.find(m => m.date >= '2026-06-18');
       const locked = p25 && (isLive(p25.status) || isFinished(p25.status));
-      banner.outerHTML = buildTournamentBanner(_mundialPredCache, locked);
+      banner.outerHTML = buildTournamentBanner(_mundialPredCache, locked, docs.length);
     }
   } catch(e) {}
 }
 
-function buildTournamentBanner(pred, locked) {
+function buildTournamentBanner(pred, locked, totalQ) {
   const hasPred = pred && pred.campeon;
   const borderColor = locked ? 'rgba(255,77,109,0.45)' : 'rgba(245,197,66,0.55)';
   const bgColor     = locked ? 'rgba(255,77,109,0.07)' : 'rgba(245,197,66,0.09)';
@@ -8162,7 +8170,7 @@ function buildTournamentBanner(pred, locked) {
         ⚽ Goleador: <strong>${pred.goleador}</strong>${pred.golesGoleador!=null?' · <strong>'+pred.golesGoleador+' goles</strong>':''}
       </div>
       ${!locked
-        ? `<button onclick="iniciarFlujOMundial()" style="margin-top:10px;width:100%;padding:9px;border-radius:var(--r-sm);border:1.5px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">🌍 Mis Quinielas / Nueva</button>`
+        ? `<button onclick="iniciarFlujOMundial()" style="margin-top:10px;width:100%;padding:9px;border-radius:var(--r-sm);border:1.5px solid var(--gold);background:transparent;color:var(--gold);font-family:var(--font-b);font-weight:800;font-size:0.82em;cursor:pointer;">🌍 ${totalQ||1} quiniela${(totalQ||1)>1?'s':''} · Jugar otra / Editar</button>`
         : `<div style="font-size:0.72em;color:var(--red);margin-top:8px;font-weight:700;">🔒 Bloqueadas — el partido 25 ya comenzó</div>`
       }`;
   } else if (locked) {
@@ -8899,8 +8907,19 @@ async function adminDashboard() {
       .filter(u => !u.isSpectator)
       .sort((a,b) => (a.playerNumber||0)-(b.playerNumber||0));
 
-    const predsSnap = await db.collection('predictions').where('jornadaDate','==',today).get();
-    const predIds = new Set(predsSnap.docs.map(d => d.data().userId));
+    // Para el Mundial: buscar por tournamentId (jornadaDate es '2026-mundial-j1', no fecha real)
+    const _ps1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    const _ps2 = await db.collection('predictions').where('jornadaDate','==',today).get();
+    const _psSeen = new Set(); const _psDocs = [];
+    _ps1.docs.concat(_ps2.docs).forEach(d => {
+      if (!_psSeen.has(d.id)) { _psSeen.add(d.id); _psDocs.push(d.data()); }
+    });
+    // Construir set de userIds que predicaron (incluye realUserId para multi-Q)
+    const predIds = new Set();
+    _psDocs.forEach(p => {
+      if (p.userId)     predIds.add(p.userId);
+      if (p.realUserId) predIds.add(p.realUserId);
+    });
 
     const emgSnap = await db.collection('emergencyAccess')
       .where('jornadaDate','==',today).where('active','==',true).get();
@@ -8913,7 +8932,8 @@ async function adminDashboard() {
 
     // Tiempo restante
     let tiempoHtml = '';
-    const firstP = _dM.find(m => !isLive(m.status) && !isFinished(m.status));
+    // Para el Mundial usar _wM o FIXTURE_MUNDIAL
+    const firstP = [..._wM, ...FIXTURE_MUNDIAL].find(m => !isLive(m.status) && !isFinished(m.status));
     if (firstP?.time) {
       const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
       const [hh,mm] = firstP.time.split(':').map(Number);
@@ -9239,27 +9259,4 @@ async function convertToPlayer() {
 
 </body>
    </html>
-  
-  
-  
-  
-  
-  
-     
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
