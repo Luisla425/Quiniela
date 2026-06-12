@@ -1822,8 +1822,9 @@ const FIXTURE_MUNDIAL = [
   { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
   { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },
   { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
-  // Mié 17/6  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
-  { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
+  // Mié 17/6
+  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
+    { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
   { id:'m023', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',    away:'🇭🇷 Croacia',            date:'2026-06-17', timeVZ:'5:00 pm',  group:'L', jornada:1, venue:'AT&T Stadium, Dallas' },
   { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
   // ══ JORNADA 2 — 18 al 23 junio ══
@@ -3671,7 +3672,8 @@ function buildMatchCard(m, closed) {
             ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
               <span>⚽</span>
               <span style="color:${g.color};font-weight:700;">${g.player}</span>` :
-              `<span style="color:${g.color};font-weight:700;">${g.player}</span>              <span>⚽</span>
+              `<span style="color:${g.color};font-weight:700;">${g.player}</span>
+              <span>⚽</span>
               <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
@@ -3681,7 +3683,7 @@ function buildMatchCard(m, closed) {
 
   const statsBtnLabel = live
     ? `🔴 ${currentLang==='de'?'LIVE · Tore & Karten':currentLang==='en'?'LIVE · Goals & Cards':'EN VIVO · Goles y Tarjetas'}`
-    : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
+        : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
   const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
@@ -5293,10 +5295,19 @@ async function openGroupRanking(gid) {
 
   // Fusion: traer TODOS los que tengan predicciones del Mundial y no esten en este grupo
   try {
-    const allMundialPreds = await db.collection('predictions')
+    const fSnapA = await db.collection('predictions')
       .where('tournamentId','==','mundial').get();
+    const fSnapB = await db.collection('predictions')
+      .where('jornadaDate','==','2026-mundial-j1').get();
+    const fSnapC = await db.collection('predictions')
+      .where('jornadaDate','==','2026-06-11').get(); // version vieja (rescate)
+    const _seenF = new Set();
+    const allMundialPredsDocs = [];
+    fSnapA.docs.concat(fSnapB.docs).concat(fSnapC.docs).forEach(d => {
+      if (!_seenF.has(d.id)) { _seenF.add(d.id); allMundialPredsDocs.push(d); }
+    });
     const seenIds = new Set(memberIds);
-    allMundialPreds.docs.forEach(d => {
+    allMundialPredsDocs.forEach(d => {
       const p = d.data();
       const uid = p.userId;
       if (uid && !seenIds.has(uid)) {
@@ -5330,10 +5341,19 @@ async function openGroupRanking(gid) {
   let predsSnap2;
   try {
     // Predicciones del grupo + de los extraMembers (todas las del Mundial)
-    const pSnap = await db.collection('predictions')
+    const pSnapA = await db.collection('predictions')
       .where('tournamentId','==','mundial').get();
-    predsSnap2 = pSnap;
-    pSnap.docs.forEach(d => {
+    const pSnapB = await db.collection('predictions')
+      .where('jornadaDate','==','2026-mundial-j1').get();
+    const pSnapC = await db.collection('predictions')
+      .where('jornadaDate','==','2026-06-11').get(); // version vieja (rescate)
+    const _seenP = new Set();
+    const pDocs = [];
+    pSnapA.docs.concat(pSnapB.docs).concat(pSnapC.docs).forEach(d => {
+      if (!_seenP.has(d.id)) { _seenP.add(d.id); pDocs.push(d); }
+    });
+    predsSnap2 = { docs: pDocs };
+    pDocs.forEach(d => {
       const p = d.data();
       if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
       let pts = 0;
@@ -5481,8 +5501,7 @@ async function openGroupRanking(gid) {
 function calcPoints(ph, pa, rh, ra) {
   const pr = ph===pa?'empate':ph>pa?'home':'away';
   const rr = rh===ra?'empate':rh>ra?'home':'away';
-  if(ph===rh && pa===ra) return 5;      // Exact score
-  if(pr===rr) return 3;                  // Correct result
+  if(ph===rh && pa===ra) return 5;      // Exact score  if(pr===rr) return 3;                  // Correct result
   return 0;
 }
 
@@ -5492,7 +5511,7 @@ async function autoEval() {
   const active = _aM.filter(m =>
     (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
   );
-    if(!active.length) return;
+  if(!active.length) return;
 
   let updated = 0;
   for(const match of active) {
@@ -6167,8 +6186,9 @@ async function generarPrediccionesWA() {
     mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });
     var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
     var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
+    var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
     var seen = new Set(); var allP = [];
-    s1.docs.concat(s2.docs).forEach(function(d){
+    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)){seen.add(d.id);allP.push(d.data());}
     });
     var parMap = {};
@@ -7649,13 +7669,12 @@ function setDefaultPredsMundial() {
   });
   toast('🔮 Todos en 0-0 · Toca Guardar', 'info');
 }
-
 async function savePredsMundial() {
   if (!me?.uid) return;
   const preds = [];
   FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada).forEach(m => {
     const pick = _expressPick[String(m.id)];
-        const h = pick ? pick.h : 0;
+    const h = pick ? pick.h : 0;
     const a = pick ? pick.a : 0;
     preds.push({ matchId: m.id, h, a, match: m });
   });
@@ -9463,6 +9482,7 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
   
