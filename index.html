@@ -1814,8 +1814,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m012', home:'🇸🇪 Suecia',         away:'🇹🇳 Túnez',              date:'2026-06-14', timeVZ:'11:00 pm', group:'F', jornada:1, venue:'Estadio BBVA, Monterrey' },
   // Lun 15/6
   { id:'m013', home:'🇧🇪 Bélgica',        away:'🇪🇬 Egipto',             date:'2026-06-15', timeVZ:'3:00 pm',  group:'G', jornada:1, venue:'Lumen Field, Seattle' },
-  { id:'m014', home:'🇪🇸 España',         away:'🇨🇻 Cabo Verde',         date:'2026-06-15', timeVZ:'2:00 pm',  group:'H', jornada:1, venue:'Mercedes-Benz Stadium, Atlanta' },  { id:'m015', home:'🇸🇦 Arabia Saudita', away:'🇺🇾 Uruguay',            date:'2026-06-15', timeVZ:'8:00 pm',  group:'H', jornada:1, venue:'Hard Rock Stadium, Miami' },
-  { id:'m016', home:'🇮🇷 Irán',           away:'🇳🇿 Nueva Zelanda',      date:'2026-06-15', timeVZ:'9:00 pm',  group:'G', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m014', home:'🇪🇸 España',         away:'🇨🇻 Cabo Verde',         date:'2026-06-15', timeVZ:'2:00 pm',  group:'H', jornada:1, venue:'Mercedes-Benz Stadium, Atlanta' },
+  { id:'m015', home:'🇸🇦 Arabia Saudita', away:'🇺🇾 Uruguay',            date:'2026-06-15', timeVZ:'8:00 pm',  group:'H', jornada:1, venue:'Hard Rock Stadium, Miami' },  { id:'m016', home:'🇮🇷 Irán',           away:'🇳🇿 Nueva Zelanda',      date:'2026-06-15', timeVZ:'9:00 pm',  group:'G', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
   // Mar 16/6
   { id:'m017', home:'🇫🇷 Francia',        away:'🇸🇳 Senegal',            date:'2026-06-16', timeVZ:'3:00 pm',  group:'I', jornada:1, venue:'MetLife Stadium, Nueva York' },
   { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
@@ -3633,12 +3633,13 @@ function buildMatchCard(m, closed) {
   let centerContent = '';
   if (showScore) {
     centerContent = `
-      <div style="text-align:center;">        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
+      <div style="text-align:center;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;">
           <span class="team-score ${live?'score-live':'score-final'}">${m.homeScore??'?'}</span>
           <span style="color:var(--muted);font-family:var(--font-h);font-size:1.2em;">—</span>
           <span class="team-score ${live?'score-live':'score-final'}">${m.awayScore??'?'}</span>
-        </div>
-      </div>`;
+        </div>     
+        </div>`;
   } else {
     centerContent = `<span class="vs-divider">VS</span>`;
   }
@@ -5167,7 +5168,7 @@ function openGroupWAMenu() {}
 
 function _buildPizarraText(gname) {   if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;   const medals = ['🥇','🥈','🥉'];   const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});   const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});   let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;   _currentRankData.ranked.forEach((p,i) => {     const pos = medals[i] || `  ${i+1}.`;     msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;   });   msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;   return msg; }  function _buildTop3Text(gname) {   if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;   const ranked = _currentRankData.ranked;   const [p1,p2,p3] = ranked;   return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`; }  function sendGroupWA() {}  let _currentRankData = { name:'', ranked:[] };
 
-async function openGroupRanking(gid) {{
+async function openGroupRanking(gid) {
   const existing = document.getElementById('_pizarraScreen');
   if (existing) existing.remove();
 
@@ -5221,14 +5222,27 @@ async function openGroupRanking(gid) {{
   const ptMap = {};
   memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0}; });
 
+  // Si no hay datos de partidos cargados, sincronizar ahora
+  if (!_wM.length) {
+    try { await doSync(); } catch(e) {}
+  }
+
+  // Normalizar nombres de equipo: quita banderas/acentos, pasa a minusculas
+  const _norm = s => (s||'')
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase();
+
   // Mapa resultados reales: cruzar _wM (API) con FIXTURE_MUNDIAL (IDs del fixture)
   const resMap = {};
   FIXTURE_MUNDIAL.forEach(m => {
-    // Buscar en _wM por home+away
-    const lv = _wM.find(x =>
-      (x.home||'').includes(m.home.split(' ').slice(1).join(' ')) ||
-      (x.home||'') === m.home
-    );
+    const mHome = _norm(m.home.split(' ').slice(1).join(' '));
+    const mAway = _norm(m.away.split(' ').slice(1).join(' '));
+    const lv = _wM.find(x => {
+      const xh = _norm(x.home), xa = _norm(x.away);
+      return (xh===mHome || xh.includes(mHome) || mHome.includes(xh))
+          && (xa===mAway || xa.includes(mAway) || mAway.includes(xa));
+    });
     if (lv && lv.homeScore != null && lv.awayScore != null) {
       resMap[String(m.id)] = { h:+lv.homeScore, a:+lv.awayScore, live:isLive(lv.status) };
     }
@@ -5275,12 +5289,20 @@ async function openGroupRanking(gid) {{
       });
     }
 
-    const allU = [];
+    // Base directa desde g.members (ya tiene userId + username) — no depende de 'users'
+    const allU = g.members.map(m => ({ id: m.userId, username: m.username, isSpectator: m.isSpectator || false }));
+
+    // Reforzar con datos reales de 'users' si existen (isSpectator actualizado, etc.)
     for (let i = 0; i < memberIds.length; i += 10) {
       const chunk = memberIds.slice(i, i+10);
-      const us = await db.collection('users')
-        .where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
-      us.docs.forEach(d => allU.push({id:d.id,...d.data()}));
+      try {
+        const us = await db.collection('users')
+          .where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
+        us.docs.forEach(d => {
+          const u = allU.find(x => x.id === d.id);
+          if (u) Object.assign(u, d.data());
+        });
+      } catch(e) {}
     }
 
     const ranked = allU
@@ -5366,7 +5388,7 @@ async function openGroupRanking(gid) {{
     document.getElementById('_pizarraContent').innerHTML =
       `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
-}}
+}
 
 // ═══════════════════════════════════════════
 // SCORING — LIVE + FINAL
@@ -5428,7 +5450,7 @@ async function autoEval() {
         };
 
         if(isFinal && !p.evaluated) {
-          // Final — lock it
+                    // Final — lock it
           upd.evaluated = true;
           upd.pointsAwarded = pts;
           upd.realHome = rh;
@@ -5436,7 +5458,8 @@ async function autoEval() {
 
           // Update user totals (only once, when finalizing)
           if(pts > 0) {
-            const userUpd = {points: firebase.firestore.FieldValue.increment(pts)};            if(pts===5) userUpd.exactPredictions = firebase.firestore.FieldValue.increment(1);
+            const userUpd = {points: firebase.firestore.FieldValue.increment(pts)};
+            if(pts===5) userUpd.exactPredictions = firebase.firestore.FieldValue.increment(1);
             if(pts===3) userUpd.correctResults = firebase.firestore.FieldValue.increment(1);
             await db.collection('users').doc(p.userId).update(userUpd);
           }
@@ -7562,13 +7585,13 @@ async function savePredsMundial() {
   if (!confirm('¿Confirmar predicciones del Mundial para "' + group.name + '"?')) return;
 
   // Usar slotId si es flujo multi-quiniela, si no usar me.uid
-  const effectiveUid = _flujoPredSlot ? _flujoPredSlot.slotId : me.uid;
+    const effectiveUid = _flujoPredSlot ? _flujoPredSlot.slotId : me.uid;
   const apodoLabel   = _flujoPredSlot ? _flujoPredSlot.apodo  : me.username;
 
   try {
     const batch = db.batch();
     preds.forEach(p => {
-            const docId = effectiveUid + '_' + group.id + '_' + p.matchId;
+      const docId = effectiveUid + '_' + group.id + '_' + p.matchId;
       batch.set(db.collection('predictions').doc(docId), {
         userId: effectiveUid, realUserId: me.uid,
         username: apodoLabel,
@@ -9353,12 +9376,4 @@ async function convertToPlayer() {
 
 </body>
    </html>
-  
-  
-  
-  
-  
-  
-  
-  
   
