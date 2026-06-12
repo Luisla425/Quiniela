@@ -1820,9 +1820,9 @@ const FIXTURE_MUNDIAL = [
   // Mar 16/6
   { id:'m017', home:'🇫🇷 Francia',        away:'🇸🇳 Senegal',            date:'2026-06-16', timeVZ:'3:00 pm',  group:'I', jornada:1, venue:'MetLife Stadium, Nueva York' },
   { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
-  { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },  { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
-  // Mié 17/6
-  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
+  { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },
+  { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
+  // Mié 17/6  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
   { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
   { id:'m023', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',    away:'🇭🇷 Croacia',            date:'2026-06-17', timeVZ:'5:00 pm',  group:'L', jornada:1, venue:'AT&T Stadium, Dallas' },
   { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
@@ -3671,8 +3671,7 @@ function buildMatchCard(m, closed) {
             ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
               <span>⚽</span>
               <span style="color:${g.color};font-weight:700;">${g.player}</span>` :
-              `<span style="color:${g.color};font-weight:700;">${g.player}</span>
-              <span>⚽</span>
+              `<span style="color:${g.color};font-weight:700;">${g.player}</span>              <span>⚽</span>
               <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
@@ -5309,7 +5308,7 @@ async function openGroupRanking(gid) {
   } catch(e) {}
 
   const ptMap = {};
-  memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0}; });
+  memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0,predCount:0}; });
 
   // Si no hay datos de partidos cargados, sincronizar ahora
   if (!_wM.length) {
@@ -5336,7 +5335,7 @@ async function openGroupRanking(gid) {
     predsSnap2 = pSnap;
     pSnap.docs.forEach(d => {
       const p = d.data();
-      if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0};
+      if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
       let pts = 0;
       const res = resMap[String(p.matchId)];
       if (res != null) {
@@ -5350,6 +5349,7 @@ async function openGroupRanking(gid) {
         ptMap[p.userId].live++;
       }
       ptMap[p.userId].pts += pts;
+      ptMap[p.userId].predCount++;
       if (pts===5) ptMap[p.userId].exact++;
       else if (pts===3) ptMap[p.userId].correct++;
     });
@@ -5360,7 +5360,7 @@ async function openGroupRanking(gid) {
       oldPreds.docs.forEach(d => {
         const p = d.data();
         if (p.groupId) return;
-        if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0};
+        if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
         const pts = p.evaluated ? (p.pointsAwarded||0) : (p.livePoints!=null ? p.livePoints : 0);
         ptMap[p.userId].pts += pts;
         if (pts===5) ptMap[p.userId].exact++;
@@ -5387,6 +5387,7 @@ async function openGroupRanking(gid) {
 
     const ranked = allU
       .filter(u => !u.isSpectator)
+      .filter(u => (ptMap[u.id] && ptMap[u.id].predCount > 0))
       .map(u => ({...u,
         grpPts:    ptMap[u.id]?.pts||0,
         grpExact:  ptMap[u.id]?.exact||0,
@@ -5488,9 +5489,10 @@ function calcPoints(ph, pa, rh, ra) {
 // Main eval — runs after every sync, handles live AND finished matches
 async function autoEval() {
   // Include ALL matches that have started (live or finished)
-  const active = _aM.filter(m =>    (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
+  const active = _aM.filter(m =>
+    (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
   );
-  if(!active.length) return;
+    if(!active.length) return;
 
   let updated = 0;
   for(const match of active) {
@@ -6175,7 +6177,13 @@ async function generarPrediccionesWA() {
       if(!parMap[ap])parMap[ap]={};
       parMap[ap][String(p.matchId)]=p;
     });
-    var todos = Array.from(new Set(Object.keys(torMap).concat(Object.keys(parMap)))).sort();
+    var todos = Array.from(new Set(Object.keys(torMap).concat(Object.keys(parMap))))
+      .filter(function(ap){
+        var pc = parMap[ap] ? Object.keys(parMap[ap]).length : 0;
+        var hasTor = !!torMap[ap];
+        return pc > 0 || hasTor;
+      })
+      .sort();
     if (!todos.length){toast("Sin quinielas registradas","warning",3000);return;}
     var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===1;});
     var fecha = vzNow().toLocaleDateString("es-VE",{day:"2-digit",month:"short"});
@@ -7647,8 +7655,9 @@ async function savePredsMundial() {
   const preds = [];
   FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada).forEach(m => {
     const pick = _expressPick[String(m.id)];
-    const h = pick ? pick.h : 0;
-    const a = pick ? pick.a : 0;    preds.push({ matchId: m.id, h, a, match: m });
+        const h = pick ? pick.h : 0;
+    const a = pick ? pick.a : 0;
+    preds.push({ matchId: m.id, h, a, match: m });
   });
   if (!preds.length) { toast('Sin predicciones', 'error'); return; }
 
@@ -9454,6 +9463,8 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+  
   
   
   
