@@ -1822,9 +1822,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
   { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },
   { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
-  // Mié 17/6
-  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
-    { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
+  // Mié 17/6  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
+  { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
   { id:'m023', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',    away:'🇭🇷 Croacia',            date:'2026-06-17', timeVZ:'5:00 pm',  group:'L', jornada:1, venue:'AT&T Stadium, Dallas' },
   { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
   // ══ JORNADA 2 — 18 al 23 junio ══
@@ -3677,13 +3676,13 @@ function buildMatchCard(m, closed) {
               <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
-      eventsHtml += `</div>`;
+             eventsHtml += `</div>`;
     }
   }
 
   const statsBtnLabel = live
     ? `🔴 ${currentLang==='de'?'LIVE · Tore & Karten':currentLang==='en'?'LIVE · Goals & Cards':'EN VIVO · Goles y Tarjetas'}`
-        : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
+    : `📊 ${currentLang==='de'?'Statistiken & Tore':currentLang==='en'?'Stats & Goals':'Estadísticas & Goles'}`;
   const statsBtnStyle = live
     ? 'background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff;border:none;'
     : 'background:var(--surface2);color:var(--primary2);border:1px solid var(--border2);';
@@ -5374,18 +5373,24 @@ async function openGroupRanking(gid) {
       else if (pts===3) ptMap[p.userId].correct++;
     });
 
-    if (memberIds.length <= 10) {
-      const oldPreds = await db.collection('predictions')
-        .where('userId','in',memberIds).get();
-      oldPreds.docs.forEach(d => {
-        const p = d.data();
-        if (p.groupId) return;
-        if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
-        const pts = p.evaluated ? (p.pointsAwarded||0) : (p.livePoints!=null ? p.livePoints : 0);
-        ptMap[p.userId].pts += pts;
-        if (pts===5) ptMap[p.userId].exact++;
-        else if (pts===3) ptMap[p.userId].correct++;
-      });
+    // Sistema viejo (autoEval con livePoints/pointsAwarded, sin groupId)
+    // Recorrer en chunks de 10 (limite de Firestore 'in')
+    for (let i = 0; i < memberIds.length; i += 10) {
+      const chunk = memberIds.slice(i, i+10);
+      try {
+        const oldPreds = await db.collection('predictions')
+          .where('userId','in',chunk).get();
+        oldPreds.docs.forEach(d => {
+          const p = d.data();
+          if (p.groupId) return;
+          if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
+          const pts = p.evaluated ? (p.pointsAwarded||0) : (p.livePoints!=null ? p.livePoints : 0);
+          ptMap[p.userId].pts += pts;
+          ptMap[p.userId].predCount++;
+          if (pts===5) ptMap[p.userId].exact++;
+          else if (pts===3) ptMap[p.userId].correct++;
+        });
+      } catch(e) {}
     }
 
     // Base directa desde g.members (ya tiene userId + username) — no depende de 'users'
@@ -5486,7 +5491,7 @@ async function openGroupRanking(gid) {
       html || '<div class="empty"><span class="empty-text">Sin datos aún</span></div>';
 
   } catch(e) {
-    document.getElementById('_pizarraContent').innerHTML =
+         document.getElementById('_pizarraContent').innerHTML =
       `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
 }
@@ -5501,7 +5506,8 @@ async function openGroupRanking(gid) {
 function calcPoints(ph, pa, rh, ra) {
   const pr = ph===pa?'empate':ph>pa?'home':'away';
   const rr = rh===ra?'empate':rh>ra?'home':'away';
-  if(ph===rh && pa===ra) return 5;      // Exact score  if(pr===rr) return 3;                  // Correct result
+  if(ph===rh && pa===ra) return 5;      // Exact score
+  if(pr===rr) return 3;                  // Correct result
   return 0;
 }
 
@@ -5600,10 +5606,6 @@ function renderAdmin() {
         style="background:rgba(37,211,102,0.12);color:#25d366;margin-top:4px;">
         📊 Pizarra → G2 (WhatsApp)
       </button>
-      <button class="admin-btn full" onclick="debugPizarra()"
-  style="background:rgba(255,200,0,0.12);color:#ffc800;margin-top:4px;">
-  🔍 Debug Pizarra
-</button>
       <button class="admin-btn full" onclick="generarPrediccionesPartidoActivo()"
         style="background:rgba(108,71,255,0.12);color:var(--primary2);margin-top:4px;">
         📣 Predicciones partido activo → G2
@@ -7653,7 +7655,8 @@ function _cerrarFlujo() {
 
 function openExpressMundial(matchId) {
   const m = FIXTURE_MUNDIAL.find(x => x.id === matchId);
-  if (!m) return;
+
+     if (!m) return;
   const pending = FIXTURE_MUNDIAL
     .filter(x => x.jornada === _mundialJornada)
     .map(x => ({...x, status:'Not Started', tournamentId:'mundial',
@@ -7673,6 +7676,7 @@ function setDefaultPredsMundial() {
   });
   toast('🔮 Todos en 0-0 · Toca Guardar', 'info');
 }
+
 async function savePredsMundial() {
   if (!me?.uid) return;
   const preds = [];
@@ -8564,30 +8568,6 @@ let _expressTmpH    = 0;
 function _goBackExpress() {
   if (_expressIdx <= 0) return;
   _expressIdx--;
-  // Limpiar la predicción del partido actual (que no llegó a guardarse)
-  const m = _expressMatches[_expressIdx];
-  delete _expressPick[String(m.id)];
-  // Limpiar UI del partido anterior
-  _applyPickToUI(m.id, '–', '–');
-  const hiEl = document.getElementById(`hi_${m.id}`);
-  const aiEl = document.getElementById(`ai_${m.id}`);
-  if (hiEl) { hiEl.textContent='–'; hiEl.classList.remove('set'); }
-  if (aiEl) { aiEl.textContent='–'; aiEl.classList.remove('set'); }
-  // Revertir botón visual
-  const card = hiEl?.closest?.('.match-card');
-  if (card) {
-    const btn = card.querySelector('.btn-express-trigger');
-    if (btn) {
-      btn.innerHTML = '⚡ Predecir este partido';
-      btn.style.background = 'linear-gradient(135deg,var(--primary),var(--primary2))';
-    }
-  }
-  _showExpressMatch();
-}
-
-function _goBackExpress() {
-  if (_expressIdx <= 0) return;
-  _expressIdx--;
   var m = _expressMatches[_expressIdx];
   if (m) {
     delete _expressPick[String(m.id)];
@@ -9327,17 +9307,6 @@ async function convertToPlayer() {
     renderMatches();
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
-   async function debugPizarra() {
-  if (!_wM.length) { try { await doSync(); } catch(e){} }
-  const j1 = FIXTURE_MUNDIAL.filter(m => m.jornada===1);
-  let txt = '';
-  j1.forEach(m => {
-    const lv = _wM.find(x => larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away));
-    txt += m.id + ': ' + m.home + ' vs ' + m.away + ' -> ' +
-      (lv ? (lv.home + ' ' + lv.homeScore + '-' + lv.awayScore + ' ' + lv.away + ' (' + lv.status + ')') : 'SIN RESULTADO') + '\n';
-  });
-  alert(txt);
-}
 
 </script>
 
@@ -9498,7 +9467,8 @@ async function convertToPlayer() {
 </body>
    </html>
   
-  
+
+
   
   
   
