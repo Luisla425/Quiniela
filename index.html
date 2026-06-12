@@ -1815,12 +1815,12 @@ const FIXTURE_MUNDIAL = [
   // Lun 15/6
   { id:'m013', home:'🇧🇪 Bélgica',        away:'🇪🇬 Egipto',             date:'2026-06-15', timeVZ:'3:00 pm',  group:'G', jornada:1, venue:'Lumen Field, Seattle' },
   { id:'m014', home:'🇪🇸 España',         away:'🇨🇻 Cabo Verde',         date:'2026-06-15', timeVZ:'2:00 pm',  group:'H', jornada:1, venue:'Mercedes-Benz Stadium, Atlanta' },
-  { id:'m015', home:'🇸🇦 Arabia Saudita', away:'🇺🇾 Uruguay',            date:'2026-06-15', timeVZ:'8:00 pm',  group:'H', jornada:1, venue:'Hard Rock Stadium, Miami' },  { id:'m016', home:'🇮🇷 Irán',           away:'🇳🇿 Nueva Zelanda',      date:'2026-06-15', timeVZ:'9:00 pm',  group:'G', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m015', home:'🇸🇦 Arabia Saudita', away:'🇺🇾 Uruguay',            date:'2026-06-15', timeVZ:'8:00 pm',  group:'H', jornada:1, venue:'Hard Rock Stadium, Miami' },
+  { id:'m016', home:'🇮🇷 Irán',           away:'🇳🇿 Nueva Zelanda',      date:'2026-06-15', timeVZ:'9:00 pm',  group:'G', jornada:1, venue:'SoFi Stadium, Los Ángeles' },
   // Mar 16/6
   { id:'m017', home:'🇫🇷 Francia',        away:'🇸🇳 Senegal',            date:'2026-06-16', timeVZ:'3:00 pm',  group:'I', jornada:1, venue:'MetLife Stadium, Nueva York' },
   { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
-  { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },
-  { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
+  { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },  { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
   // Mié 17/6
   { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
   { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
@@ -3638,8 +3638,8 @@ function buildMatchCard(m, closed) {
           <span class="team-score ${live?'score-live':'score-final'}">${m.homeScore??'?'}</span>
           <span style="color:var(--muted);font-family:var(--font-h);font-size:1.2em;">—</span>
           <span class="team-score ${live?'score-live':'score-final'}">${m.awayScore??'?'}</span>
-        </div>     
-        </div>`;
+        </div>
+      </div>`;
   } else {
     centerContent = `<span class="vs-divider">VS</span>`;
   }
@@ -3665,8 +3665,7 @@ function buildMatchCard(m, closed) {
       eventsHtml = `<div style="margin-top:8px;padding:0 4px;">`;
       allGoals.forEach(g => {
         const isHome = g.side === 'home';
-        eventsHtml += `
-          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
+        eventsHtml += `          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
             ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
             ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
               <span>⚽</span>
@@ -5168,6 +5167,76 @@ function openGroupWAMenu() {}
 
 function _buildPizarraText(gname) {   if (!_currentRankData?.ranked?.length) return `📊 *Clasificación "${gname}"* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero desde la app._`;   const medals = ['🥇','🥈','🥉'];   const now = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});   const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});   let msg = `📊 *Quiniela LuAn* · ${gname}\n📅 ${date} ${now}\n${'▬'.repeat(18)}\n`;   _currentRankData.ranked.forEach((p,i) => {     const pos = medals[i] || `  ${i+1}.`;     msg += `${pos} ${p.username.padEnd(8)} ${String(p.grpPts).padStart(3)}p${p.grpExact?` ⭐${p.grpExact}`:''}${p.grpCorrect?` 🎯${p.grpCorrect}`:''}\n`;   });   msg += `${'▬'.repeat(18)}\n_Quiniela LuAn · luislárez_`;   return msg; }  function _buildTop3Text(gname) {   if (!_currentRankData?.ranked?.length) return `🎉 *¡Gran jornada en "${gname}"!* — Quiniela LuAn ⚽\n\n_Carga la clasificación primero._`;   const ranked = _currentRankData.ranked;   const [p1,p2,p3] = ranked;   return `🎉 *¡PODIO DE LA JORNADA!* — *${gname}*\n\n🥇 *¡${p1?.username||''}!* — ${p1?.grpPts||0} puntos. ¡Jornada fantástica, fuiste el mejor! 🌟\n\n🥈 *${p2?.username||''}* — ${p2?.grpPts||0} puntos. ¡Muy cerca de la cima! 🔥\n\n🥉 *${p3?.username||''}* — ${p3?.grpPts||0} puntos. ¡En el podio, sigue así! 💪\n\n🏆 ¡Felicitaciones a los tres! La lucha sigue jornada a jornada ⚽\n\n_Quiniela LuAn · luislárez_`; }  function sendGroupWA() {}  let _currentRankData = { name:'', ranked:[] };
 
+
+// ═══ METODO LAREZ™ — fuzzy ES/EN para equipos del Mundial ═══
+const LAREZ_ES_EN = {
+  'alemania':['germany'],'argelia':['algeria'],'arabia saudita':['saudi arabia'],
+  'argentina':['argentina'],'australia':['australia'],'austria':['austria'],
+  'belgica':['belgium'],'bosnia y herzegovina':['bosnia and herzegovina','bosnia-herzegovina','bosnia'],
+  'brasil':['brazil'],'cabo verde':['cape verde'],'canada':['canada'],
+  'costa de marfil':['ivory coast',"cote d'ivoire",'cote divoire'],
+  'corea del sur':['south korea','korea republic','korea'],
+  'colombia':['colombia'],'croacia':['croatia'],'curazao':['curacao'],
+  'ecuador':['ecuador'],'egipto':['egypt'],'escocia':['scotland'],
+  'espana':['spain'],'estados unidos':['usa','united states'],'francia':['france'],
+  'ghana':['ghana'],'haiti':['haiti'],'inglaterra':['england'],
+  'iran':['iran','ir iran'],'iraq':['iraq'],'japon':['japan'],'jordania':['jordan'],
+  'marruecos':['morocco'],'mexico':['mexico'],'nueva zelanda':['new zealand'],
+  'noruega':['norway'],'panama':['panama'],'paraguay':['paraguay'],
+  'paises bajos':['netherlands','holland'],'portugal':['portugal'],'qatar':['qatar'],
+  'r.d. del congo':['dr congo','congo dr','congo'],
+  'rep. checa':['czech republic','czechia'],
+  'senegal':['senegal'],'sudafrica':['south africa'],'suecia':['sweden'],
+  'suiza':['switzerland'],'tunez':['tunisia'],'turquia':['turkey','turkiye'],
+  'uruguay':['uruguay'],'uzbekistan':['uzbekistan']
+};
+const LAREZ_DICT = {};
+for (const _k in LAREZ_ES_EN) { LAREZ_DICT[_k.replace(/\./g,'')] = LAREZ_ES_EN[_k]; }
+
+function _larezNorm(s) {
+  return (s||'')
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+    .replace(/[\u{1F3F4}\u{E0000}-\u{E007F}]/gu, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\./g, '')
+    .trim().toLowerCase();
+}
+
+function _larezLev(a, b) {
+  const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},() => new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++)dp[i][0]=i;
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++)
+    dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+// Compara nombre de equipo en español (fixture) contra el nombre que devuelve
+// la API (TheSportsDB, en ingles). Usa diccionario Larez + fuzzy Levenshtein.
+function larezTeamMatch(esName, enCandidate) {
+  const es = _larezNorm(esName);
+  const en = _larezNorm(enCandidate);
+  if (es===en || (es.length>3 && en.includes(es)) || (en.length>3 && es.includes(en))) return true;
+
+  let aliases = LAREZ_DICT[es];
+  if (!aliases) {
+    for (const k in LAREZ_DICT) {
+      if (k.startsWith(es) || es.startsWith(k)) { aliases = LAREZ_DICT[k]; break; }
+    }
+  }
+  if (aliases) {
+    for (const al of aliases) {
+      if (al===en || en.includes(al) || al.includes(en)) return true;
+      const maxLen = Math.max(al.length, en.length);
+      if (maxLen>0 && _larezLev(al,en)/maxLen <= 0.25) return true;
+    }
+  }
+  const maxLen2 = Math.max(es.length, en.length);
+  if (maxLen2>0 && _larezLev(es,en)/maxLen2 <= 0.2) return true;
+  return false;
+}
+
 async function openGroupRanking(gid) {
   const existing = document.getElementById('_pizarraScreen');
   if (existing) existing.remove();
@@ -5227,22 +5296,13 @@ async function openGroupRanking(gid) {
     try { await doSync(); } catch(e) {}
   }
 
-  // Normalizar nombres de equipo: quita banderas/acentos, pasa a minusculas
-  const _norm = s => (s||'')
-    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .trim().toLowerCase();
-
-  // Mapa resultados reales: cruzar _wM (API) con FIXTURE_MUNDIAL (IDs del fixture)
+  // Mapa resultados reales: cruzar FIXTURE_MUNDIAL (ES) con _wM (EN, TheSportsDB)
+  // usando el Metodo Larez (diccionario ES->EN + fuzzy Levenshtein)
   const resMap = {};
   FIXTURE_MUNDIAL.forEach(m => {
-    const mHome = _norm(m.home.split(' ').slice(1).join(' '));
-    const mAway = _norm(m.away.split(' ').slice(1).join(' '));
-    const lv = _wM.find(x => {
-      const xh = _norm(x.home), xa = _norm(x.away);
-      return (xh===mHome || xh.includes(mHome) || mHome.includes(xh))
-          && (xa===mAway || xa.includes(mAway) || mAway.includes(xa));
-    });
+    const lv = _wM.find(x =>
+      larezTeamMatch(m.home, x.home) && larezTeamMatch(m.away, x.away)
+    );
     if (lv && lv.homeScore != null && lv.awayScore != null) {
       resMap[String(m.id)] = { h:+lv.homeScore, a:+lv.awayScore, live:isLive(lv.status) };
     }
@@ -5419,7 +5479,7 @@ async function autoEval() {
     const ra = +match.awayScore;
     const isFinal = effectivelyFinished(match);
 
-    try {
+    try {     
       // Get ALL predictions for this match (both string and number matchId)
       const snaps = await Promise.all([
         db.collection('predictions').where('matchId','==',String(match.id)).get(),
@@ -5450,7 +5510,7 @@ async function autoEval() {
         };
 
         if(isFinal && !p.evaluated) {
-                    // Final — lock it
+          // Final — lock it
           upd.evaluated = true;
           upd.pointsAwarded = pts;
           upd.realHome = rh;
@@ -7573,7 +7633,6 @@ async function savePredsMundial() {
     preds.push({ matchId: m.id, h, a, match: m });
   });
   if (!preds.length) { toast('Sin predicciones', 'error'); return; }
-
   const grpSnap = await db.collection('groups').get();
   const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()}))
     .filter(g => g.members?.some(m => m.userId === me.uid));
@@ -7585,7 +7644,7 @@ async function savePredsMundial() {
   if (!confirm('¿Confirmar predicciones del Mundial para "' + group.name + '"?')) return;
 
   // Usar slotId si es flujo multi-quiniela, si no usar me.uid
-    const effectiveUid = _flujoPredSlot ? _flujoPredSlot.slotId : me.uid;
+  const effectiveUid = _flujoPredSlot ? _flujoPredSlot.slotId : me.uid;
   const apodoLabel   = _flujoPredSlot ? _flujoPredSlot.apodo  : me.username;
 
   try {
@@ -9376,4 +9435,5 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
