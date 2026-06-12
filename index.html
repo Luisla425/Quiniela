@@ -1822,7 +1822,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m018', home:'🇮🇶 Iraq',           away:'🇳🇴 Noruega',            date:'2026-06-16', timeVZ:'6:00 pm',  group:'I', jornada:1, venue:'Gillette Stadium, Boston' },
   { id:'m019', home:'🇦🇷 Argentina',      away:'🇩🇿 Argelia',            date:'2026-06-16', timeVZ:'9:00 pm',  group:'J', jornada:1, venue:'Arrowhead Stadium, Kansas City' },
   { id:'m020', home:'🇦🇹 Austria',        away:'🇯🇴 Jordania',           date:'2026-06-16', timeVZ:'12:00 am', group:'J', jornada:1, venue:"Levi's Stadium, San Francisco" },
-  // Mié 17/6  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
+  // Mié 17/6
+  { id:'m021', home:'🇬🇭 Ghana',          away:'🇵🇦 Panamá',             date:'2026-06-17', timeVZ:'2:00 pm',  group:'L', jornada:1, venue:'BMO Field, Toronto' },
   { id:'m022', home:'🇵🇹 Portugal',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-17', timeVZ:'2:00 pm',  group:'K', jornada:1, venue:'NRG Stadium, Houston' },
   { id:'m023', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',    away:'🇭🇷 Croacia',            date:'2026-06-17', timeVZ:'5:00 pm',  group:'L', jornada:1, venue:'AT&T Stadium, Dallas' },
   { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
@@ -1832,8 +1833,7 @@ const FIXTURE_MUNDIAL = [
   { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m027', home:'🇨🇦 Canadá',         away:'🇶🇦 Qatar',              date:'2026-06-18', timeVZ:'6:00 pm',  group:'B', jornada:2, venue:'BC Place, Vancouver' },
   { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
-  // Jue 19/6
-  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
+  // Jue 19/6  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
   { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
   { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
   { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
@@ -3676,7 +3676,7 @@ function buildMatchCard(m, closed) {
               <span style="color:var(--gold);min-width:28px;font-weight:800;text-align:right;">${g.min}</span>`}
           </div>`;
       });
-             eventsHtml += `</div>`;
+      eventsHtml += `</div>`;
     }
   }
 
@@ -3706,7 +3706,7 @@ function buildMatchCard(m, closed) {
         onclick="openExpress('${m.id}')">
         ⚡ ${t('predictMatch').replace('⚡ ','')}
       </button>
-    </div>` : '';
+          </div>` : '';
 
   // ── Tarjetas/penaltis en vivo desde cache ──────────────
   let liveEventsHtml = '';
@@ -5491,7 +5491,7 @@ async function openGroupRanking(gid) {
       html || '<div class="empty"><span class="empty-text">Sin datos aún</span></div>';
 
   } catch(e) {
-         document.getElementById('_pizarraContent').innerHTML =
+    document.getElementById('_pizarraContent').innerHTML =
       `<div class="empty"><span class="empty-text">Error: ${e.message}</span></div>`;
   }
 }
@@ -5594,7 +5594,7 @@ function renderAdmin() {
       <button class="admin-btn full" onclick="adminDashboard()"
         style="background:rgba(0,229,160,0.12);color:var(--green);border:2px solid rgba(0,229,160,0.35);
         font-size:0.88em;padding:18px;">
-        📊 DASHBOARD EN VIVO<br>
+        📊 DASHBOARD EN VIVO<br>        
         <span style="font-size:0.72em;font-weight:500;opacity:0.8;">Quién predicó · Emergencia · Estado</span>
       </button>
       <button class="admin-btn" onclick="adminUsers()">👥<br>${t('seeUsers')}</button>
@@ -5605,6 +5605,14 @@ function renderAdmin() {
       <button class="admin-btn full" onclick="generarPizarraWA()"
         style="background:rgba(37,211,102,0.12);color:#25d366;margin-top:4px;">
         📊 Pizarra → G2 (WhatsApp)
+      </button>
+      <button class="admin-btn full" onclick="debugPizarra()"
+        style="background:rgba(255,200,0,0.12);color:#ffc800;margin-top:4px;">
+        🔍 Debug Pizarra
+      </button>
+      <button class="admin-btn full" onclick="adminEditPredicciones()"
+        style="background:rgba(255,100,100,0.12);color:#ff6464;margin-top:4px;">
+        ✏️ Editar Predicciones (Admin)
       </button>
       <button class="admin-btn full" onclick="generarPrediccionesPartidoActivo()"
         style="background:rgba(108,71,255,0.12);color:var(--primary2);margin-top:4px;">
@@ -7655,8 +7663,7 @@ function _cerrarFlujo() {
 
 function openExpressMundial(matchId) {
   const m = FIXTURE_MUNDIAL.find(x => x.id === matchId);
-
-     if (!m) return;
+  if (!m) return;
   const pending = FIXTURE_MUNDIAL
     .filter(x => x.jornada === _mundialJornada)
     .map(x => ({...x, status:'Not Started', tournamentId:'mundial',
@@ -7780,9 +7787,7 @@ async function openMyStats() {
     });
     const bestTeam = Object.entries(byTeam)
       .filter(([,v]) => v.total >= 2)
-      .sort((a,b) => b[1].exact - a[1].exact)[0];
-
-    // Streak — consecutive correct predictions
+      .sort((a,b) => b[1].exact - a[1].exact)[0];    // Streak — consecutive correct predictions
     const sorted = preds.sort((a,b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
     let streak = 0, maxStreak = 0, cur = 0;
     sorted.forEach(p => {
@@ -9308,6 +9313,122 @@ async function convertToPlayer() {
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
 
+
+async function debugPizarra() {
+  if (!_wM.length) { try { await doSync(); } catch(e){} }
+  const j1 = FIXTURE_MUNDIAL.filter(m => m.jornada===1);
+  let txt = '';
+  j1.forEach(m => {
+    const lv = _wM.find(x => larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away));
+    txt += m.id + ': ' + m.home + ' vs ' + m.away + ' -> ' +
+      (lv ? (lv.home + ' ' + lv.homeScore + '-' + lv.awayScore + ' ' + lv.away + ' (' + lv.status + ')') : 'SIN RESULTADO') + '\n';
+  });
+  alert(txt);
+}
+
+// ═══ ADMIN: editar/corregir predicciones de un jugador ═══
+async function adminEditPredicciones() {
+  toast('Cargando quinielas...', 'info', 2000);
+  try {
+    var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
+    var seen = new Set(); var docs = [];
+    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
+      if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
+    });
+    var map = {};
+    docs.forEach(function(d){
+      var p = d.data();
+      var ap = p.username || 'Jugador';
+      if (!map[ap]) map[ap] = { userId: p.userId, groupId: p.groupId || 'mundial2026', preds: {} };
+      map[ap].preds[String(p.matchId)] = { h: p.predictedHomeScore, a: p.predictedAwayScore };
+    });
+    window._adminEditMap = map;
+    var apodos = Object.keys(map).sort();
+    _mostrarModalEditAdmin(apodos);
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function _mostrarModalEditAdmin(apodos) {
+  var old = document.getElementById('_editAdminModal');
+  if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = '_editAdminModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '6000';
+  var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+    + '<div class="modal-handle"></div>'
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:4px;">Editar Predicciones</div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;">Toca un apodo para corregir sus 24 predicciones de J1</div>'
+    + '<div>';
+  apodos.forEach(function(ap){
+    html += '<button onclick="_abrirEdicionApodo(\'' + ap + '\')" '
+      + 'style="display:block;width:100%;text-align:left;padding:11px 10px;margin-bottom:6px;'
+      + 'border-radius:8px;border:1px solid var(--border);background:var(--surface);'
+      + 'color:var(--text);font-family:var(--font-b);font-weight:700;font-size:0.85em;cursor:pointer;">'
+      + ap + '</button>';
+  });
+  html += '</div>'
+    + '<button class="btn btn-ghost" style="margin-top:10px;" onclick="document.getElementById(\'_editAdminModal\').remove()">Cerrar</button>'
+    + '</div>';
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+}
+
+function _abrirEdicionApodo(ap) {
+  var data = window._adminEditMap[ap];
+  if (!data) return;
+  var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
+  var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+    + '<div class="modal-handle"></div>'
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J1</div>';
+  j1.forEach(function(m, ix){
+    var pr = data.preds[String(m.id)] || {h:0,a:0};
+    var hv = (pr.h!=null) ? pr.h : 0;
+    var av = (pr.a!=null) ? pr.a : 0;
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8em;">'
+      + '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (ix+1) + '. ' + m.home + ' vs ' + m.away + '</div>'
+      + '<input type="number" min="0" max="20" id="_eh_' + m.id + '" value="' + hv + '" style="width:42px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px;">'
+      + '<span>-</span>'
+      + '<input type="number" min="0" max="20" id="_ea_' + m.id + '" value="' + av + '" style="width:42px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px;">'
+      + '</div>';
+  });
+  html += '<div style="display:flex;gap:8px;margin-top:14px;">'
+    + '<button class="btn btn-ghost" style="flex:1;" onclick="_mostrarModalEditAdmin(Object.keys(window._adminEditMap).sort())">Volver</button>'
+    + '<button onclick="_guardarEdicionAdmin(\'' + ap + '\')" style="flex:1;padding:11px;border-radius:8px;border:none;background:var(--green);color:#000;font-family:var(--font-b);font-weight:800;cursor:pointer;">Guardar</button>'
+    + '</div></div>';
+  var modal = document.getElementById('_editAdminModal');
+  modal.innerHTML = html;
+}
+
+async function _guardarEdicionAdmin(ap) {
+  var data = window._adminEditMap[ap];
+  if (!data) return;
+  toast('Guardando...', 'info', 2000);
+  try {
+    var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
+    var batch = db.batch();
+    j1.forEach(function(m){
+      var hEl = document.getElementById('_eh_' + m.id);
+      var aEl = document.getElementById('_ea_' + m.id);
+      var h = parseInt(hEl.value, 10); if (isNaN(h)) h = 0;
+      var a = parseInt(aEl.value, 10); if (isNaN(a)) a = 0;
+      var docId = data.userId + '_' + data.groupId + '_' + m.id;
+      batch.set(db.collection('predictions').doc(docId), {
+        userId: data.userId, username: ap, groupId: data.groupId,
+        matchId: m.id, predictedHomeScore: h, predictedAwayScore: a,
+        home: m.home, away: m.away,
+        tournamentId: 'mundial', jornadaDate: '2026-mundial-j1',
+        evaluated: false
+      }, { merge: true });
+    });
+    await batch.commit();
+    toast('Predicciones de ' + ap + ' actualizadas', 'success', 3000);
+    var modal = document.getElementById('_editAdminModal');
+    if (modal) modal.remove();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
 </script>
 
 <!-- ═══════════ MANUAL LUAN ═══════════ -->
@@ -9466,6 +9587,8 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
+
   
 
 
