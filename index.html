@@ -3665,7 +3665,8 @@ function buildMatchCard(m, closed) {
       eventsHtml = `<div style="margin-top:8px;padding:0 4px;">`;
       allGoals.forEach(g => {
         const isHome = g.side === 'home';
-        eventsHtml += `          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
+        eventsHtml += `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.75em;
             ${isHome?'justify-content:flex-start':'justify-content:flex-end'}">
             ${isHome ? `<span style="color:var(--gold);min-width:28px;font-weight:800;">${g.min}</span>
               <span>⚽</span>
@@ -5287,7 +5288,26 @@ async function openGroupRanking(gid) {
   document.getElementById('_pizarraTitle').textContent = `🏆 ${g.name}`;
   document.getElementById('_pizarraCode').textContent = `🔐 ${g.code}`;
 
-  const memberIds = g.members.map(m => m.userId);
+  // Base: miembros oficiales del grupo
+  let memberIds = g.members.map(m => m.userId);
+  let extraMembers = []; // jugadores con predicciones del Mundial fuera de este grupo
+
+  // Fusion: traer TODOS los que tengan predicciones del Mundial y no esten en este grupo
+  try {
+    const allMundialPreds = await db.collection('predictions')
+      .where('tournamentId','==','mundial').get();
+    const seenIds = new Set(memberIds);
+    allMundialPreds.docs.forEach(d => {
+      const p = d.data();
+      const uid = p.userId;
+      if (uid && !seenIds.has(uid)) {
+        seenIds.add(uid);
+        memberIds.push(uid);
+        extraMembers.push({ userId: uid, username: p.username || uid.slice(0,8) });
+      }
+    });
+  } catch(e) {}
+
   const ptMap = {};
   memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0}; });
 
@@ -5308,14 +5328,13 @@ async function openGroupRanking(gid) {
     }
   });
 
+  let predsSnap2;
   try {
+    // Predicciones del grupo + de los extraMembers (todas las del Mundial)
     const pSnap = await db.collection('predictions')
-      .where('groupId','==',gid)
       .where('tournamentId','==','mundial').get();
-    const predsSnap2 = pSnap.empty
-      ? await db.collection('predictions').where('groupId','==',gid).get()
-      : pSnap;
-    predsSnap2.docs.forEach(d => {
+    predsSnap2 = pSnap;
+    pSnap.docs.forEach(d => {
       const p = d.data();
       if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0};
       let pts = 0;
@@ -5350,7 +5369,8 @@ async function openGroupRanking(gid) {
     }
 
     // Base directa desde g.members (ya tiene userId + username) — no depende de 'users'
-    const allU = g.members.map(m => ({ id: m.userId, username: m.username, isSpectator: m.isSpectator || false }));
+    const allU = g.members.map(m => ({ id: m.userId, username: m.username, isSpectator: m.isSpectator || false }))
+      .concat(extraMembers.map(m => ({ id: m.userId, username: m.username, isSpectator: false })));
 
     // Reforzar con datos reales de 'users' si existen (isSpectator actualizado, etc.)
     for (let i = 0; i < memberIds.length; i += 10) {
@@ -5468,8 +5488,7 @@ function calcPoints(ph, pa, rh, ra) {
 // Main eval — runs after every sync, handles live AND finished matches
 async function autoEval() {
   // Include ALL matches that have started (live or finished)
-  const active = _aM.filter(m =>
-    (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
+  const active = _aM.filter(m =>    (isLive(m.status) || isFinished(m.status)) && m.homeScore != null
   );
   if(!active.length) return;
 
@@ -5479,7 +5498,7 @@ async function autoEval() {
     const ra = +match.awayScore;
     const isFinal = effectivelyFinished(match);
 
-    try {     
+    try {
       // Get ALL predictions for this match (both string and number matchId)
       const snaps = await Promise.all([
         db.collection('predictions').where('matchId','==',String(match.id)).get(),
@@ -7629,10 +7648,10 @@ async function savePredsMundial() {
   FIXTURE_MUNDIAL.filter(m => m.jornada === _mundialJornada).forEach(m => {
     const pick = _expressPick[String(m.id)];
     const h = pick ? pick.h : 0;
-    const a = pick ? pick.a : 0;
-    preds.push({ matchId: m.id, h, a, match: m });
+    const a = pick ? pick.a : 0;    preds.push({ matchId: m.id, h, a, match: m });
   });
   if (!preds.length) { toast('Sin predicciones', 'error'); return; }
+
   const grpSnap = await db.collection('groups').get();
   const myGroups = grpSnap.docs.map(d=>({id:d.id,...d.data()}))
     .filter(g => g.members?.some(m => m.userId === me.uid));
@@ -9435,5 +9454,6 @@ async function convertToPlayer() {
 
 </body>
    </html>
+  
   
   
