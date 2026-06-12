@@ -5600,6 +5600,10 @@ function renderAdmin() {
         style="background:rgba(37,211,102,0.12);color:#25d366;margin-top:4px;">
         📊 Pizarra → G2 (WhatsApp)
       </button>
+      <button class="admin-btn full" onclick="debugPizarra()"
+  style="background:rgba(255,200,0,0.12);color:#ffc800;margin-top:4px;">
+  🔍 Debug Pizarra
+</button>
       <button class="admin-btn full" onclick="generarPrediccionesPartidoActivo()"
         style="background:rgba(108,71,255,0.12);color:var(--primary2);margin-top:4px;">
         📣 Predicciones partido activo → G2
@@ -9322,6 +9326,17 @@ async function convertToPlayer() {
     toast('🎉 ¡Bienvenido a la familia Quiniela LuAn!','success',4000);
     renderMatches();
   } catch(e) { toast('Error: '+e.message,'error'); }
+}
+   async function debugPizarra() {
+  if (!_wM.length) { try { await doSync(); } catch(e){} }
+  const j1 = FIXTURE_MUNDIAL.filter(m => m.jornada===1);
+  let txt = '';
+  j1.forEach(m => {
+    const lv = _wM.find(x => larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away));
+    txt += m.id + ': ' + m.home + ' vs ' + m.away + ' -> ' +
+      (lv ? (lv.home + ' ' + lv.homeScore + '-' + lv.awayScore + ' ' + lv.away + ' (' + lv.status + ')') : 'SIN RESULTADO') + '\n';
+  });
+  alert(txt);
 }
 
 </script>
