@@ -1829,14 +1829,15 @@ const FIXTURE_MUNDIAL = [
   { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
   // ══ JORNADA 2 — 18 al 23 junio ══
   // Mié 18/6
-  { id:'m025', home:'🇨🇿 Rep. Checa',     away:'🇿🇦 Sudáfrica',          date:'2026-06-18', timeVZ:'2:00 pm',  group:'A', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },  { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m025', home:'🇨🇿 Rep. Checa',     away:'🇿🇦 Sudáfrica',          date:'2026-06-18', timeVZ:'2:00 pm',  group:'A', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
+  { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m027', home:'🇨🇦 Canadá',         away:'🇶🇦 Qatar',              date:'2026-06-18', timeVZ:'6:00 pm',  group:'B', jornada:2, venue:'BC Place, Vancouver' },
   { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
   // Jue 19/6
   { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
   { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
   { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
-  { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
+    { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
   // Vie 20/6
   { id:'m033', home:'🇳🇱 Países Bajos',   away:'🇸🇪 Suecia',             date:'2026-06-20', timeVZ:'2:00 pm',  group:'F', jornada:2, venue:'NRG Stadium, Houston' },
   { id:'m034', home:'🇩🇪 Alemania',       away:'🇨🇮 Costa de Marfil',    date:'2026-06-20', timeVZ:'5:00 pm',  group:'E', jornada:2, venue:'BMO Field, Toronto' },
@@ -3691,8 +3692,8 @@ function buildMatchCard(m, closed) {
       <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
       <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
       ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
-    </div>` : '';  
-    const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
+    </div>` : '';
+  const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
     <div style="margin-top:10px;">
@@ -3723,7 +3724,7 @@ function buildMatchCard(m, closed) {
       const isYellow    = !isYellowRed && type.includes('yellow');
       const isRed       = !isYellowRed && !isYellow && type.includes('red');
       const isPenalty   = type.includes('penalty')||type.includes('penal');
-      const isVar       = type.includes('var');
+            const isVar       = type.includes('var');
       let icon='', color='', label='';
       if (isYellowRed)    { icon='🟨🟥'; color='var(--red)'; }
       else if (isYellow)  { icon='🟨';   color='var(--gold)'; }
@@ -5558,7 +5559,8 @@ async function autoEval() {
 
         const upd = {
           livePoints: pts,
-          liveHome: rh,          liveAway: ra,
+          liveHome: rh,
+          liveAway: ra,
           liveStatus: match.status,
         };
 
@@ -5616,6 +5618,10 @@ function renderAdmin() {
       <button class="admin-btn full" onclick="debugPizarra()"
         style="background:rgba(255,200,0,0.12);color:#ffc800;margin-top:4px;">
         🔍 Debug Pizarra
+      </button>
+      <button class="admin-btn full" onclick="predPartidoAdmin()"
+              style="background:rgba(0,180,255,0.12);color:#00b4ff;margin-top:4px;">
+        📋 Predicciones de un partido
       </button>
       <button class="admin-btn full" onclick="adminEditPredicciones()"
         style="background:rgba(255,100,100,0.12);color:#ff6464;margin-top:4px;">
@@ -7729,7 +7735,7 @@ async function openMyStats() {
     // Current streak (from most recent)
     for (const p of sorted) {
       if (p.pointsAwarded > 0) streak++;
-            else break;
+      else break;
     }
 
     // Default predictions count
@@ -9361,6 +9367,105 @@ async function _guardarEdicionAdmin(ap) {
     if (modal) modal.remove();
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
+
+// ═══ Predicciones de un partido especifico ═══
+async function predPartidoAdmin() {
+  var num = prompt('¿Cuál partido? (1 al 24 de J1)');
+  if (!num) return;
+  var n = parseInt(num.trim(), 10);
+  if (isNaN(n) || n < 1 || n > 24) { toast('Número entre 1 y 24', 'error'); return; }
+
+  var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
+  var match = j1[n-1];
+  if (!match) { toast('Partido no encontrado', 'error'); return; }
+
+  toast('Cargando predicciones del partido ' + n + '...', 'info', 3000);
+  try {
+    var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
+    var seen = new Set(); var docs = [];
+    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
+      if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
+    });
+
+    var predsDePartido = [];
+    docs.forEach(function(d){
+      var p = d.data();
+      if (String(p.matchId) !== String(match.id)) return;
+      var ap = p.username || 'Jugador';
+      var ph = p.predictedHomeScore != null ? p.predictedHomeScore : '?';
+      var pa = p.predictedAwayScore != null ? p.predictedAwayScore : '?';
+      predsDePartido.push({ ap: ap, ph: ph, pa: pa });
+    });
+
+    predsDePartido.sort(function(a,b){ return a.ap.localeCompare(b.ap); });
+
+    if (!predsDePartido.length) {
+      toast('Sin predicciones encontradas para este partido', 'warning');
+      return;
+    }
+
+    var NL = '\n';
+    var SEP = '========================';
+    var homeShort = match.home.split(' ').slice(1).join(' ');
+    var awayShort = match.away.split(' ').slice(1).join(' ');
+
+    var texto = 'Partido ' + n + ': ' + match.home + ' vs ' + match.away + NL
+      + match.date + ' ' + (match.timeVZ || '') + NL
+      + SEP + NL;
+
+    predsDePartido.forEach(function(p){
+      var ph = p.ph, pa = p.pa;
+      var res = ph > pa ? homeShort + ' gana'
+              : pa > ph ? awayShort + ' gana'
+              : 'Empate';
+      texto += p.ap + ': ' + ph + '-' + pa + ' (' + res + ')' + NL;
+    });
+
+    texto += SEP + NL + predsDePartido.length + ' predicciones - QuinielaLuAn';
+
+    // Mostrar modal
+    var old = document.getElementById('_predPartidoModal');
+    if (old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = '_predPartidoModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '6000';
+
+    var rows = predsDePartido.map(function(p){
+      var ph=p.ph, pa=p.pa;
+      var col = ph > pa ? 'var(--green)' : pa > ph ? '#ff6464' : 'var(--gold)';
+      var res = ph > pa ? homeShort+' gana' : pa > ph ? awayShort+' gana' : 'Empate';
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.85em;">'
+        + '<div style="font-weight:800;">' + p.ap + '</div>'
+        + '<div style="color:' + col + ';font-family:var(--font-h);">' + ph + ' - ' + pa + '</div>'
+        + '<div style="color:var(--muted2);font-size:0.75em;">' + res + '</div>'
+        + '</div>';
+    }).join('');
+
+    modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+      + '<div class="modal-handle"></div>'
+      + '<div style="font-family:var(--font-h);font-size:1em;font-weight:800;color:#00b4ff;margin-bottom:2px;">Partido ' + n + '</div>'
+      + '<div style="font-size:0.82em;font-weight:800;margin-bottom:12px;">' + match.home + ' vs ' + match.away + '</div>'
+      + rows
+      + '<div style="margin-top:4px;font-size:0.75em;color:var(--muted2);text-align:right;">' + predsDePartido.length + ' predicciones</div>'
+      + '<div style="display:flex;gap:8px;margin-top:14px;">'
+      + '<button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById(\"_predPartidoModal\").remove()">Cerrar</button>'
+      + '<button onclick="_enviarPredPartido()" style="flex:1;padding:11px;border-radius:8px;border:none;background:#25D366;color:#fff;font-family:var(--font-b);font-weight:800;cursor:pointer;">📲 Enviar WA</button>'
+      + '</div></div>';
+
+    window._predPartidoTexto = texto;
+    document.body.appendChild(modal);
+
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function _enviarPredPartido() {
+  var txt = window._predPartidoTexto;
+  if (!txt) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+}
 </script>
 
 <!-- ═══════════ MANUAL LUAN ═══════════ -->
@@ -9520,8 +9625,6 @@ async function _guardarEdicionAdmin(ap) {
 </body>
    </html>
   
-  
-
   
 
 
