@@ -1829,8 +1829,7 @@ const FIXTURE_MUNDIAL = [
   { id:'m024', home:'🇺🇿 Uzbekistán',     away:'🇨🇴 Colombia',           date:'2026-06-17', timeVZ:'11:00 pm', group:'K', jornada:1, venue:'Estadio Azteca, CDMX' },
   // ══ JORNADA 2 — 18 al 23 junio ══
   // Mié 18/6
-  { id:'m025', home:'🇨🇿 Rep. Checa',     away:'🇿🇦 Sudáfrica',          date:'2026-06-18', timeVZ:'2:00 pm',  group:'A', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
-     { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m025', home:'🇨🇿 Rep. Checa',     away:'🇿🇦 Sudáfrica',          date:'2026-06-18', timeVZ:'2:00 pm',  group:'A', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },  { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m027', home:'🇨🇦 Canadá',         away:'🇶🇦 Qatar',              date:'2026-06-18', timeVZ:'6:00 pm',  group:'B', jornada:2, venue:'BC Place, Vancouver' },
   { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
   // Jue 19/6
@@ -3692,8 +3691,8 @@ function buildMatchCard(m, closed) {
       <button onclick="openStats('${m.id}')" style="flex:1;padding:11px 6px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;${statsBtnStyle}-webkit-tap-highlight-color:transparent;">${statsBtnLabel}</button>
       <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
       ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
-    </div>` : '';
-     const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
+    </div>` : '';  
+    const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
     <div style="margin-top:10px;">
@@ -4985,7 +4984,7 @@ async function renderGroups() {
     let found=0;
     snap.docs.forEach(doc=>{
       const g=doc.data();
-      if(!me.isAdmin&&!g.members?.some(m=>m.userId===me.uid)) return;
+      // Mundial: todos los jugadores ven todos los grupos (una sola comunidad)
       found++;
       const isMine=g.members?.some(m=>m.userId===me.uid);
       grpHtml+=`<div class="group-card">
@@ -7730,7 +7729,7 @@ async function openMyStats() {
     // Current streak (from most recent)
     for (const p of sorted) {
       if (p.pointsAwarded > 0) streak++;
-             else break;
+            else break;
     }
 
     // Default predictions count
@@ -9520,6 +9519,7 @@ async function _guardarEdicionAdmin(ap) {
 
 </body>
    </html>
+  
   
 
   
