@@ -1830,10 +1830,11 @@ const FIXTURE_MUNDIAL = [
   // ══ JORNADA 2 — 18 al 23 junio ══
   // Mié 18/6
   { id:'m025', home:'🇨🇿 Rep. Checa',     away:'🇿🇦 Sudáfrica',          date:'2026-06-18', timeVZ:'2:00 pm',  group:'A', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
-  { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
+     { id:'m026', home:'🇨🇭 Suiza',          away:'🇧🇦 Bosnia y Herz.',     date:'2026-06-18', timeVZ:'3:00 pm',  group:'B', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m027', home:'🇨🇦 Canadá',         away:'🇶🇦 Qatar',              date:'2026-06-18', timeVZ:'6:00 pm',  group:'B', jornada:2, venue:'BC Place, Vancouver' },
   { id:'m028', home:'🇲🇽 México',         away:'🇰🇷 Corea del Sur',      date:'2026-06-18', timeVZ:'9:00 pm',  group:'A', jornada:2, venue:'Estadio Akron, Guadalajara' },
-  // Jue 19/6  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
+  // Jue 19/6
+  { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
   { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
   { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
   { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
@@ -3692,7 +3693,7 @@ function buildMatchCard(m, closed) {
       <button onclick="openLineup('${m.id}','${m.home}','${m.away}')" style="padding:11px 14px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:var(--surface2);color:var(--muted2);border:1px solid var(--border2);-webkit-tap-highlight-color:transparent;" title="Alineaciones">📋</button>
       ${live && me?.isAdmin ? `<button onclick="_askAdminCronAdjust('${m.id}','${m.home}','${m.away}')" style="padding:11px 10px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.85em;font-weight:800;background:rgba(255,197,66,0.1);color:var(--gold);border:1px solid var(--gold);-webkit-tap-highlight-color:transparent;" title="Ajustar cronómetro">⏱</button>` : ''}
     </div>` : '';
-  const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
+     const betStatsBtn = closed ? `<button onclick="openBetStats('${m.id}','${m.home}','${m.away}')" style="width:100%;padding:10px;margin-top:4px;border-radius:12px;cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;background:rgba(108,71,255,0.12);color:var(--primary2);border:1px solid rgba(108,71,255,0.3);">🎯 ${currentLang==='de'?'Tipps der Gruppe':currentLang==='en'?'Group bets':'Apuestas del grupo'}</button>` : '';
 
   const predRow = (!showScore && !closed) ? `
     <div style="margin-top:10px;">
@@ -3706,7 +3707,7 @@ function buildMatchCard(m, closed) {
         onclick="openExpress('${m.id}')">
         ⚡ ${t('predictMatch').replace('⚡ ','')}
       </button>
-          </div>` : '';
+    </div>` : '';
 
   // ── Tarjetas/penaltis en vivo desde cache ──────────────
   let liveEventsHtml = '';
@@ -5318,7 +5319,7 @@ async function openGroupRanking(gid) {
   } catch(e) {}
 
   const ptMap = {};
-  memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0,predCount:0}; });
+  memberIds.forEach(id => { ptMap[id] = {pts:0,exact:0,correct:0,live:0,predCount:0,nonZero:false}; });
 
   // Si no hay datos de partidos cargados, sincronizar ahora
   if (!_wM.length) {
@@ -5354,13 +5355,18 @@ async function openGroupRanking(gid) {
     predsSnap2 = { docs: pDocs };
     pDocs.forEach(d => {
       const p = d.data();
-      if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
+      if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0,nonZero:false};
       let pts = 0;
       const res = resMap[String(p.matchId)];
-      if (res != null) {
+      const phs = +p.predictedHomeScore || 0;
+      const pas = +p.predictedAwayScore || 0;
+      const sinPredecir = (phs === 0 && pas === 0); // 0-0 = "no predijo" (valor por defecto)
+      if (res != null && !sinPredecir) {
         // Calcular en tiempo real con resultado real
-        pts = calcPoints(+p.predictedHomeScore, +p.predictedAwayScore, res.h, res.a);
+        pts = calcPoints(phs, pas, res.h, res.a);
         if (res.live) ptMap[p.userId].live++;
+      } else if (res != null && sinPredecir) {
+        pts = 0; // sin predecir = 0pts, no cuenta como correcto ni exacto
       } else if (p.evaluated) {
         pts = p.pointsAwarded || 0;
       } else if (p.livePoints != null) {
@@ -5369,6 +5375,9 @@ async function openGroupRanking(gid) {
       }
       ptMap[p.userId].pts += pts;
       ptMap[p.userId].predCount++;
+      if ((+p.predictedHomeScore || 0) !== 0 || (+p.predictedAwayScore || 0) !== 0) {
+        ptMap[p.userId].nonZero = true;
+      }
       if (pts===5) ptMap[p.userId].exact++;
       else if (pts===3) ptMap[p.userId].correct++;
     });
@@ -5383,7 +5392,7 @@ async function openGroupRanking(gid) {
         oldPreds.docs.forEach(d => {
           const p = d.data();
           if (p.groupId) return;
-          if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0};
+          if (!ptMap[p.userId]) ptMap[p.userId] = {pts:0,exact:0,correct:0,live:0,predCount:0,nonZero:false};
           const pts = p.evaluated ? (p.pointsAwarded||0) : (p.livePoints!=null ? p.livePoints : 0);
           ptMap[p.userId].pts += pts;
           ptMap[p.userId].predCount++;
@@ -5550,8 +5559,7 @@ async function autoEval() {
 
         const upd = {
           livePoints: pts,
-          liveHome: rh,
-          liveAway: ra,
+          liveHome: rh,          liveAway: ra,
           liveStatus: match.status,
         };
 
@@ -5594,7 +5602,7 @@ function renderAdmin() {
       <button class="admin-btn full" onclick="adminDashboard()"
         style="background:rgba(0,229,160,0.12);color:var(--green);border:2px solid rgba(0,229,160,0.35);
         font-size:0.88em;padding:18px;">
-        📊 DASHBOARD EN VIVO<br>        
+        📊 DASHBOARD EN VIVO<br>
         <span style="font-size:0.72em;font-weight:500;opacity:0.8;">Quién predicó · Emergencia · Estado</span>
       </button>
       <button class="admin-btn" onclick="adminUsers()">👥<br>${t('seeUsers')}</button>
@@ -6461,151 +6469,74 @@ async function loadSimGroups() {
 }
 
 async function loadSimulation() {
-  const gid = $('simGroupSel')?.value;
-  const matchFilter = $('simMatchSel')?.value;
-  if (!gid) { toast('Selecciona un grupo','error'); return; }
-
-  toast('⏳ Cargando simulación...','info');
+  toast('Cargando simulacion...', 'info');
   try {
-    // Load group
-    const gdoc = await db.collection('groups').doc(gid).get();
-    simGroup = {id:gid,...gdoc.data()};
-    let memberIds = simGroup.members.map(m=>m.userId);
+    if (!_wM.length) { try { await doSync(); } catch(e) {} }
 
-    // Make sure current user is included even if admin not in group
-    if (!memberIds.includes(me.uid)) memberIds = [me.uid, ...memberIds];
-
-    // Load players
-    simPlayers = [];
-    for(let i=0;i<memberIds.length;i+=10){
-      const chunk = memberIds.slice(i,i+10);
-      const us = await db.collection('users')
-        .where(firebase.firestore.FieldPath.documentId(),'in',chunk).get();
-      us.docs.forEach(d => simPlayers.push({id:d.id,...d.data()}));
-    }
-
-    // Current group points (evaluated only)
-    const pSnap = await db.collection('predictions')
-      .where('groupId','==',gid).where('evaluated','==',true).get();
-    const ptMap = {};
-    pSnap.docs.forEach(d=>{
-      const p=d.data();
-      if(!ptMap[p.userId]) ptMap[p.userId]=0;
-      ptMap[p.userId]+=(p.pointsAwarded||0);
+    // 1) Resultados reales (todas las jornadas) via Metodo Larez
+    const resMap = {};
+    FIXTURE_MUNDIAL.forEach(m => {
+      const lv = _wM.find(x => larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away));
+      if (lv && lv.homeScore != null && lv.awayScore != null) {
+        resMap[String(m.id)] = { h:+lv.homeScore, a:+lv.awayScore };
+      }
     });
 
-    simPlayers = simPlayers
-      .map(p=>({...p, groupPoints: ptMap[p.id]||0}))
-      .sort((a,b)=>b.groupPoints-a.groupPoints)
-      .map((p,i)=>({...p, originalRank:i+1}));
+    // 2) Todas las predicciones del Mundial (3 fuentes, sin duplicados)
+    const sA = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    const sB = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    const sC = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
+    const seenD = new Set(); const allDocs = [];
+    sA.docs.concat(sB.docs).concat(sC.docs).forEach(d => {
+      if (!seenD.has(d.id)) { seenD.add(d.id); allDocs.push(d); }
+    });
 
-    // Choose matches — incluye europeos Y partidos del Mundial
+    // 3) Agrupar por apodo (cada quiniela = 1 fila), calcular pts reales actuales
+    const byApodo = {};
+    allDocs.forEach(d => {
+      const p = d.data();
+      const ap = p.username || 'Jugador';
+      if (!byApodo[ap]) byApodo[ap] = { ap, pts:0, preds:{} };
+      byApodo[ap].preds[String(p.matchId)] = p;
+      const res = resMap[String(p.matchId)];
+      const phs = +p.predictedHomeScore || 0;
+      const pas = +p.predictedAwayScore || 0;
+      const sinPredecir = (phs===0 && pas===0 && p.predicted !== true);
+      if (res != null && !sinPredecir) {
+        byApodo[ap].pts += calcPoints(phs, pas, res.h, res.a);
+      }
+    });
+
+    simGroup = { id:'mundial2026', name:'Mundial FIFA 2026' };
+    const apodosOrdenados = Object.values(byApodo).sort((a,b) => b.pts - a.pts);
+    simPlayers = apodosOrdenados.map((p,i) => ({ id:p.ap, username:p.ap, groupPoints:p.pts, originalRank:i+1 }));
+
+    simPredictions = {};
+    apodosOrdenados.forEach(p => {
+      simPredictions[p.ap] = { [p.ap]: Object.values(p.preds) };
+    });
+
+    // 4) Partidos a simular: proximos sin jugar de HOY; si no hay, los de MAÑANA
     const today = vzDate();
-    simMatches = matchFilter==='pending'
-      ? _dM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
-      : _dM;
+    const tomorrow = new Date(vzNow().getTime() + 86400000).toISOString().split('T')[0];
+    let pend = FIXTURE_MUNDIAL.filter(m => m.date===today && !resMap[String(m.id)]);
+    if (!pend.length) pend = FIXTURE_MUNDIAL.filter(m => m.date===tomorrow);
 
-    if (!simMatches.length)
-      simMatches = _aM.filter(m=>m.date>=today).slice(0,8);
-
-    // Fallback 1: _wM en memoria (cargado por doSync desde la API)
-    if (!simMatches.length && typeof _wM !== 'undefined' && _wM.length) {
-      simMatches = matchFilter==='pending'
-        ? _wM.filter(m=>!isFinished(m.status)&&!isLive(m.status))
-        : _wM;
-      if (!simMatches.length) simMatches = _wM;
-    }
-
-    // Fallback 2: partidos del Mundial desde Firestore (si ya se guardaron)
-    if (!simMatches.length) {
-      try {
-        const wSnap = await db.collection('matches')
-          .where('tournamentId','==','mundial').get();
-        if (!wSnap.empty) {
-          const allW = wSnap.docs.map(d=>({id:d.id,...d.data()}));
-          simMatches = matchFilter==='pending'
-            ? allW.filter(m=>!isFinished(m.status)&&!isLive(m.status))
-            : allW;
-          if (!simMatches.length) simMatches = allW;
-        }
-      } catch(e) {}
-    }
-
-    // Fallback 3: FIXTURE_MUNDIAL hardcodeado — siempre disponible
-    if (!simMatches.length && typeof FIXTURE_MUNDIAL !== 'undefined' && FIXTURE_MUNDIAL.length) {
-      // Enriquecer con estado real si hay datos en memoria
-      const jornadaSel = simJornadaSel ? parseInt($('simJornadaSel')?.value||'1') : 1;
-      const allW = FIXTURE_MUNDIAL
-        .filter(m => m.jornada === jornadaSel)
-        .map(m => {
-          // Buscar si hay marcador real en Firestore/memoria
-          const live = _aM.find(x => String(x.id) === String(m.id));
-          return live ? {...m, ...live} : {...m, status:'Not Started', tournamentId:'mundial'};
-        });
-      simMatches = matchFilter==='pending'
-        ? allW.filter(m=>!isFinished(m.status)&&!isLive(m.status))
-        : allW;
-      if (!simMatches.length) simMatches = allW;
-    }
-
-    if (!simMatches.length) { toast('No hay partidos para simular','error'); return; }
-
-    // ── Load predictions — soporta jugadores multi-quiniela (Q1, Q2, Q3) ──
-    simPredictions = {}; // { uid: { apodo: [preds] } }
-    const matchIds = simMatches.map(m=>String(m.id));
-
-    for (const player of simPlayers) {
-      const uid = player.id;
-
-      // Query A: por userId==uid (Q1 clásica y legado)
-      const qA1 = await db.collection('predictions')
-        .where('userId','==',uid).where('groupId','==',gid).get();
-      const qA2 = await db.collection('predictions')
-        .where('userId','==',uid).get();
-
-      // Query B: por realUserId==uid (Q2, Q3 multi-quiniela)
-      const qB = await db.collection('predictions')
-        .where('realUserId','==',uid).get();
-
-      // Unir todo sin duplicados, agrupar por apodo (username)
-      const seenIds = new Set();
-      const byApodo = {};
-
-      // Orden: qA2 → qA1 (groupId gana) → qB
-      [qA2, qA1, qB].forEach(snap => {
-        snap.docs.forEach(d => {
-          if (seenIds.has(d.id)) return;
-          seenIds.add(d.id);
-          const p = d.data();
-          if (!matchIds.includes(String(p.matchId))) return;
-          const apodo = p.username || player.username || uid;
-          if (!byApodo[apodo]) byApodo[apodo] = {};
-          // Guardar por matchId — groupId version sobreescribe
-          const existing = byApodo[apodo][String(p.matchId)];
-          if (!existing || p.groupId === gid) {
-            byApodo[apodo][String(p.matchId)] = p;
-          }
-        });
-      });
-
-      // Convertir a arrays
-      simPredictions[uid] = {};
-      Object.entries(byApodo).forEach(([apodo, predsMap]) => {
-        simPredictions[uid][apodo] = Object.values(predsMap);
-      });
-    }
-
-    // Debug: log what we found
-    console.log('SimPredictions loaded:');
-    simPlayers.forEach(p=>{
-      console.log(`  ${p.username}: ${Object.values(simPredictions[p.id]||{}).reduce((s,a)=>s+a.length,0)} predicciones`);
+    simMatches = pend.map(m => {
+      const lv = _wM.find(x => larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away));
+      return lv ? {...m, ...lv} : {...m, status:'Not Started', tournamentId:'mundial'};
     });
+
+    if (!simMatches.length) {
+      toast('No hay partidos proximos para simular', 'error');
+      return;
+    }
 
     $('simSetup').classList.remove('hidden');
     $('simResults').classList.add('hidden');
     renderSimMatches();
-    toast(`✅ ${simMatches.length} partidos · ${simPlayers.length} jugadores cargados`,'success');
-  } catch(e) { toast('Error: '+e.message,'error'); console.error(e); }
+    toast(`✅ ${simMatches.length} partidos · ${simPlayers.length} jugadores cargados`, 'success');
+  } catch(e) { toast('Error: ' + e.message, 'error'); console.error(e); }
 }
 
 function renderSimMatches() {
@@ -7787,7 +7718,9 @@ async function openMyStats() {
     });
     const bestTeam = Object.entries(byTeam)
       .filter(([,v]) => v.total >= 2)
-      .sort((a,b) => b[1].exact - a[1].exact)[0];    // Streak — consecutive correct predictions
+      .sort((a,b) => b[1].exact - a[1].exact)[0];
+
+    // Streak — consecutive correct predictions
     const sorted = preds.sort((a,b) => (b.timestamp?.seconds||0) - (a.timestamp?.seconds||0));
     let streak = 0, maxStreak = 0, cur = 0;
     sorted.forEach(p => {
@@ -7797,7 +7730,7 @@ async function openMyStats() {
     // Current streak (from most recent)
     for (const p of sorted) {
       if (p.pointsAwarded > 0) streak++;
-      else break;
+             else break;
     }
 
     // Default predictions count
