@@ -1837,7 +1837,7 @@ const FIXTURE_MUNDIAL = [
   { id:'m029', home:'🇺🇸 Estados Unidos', away:'🇦🇺 Australia',          date:'2026-06-19', timeVZ:'3:00 pm',  group:'D', jornada:2, venue:'Lumen Field, Seattle' },
   { id:'m030', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇲🇦 Marruecos',          date:'2026-06-19', timeVZ:'6:00 pm',  group:'C', jornada:2, venue:'Gillette Stadium, Boston' },
   { id:'m031', home:'🇧🇷 Brasil',         away:'🇭🇹 Haití',              date:'2026-06-19', timeVZ:'9:00 pm',  group:'C', jornada:2, venue:'Lincoln Financial, Filadelfia' },
-    { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
+  { id:'m032', home:'🇹🇷 Turquía',        away:'🇵🇾 Paraguay',           date:'2026-06-19', timeVZ:'12:00 am', group:'D', jornada:2, venue:"Levi's Stadium, San Francisco" },
   // Vie 20/6
   { id:'m033', home:'🇳🇱 Países Bajos',   away:'🇸🇪 Suecia',             date:'2026-06-20', timeVZ:'2:00 pm',  group:'F', jornada:2, venue:'NRG Stadium, Houston' },
   { id:'m034', home:'🇩🇪 Alemania',       away:'🇨🇮 Costa de Marfil',    date:'2026-06-20', timeVZ:'5:00 pm',  group:'E', jornada:2, venue:'BMO Field, Toronto' },
@@ -1846,7 +1846,7 @@ const FIXTURE_MUNDIAL = [
   // Sáb 21/6
   { id:'m037', home:'🇪🇸 España',         away:'🇸🇦 Arabia Saudita',     date:'2026-06-21', timeVZ:'2:00 pm',  group:'H', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
   { id:'m038', home:'🇧🇪 Bélgica',        away:'🇮🇷 Irán',               date:'2026-06-21', timeVZ:'3:00 pm',  group:'G', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
-  { id:'m039', home:'🇺🇾 Uruguay',        away:'🇨🇻 Cabo Verde',         date:'2026-06-21', timeVZ:'8:00 pm',  group:'H', jornada:2, venue:'Hard Rock Stadium, Miami' },
+     { id:'m039', home:'🇺🇾 Uruguay',        away:'🇨🇻 Cabo Verde',         date:'2026-06-21', timeVZ:'8:00 pm',  group:'H', jornada:2, venue:'Hard Rock Stadium, Miami' },
   { id:'m040', home:'🇳🇿 Nueva Zelanda',  away:'🇪🇬 Egipto',             date:'2026-06-21', timeVZ:'9:00 pm',  group:'G', jornada:2, venue:'BC Place, Vancouver' },
   // Dom 22/6
   { id:'m041', home:'🇫🇷 Francia',        away:'🇮🇶 Iraq',               date:'2026-06-22', timeVZ:'5:00 pm',  group:'I', jornada:2, venue:'Lincoln Financial, Filadelfia' },
@@ -2656,6 +2656,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
                  || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 45000 : 300000;
     syncTimer = setTimeout(async () => {
+      try {
       if (!userEnteringPreds) {
         const hasTodayGames = _dM.length > 0 || _wM.length > 0;
         if (hasTodayGames) await doSync();
@@ -2665,6 +2666,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
         // Redibujar pantalla del Mundial si hay goles nuevos
         if (_wM.some(m => isLive(m.status))) renderMundialScreen();
       }
+      } catch(e) { console.warn('sync error:', e.message); }
       scheduleNextSync();
     }, interval);
   }
@@ -3724,7 +3726,7 @@ function buildMatchCard(m, closed) {
       const isYellow    = !isYellowRed && type.includes('yellow');
       const isRed       = !isYellowRed && !isYellow && type.includes('red');
       const isPenalty   = type.includes('penalty')||type.includes('penal');
-            const isVar       = type.includes('var');
+      const isVar       = type.includes('var');
       let icon='', color='', label='';
       if (isYellowRed)    { icon='🟨🟥'; color='var(--red)'; }
       else if (isYellow)  { icon='🟨';   color='var(--gold)'; }
@@ -3774,7 +3776,7 @@ function buildMatchCard(m, closed) {
         <span>${m.tournamentFlag||'🌍'} ${m.tournamentName}</span>
         ${badge}
       </div>
-      <div class="match-teams">
+            <div class="match-teams">
         <div class="team">
           <span class="team-flag">⚽</span>
           <span class="team-name">${m.home}</span>
@@ -3801,14 +3803,20 @@ async function openStats(matchId) {
   openModal('statsModal');
   $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
   try {
-    const match = _aM.find(m => String(m.id) === String(matchId));
+    // Buscar en _wM por apiId primero, sino por matchId, sino por Larez desde FIXTURE
+    let match = _aM.find(m => String(m.id) === String(matchId));
+    if (!match) {
+      const fix = FIXTURE_MUNDIAL.find(m => String(m.id) === String(matchId));
+      if (fix) match = _wM.find(x => larezTeamMatch(fix.home,x.home) && larezTeamMatch(fix.away,x.away)) || fix;
+    }
+    const realMatchId = match?._apiId || matchId;
     const home  = match?.home || '';
     const away  = match?.away || '';
 
     // ── Datos frescos del evento ──────────────────────────────
     let evFinal = null;
     try {
-      const r1 = await fetch(`${API_V1}/lookupevent.php?id=${matchId}`);
+      const r1 = await fetch(`${API_V1}/lookupevent.php?id=${realMatchId}`);
       const d1 = await r1.json();
       evFinal = d1?.events?.[0] || null;
     } catch(e) {}
@@ -3917,7 +3925,7 @@ async function openStats(matchId) {
     // B) V1 lookuptimeline — el más completo para tarjetas y cambios
     if (!timelineEvents.length) {
       try {
-        const r   = await fetch(`${API_V1}/lookuptimeline.php?id=${matchId}`);
+        const r   = await fetch(`${API_V1}/lookuptimeline.php?id=${realMatchId}`);
         const txt = await r.text();
         if (txt && !txt.trim().startsWith('<')) {
           const d  = JSON.parse(txt);
@@ -4170,7 +4178,7 @@ async function openStats(matchId) {
     try {
       let statsList = [];
       try {
-        const r1 = await fetch(`${API_V1}/lookupeventstats.php?id=${matchId}`);
+        const r1 = await fetch(`${API_V1}/lookupeventstats.php?id=${realMatchId}`);
         const d1 = await r1.json();
         const s1 = d1?.eventstats || d1?.stats || [];
         if (s1.length > 0) statsList = s1;
@@ -5620,8 +5628,12 @@ function renderAdmin() {
         🔍 Debug Pizarra
       </button>
       <button class="admin-btn full" onclick="predPartidoAdmin()"
-              style="background:rgba(0,180,255,0.12);color:#00b4ff;margin-top:4px;">
+        style="background:rgba(0,180,255,0.12);color:#00b4ff;margin-top:4px;">
         📋 Predicciones de un partido
+      </button>
+      <button class="admin-btn full" onclick="adminGoleadorTable()"
+        style="background:rgba(245,197,66,0.12);color:var(--gold);margin-top:4px;">
+        ⚽ Champion Goleador
       </button>
       <button class="admin-btn full" onclick="adminEditPredicciones()"
         style="background:rgba(255,100,100,0.12);color:#ff6464;margin-top:4px;">
@@ -5691,7 +5703,7 @@ async function adminUsers() {
 
   // Summary badges
   const predCount = snap.docs.filter(d=>hasPredicted(d.id)).length;
-  const noPredCount = snap.size - predCount;
+     const noPredCount = snap.size - predCount;
   html += `<div style="display:flex;gap:8px;margin-bottom:14px;">
     <div style="flex:1;padding:10px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;text-align:center;">
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${predCount}</div>
@@ -7042,14 +7054,20 @@ function renderMundialScreen() {
 
   const byDate = {};
 
+  // Enriquecer cada partido del fixture con datos reales de _wM (Metodo Larez)
   jornadaMatches.forEach((m, idx) => {
-
-    if (!byDate[m.date]) {
-      byDate[m.date] = [];
-    }
-
+    const lv = _wM.find(x => larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away));
+    if (!byDate[m.date]) byDate[m.date] = [];
     byDate[m.date].push({
       ...m,
+      ...(lv ? {
+        homeScore: lv.homeScore,
+        awayScore: lv.awayScore,
+        status:    lv.status,
+        homeGoals: lv.homeGoals,
+        awayGoals: lv.awayGoals,
+        _apiId:    lv.id,
+      } : {}),
       _numPartido: jornadaOffset + idx + 1
     });
   });
@@ -7627,7 +7645,7 @@ async function savePredsMundial() {
     const pick = _expressPick[String(m.id)];
     const h = pick ? pick.h : 0;
     const a = pick ? pick.a : 0;
-    preds.push({ matchId: m.id, h, a, match: m });
+    preds.push({ matchId: m.id, h, a, predicted: true, match: m });
   });
   if (!preds.length) { toast('Sin predicciones', 'error'); return; }
 
@@ -7875,7 +7893,7 @@ async function openMyPredictions() {
           ? 'border-color:rgba(245,197,66,0.4);'
           : ev && p.pointsAwarded===3
             ? 'border-color:rgba(0,229,160,0.3);' : '';
-        const dateLabel = p.jornadaDate && p.jornadaDate !== today
+                 const dateLabel = p.jornadaDate && p.jornadaDate !== today
           ? `<span style="font-size:0.65em;color:var(--muted2);margin-left:4px;">📅 ${p.jornadaDate}</span>` : '';
         html += `<div style="background:var(--surface2);border:1px solid var(--border);
           ${borderExtra}border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
@@ -9352,7 +9370,7 @@ async function _guardarEdicionAdmin(ap) {
       var aEl = document.getElementById('_ea_' + m.id);
       var h = parseInt(hEl.value, 10); if (isNaN(h)) h = 0;
       var a = parseInt(aEl.value, 10); if (isNaN(a)) a = 0;
-      var docId = data.userId + '_' + data.groupId + '_' + m.id;
+      var docId = data.userId + '_' + (data.groupId || 'mundial2026') + '_' + m.id;
       batch.set(db.collection('predictions').doc(docId), {
         userId: data.userId, username: ap, groupId: data.groupId,
         matchId: m.id, predictedHomeScore: h, predictedAwayScore: a,
@@ -9463,6 +9481,121 @@ async function predPartidoAdmin() {
 
 function _enviarPredPartido() {
   var txt = window._predPartidoTexto;
+  if (!txt) return;
+  window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+}
+
+// ═══ CHAMPION GOLEADOR — tabla de goleadores del torneo ═══
+async function adminGoleadorTable() {
+  toast('Cargando goleadores...', 'info', 2000);
+  try {
+    if (!_wM.length) { try { await doSync(); } catch(e) {} }
+
+    // Recolectar goles de todos los partidos finalizados o en curso
+    var goleadores = {}; // nombre -> { goles, pais, icon }
+
+    _wM.forEach(function(m) {
+      var done = isFinished(m.status) || isLive(m.status);
+      if (!done) return;
+
+      // homeGoals y awayGoals son strings tipo "Messi 35'; Suarez 67'"
+      var parseGoals = function(str, pais) {
+        if (!str) return;
+        str.split(';').forEach(function(g) {
+          g = g.trim();
+          if (!g) return;
+          var isOG = /\b(OG|A\.G\.|autogol|own goal)\b/i.test(g);
+          var player = g.replace(/\(?\d+\+?\d*'?\)?/g,'').replace(/[()]/g,'').trim();
+          if (!player) return;
+          if (!goleadores[player]) goleadores[player] = { goles:0, pais: pais, isOG: isOG };
+          if (!isOG) goleadores[player].goles++;
+          else {
+            // Autogol: no suma para el jugador, guardar aparte
+            var ogKey = player + ' (AG)';
+            if (!goleadores[ogKey]) goleadores[ogKey] = { goles:0, pais:'', isOG:true };
+            goleadores[ogKey].goles++;
+          }
+        });
+      };
+
+      parseGoals(m.homeGoals, m.home);
+      parseGoals(m.awayGoals, m.away);
+    });
+
+    // Separar goleadores reales de autogoles
+    var reales = Object.entries(goleadores)
+      .filter(function(e){ return !e[1].isOG && e[1].goles > 0; })
+      .sort(function(a,b){ return b[1].goles - a[1].goles; });
+
+    var autogoles = Object.entries(goleadores)
+      .filter(function(e){ return e[1].isOG && e[1].goles > 0; })
+      .sort(function(a,b){ return b[1].goles - a[1].goles; });
+
+    if (!reales.length && !autogoles.length) {
+      toast('Sin goles registrados aun', 'warning', 3000);
+      return;
+    }
+
+    var NL = '\n';
+    var SEP = '========================';
+    var fecha = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
+    var texto = 'CHAMPION GOLEADOR - Mundial FIFA 2026' + NL + fecha + NL + SEP + NL;
+    reales.forEach(function(e, i) {
+      var bal = e[1].goles === 1 ? 'gol' : 'goles';
+      texto += (i+1) + '. ' + e[0] + ' (' + e[1].pais.replace(/\p{Emoji}/gu,'').trim() + ')  ' + e[1].goles + ' ' + bal + NL;
+    });
+    if (autogoles.length) {
+      texto += NL + '-- Autogoles (no cuentan) --' + NL;
+      autogoles.forEach(function(e) {
+        texto += e[0] + '  ' + e[1].goles + ' AG' + NL;
+      });
+    }
+    texto += SEP + NL + 'QuinielaLuAn - Arichuna';
+    window._goleadorTexto = texto;
+
+    // Modal
+    var old = document.getElementById('_goleadorModal');
+    if (old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = '_goleadorModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '6000';
+
+    var rows = reales.map(function(e, i) {
+      var medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">'
+        + '<div style="font-family:var(--font-h);font-size:1em;min-width:28px;">' + medal + '</div>'
+        + '<div style="flex:1;">'
+        + '<div style="font-weight:800;font-size:0.88em;">' + e[0] + '</div>'
+        + '<div style="font-size:0.72em;color:var(--muted2);">' + e[1].pais + '</div>'
+        + '</div>'
+        + '<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);font-weight:900;">' + e[1].goles + '</div>'
+        + '<div style="font-size:0.7em;color:var(--muted2);">⚽</div>'
+        + '</div>';
+    }).join('');
+
+    var agRows = autogoles.map(function(e) {
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.78em;color:var(--muted2);">'
+        + '<span>' + e[0] + '</span><span>' + e[1].goles + ' AG</span></div>';
+    }).join('');
+
+    modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+      + '<div class="modal-handle"></div>'
+      + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:var(--gold);margin-bottom:4px;">⚽ Champion Goleador</div>'
+      + '<div style="font-size:0.72em;color:var(--muted2);margin-bottom:12px;">Mundial FIFA 2026 · ' + fecha + '</div>'
+      + (reales.length ? rows : '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin goles aun</div>')
+      + (autogoles.length ? '<div style="margin-top:10px;font-size:0.75em;font-weight:800;color:var(--muted2);">Autogoles (no cuentan)</div>' + agRows : '')
+      + '<div style="display:flex;gap:8px;margin-top:14px;">'
+      + '<button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById(\"_goleadorModal\").remove()">Cerrar</button>'
+      + '<button onclick="_enviarGoleador()" style="flex:1;padding:11px;border-radius:8px;border:none;background:#25D366;color:#fff;font-family:var(--font-b);font-weight:800;cursor:pointer;">📲 Enviar WA</button>'
+      + '</div></div>';
+
+    document.body.appendChild(modal);
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+function _enviarGoleador() {
+  var txt = window._goleadorTexto;
   if (!txt) return;
   window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
 }
