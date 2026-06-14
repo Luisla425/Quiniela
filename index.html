@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+  <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1847,8 +1848,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m037', home:'🇪🇸 España',         away:'🇸🇦 Arabia Saudita',     date:'2026-06-21', timeVZ:'2:00 pm',  group:'H', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
   { id:'m038', home:'🇧🇪 Bélgica',        away:'🇮🇷 Irán',               date:'2026-06-21', timeVZ:'3:00 pm',  group:'G', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m039', home:'🇺🇾 Uruguay',        away:'🇨🇻 Cabo Verde',         date:'2026-06-21', timeVZ:'8:00 pm',  group:'H', jornada:2, venue:'Hard Rock Stadium, Miami' },
-  { id:'m040', home:'🇳🇿 Nueva Zelanda',  away:'🇪🇬 Egipto',             date:'2026-06-21', timeVZ:'9:00 pm',  group:'G', jornada:2, venue:'BC Place, Vancouver' },  // Dom 22/6
-  { id:'m041', home:'🇫🇷 Francia',        away:'🇮🇶 Iraq',               date:'2026-06-22', timeVZ:'5:00 pm',  group:'I', jornada:2, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m040', home:'🇳🇿 Nueva Zelanda',  away:'🇪🇬 Egipto',             date:'2026-06-21', timeVZ:'9:00 pm',  group:'G', jornada:2, venue:'BC Place, Vancouver' },
+  // Dom 22/6  { id:'m041', home:'🇫🇷 Francia',        away:'🇮🇶 Iraq',               date:'2026-06-22', timeVZ:'5:00 pm',  group:'I', jornada:2, venue:'Lincoln Financial, Filadelfia' },
   { id:'m042', home:'🇳🇴 Noruega',        away:'🇸🇳 Senegal',            date:'2026-06-22', timeVZ:'8:00 pm',  group:'I', jornada:2, venue:'MetLife Stadium, Nueva York' },
   { id:'m043', home:'🇦🇷 Argentina',      away:'🇦🇹 Austria',            date:'2026-06-22', timeVZ:'2:00 pm',  group:'J', jornada:2, venue:'AT&T Stadium, Dallas' },
   { id:'m044', home:'🇯🇴 Jordania',       away:'🇩🇿 Argelia',            date:'2026-06-22', timeVZ:'11:00 pm', group:'J', jornada:2, venue:"Levi's Stadium, San Francisco" },
@@ -2087,7 +2088,16 @@ function toast(msg, type='info', dur=3500) {
 }
 
 function openModal(id) { $(id).classList.remove('hidden'); }
-function closeModal(id) { $(id).classList.add('hidden'); }
+function closeModal(id) {
+  $(id).classList.add('hidden');
+  if (id === 'statsModal') {
+    if (window._statsRefreshInterval) {
+      clearInterval(window._statsRefreshInterval);
+      window._statsRefreshInterval = null;
+      window._statsRefreshMatchId  = null;
+    }
+  }
+}
 
 function isLive(status) {
   const s = (status||'').toUpperCase();
@@ -3783,8 +3793,8 @@ function buildMatchCard(m, closed) {
 
   return `
     <div class="match-card ${cls}">
-      <div class="match-meta">
-              <span>${m.tournamentFlag||'🌍'} ${m.tournamentName}</span>
+      <div class="match-meta
+      <span>${m.tournamentFlag||'🌍'} ${m.tournamentName}</span>
         ${badge}
       </div>
       <div class="match-teams">
@@ -3811,6 +3821,12 @@ function buildMatchCard(m, closed) {
 // STATS MODAL
 // ═══════════════════════════════════════════
 async function openStats(matchId) {
+  // Limpiar interval anterior INMEDIATAMENTE antes de cualquier async
+  if (window._statsRefreshInterval) {
+    clearInterval(window._statsRefreshInterval);
+    window._statsRefreshInterval = null;
+    window._statsRefreshMatchId  = null;
+  }
   openModal('statsModal');
   $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
   try {
@@ -5714,9 +5730,9 @@ async function adminUsers() {
 
   // Summary badges
   const predCount = snap.docs.filter(d=>hasPredicted(d.id)).length;
-  const noPredCount = snap.size - predCount;
+    const noPredCount = snap.size - predCount;
   html += `<div style="display:flex;gap:8px;margin-bottom:14px;">
-      <div style="flex:1;padding:10px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;text-align:center;">
+    <div style="flex:1;padding:10px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;text-align:center;">
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${predCount}</div>
       <div style="font-size:0.7em;color:var(--green);font-weight:700;">🟢 Predicaron</div>
     </div>
@@ -7909,9 +7925,9 @@ async function openMyPredictions() {
           else if (p.pointsAwarded===1) { ptsColor='var(--primary2)'; ptsLabel='💙 +1'; }
           else                          { ptsColor='var(--red)';      ptsLabel='❌ +0 Falló'; }
         }
-        const matchObj  = _aM.find(m => String(m.id) === String(p.matchId));
+                const matchObj  = _aM.find(m => String(m.id) === String(p.matchId));
         const homeName  = p.home || matchObj?.home || '?';
-                const awayName  = p.away || matchObj?.away || '?';
+        const awayName  = p.away || matchObj?.away || '?';
         const borderExtra = ev && p.pointsAwarded===5
           ? 'border-color:rgba(245,197,66,0.4);'
           : ev && p.pointsAwarded===3
