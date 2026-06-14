@@ -1853,14 +1853,14 @@ const FIXTURE_MUNDIAL = [
   { id:'m042', home:'🇳🇴 Noruega',        away:'🇸🇳 Senegal',            date:'2026-06-22', timeVZ:'8:00 pm',  group:'I', jornada:2, venue:'MetLife Stadium, Nueva York' },
   { id:'m043', home:'🇦🇷 Argentina',      away:'🇦🇹 Austria',            date:'2026-06-22', timeVZ:'2:00 pm',  group:'J', jornada:2, venue:'AT&T Stadium, Dallas' },
   { id:'m044', home:'🇯🇴 Jordania',       away:'🇩🇿 Argelia',            date:'2026-06-22', timeVZ:'11:00 pm', group:'J', jornada:2, venue:"Levi's Stadium, San Francisco" },
-  // Lun 23/6  { id:'m045', home:'🇵🇹 Portugal',       away:'🇺🇿 Uzbekistán',         date:'2026-06-23', timeVZ:'2:00 pm',  group:'K', jornada:2, venue:'NRG Stadium, Houston' },
+  // Lun 23/6
+  { id:'m045', home:'🇵🇹 Portugal',       away:'🇺🇿 Uzbekistán',         date:'2026-06-23', timeVZ:'2:00 pm',  group:'K', jornada:2, venue:'NRG Stadium, Houston' },
   { id:'m046', home:'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inglaterra',    away:'🇬🇭 Ghana',              date:'2026-06-23', timeVZ:'5:00 pm',  group:'L', jornada:2, venue:'Gillette Stadium, Boston' },
   { id:'m047', home:'🇵🇦 Panamá',         away:'🇭🇷 Croacia',            date:'2026-06-23', timeVZ:'8:00 pm',  group:'L', jornada:2, venue:'BMO Field, Toronto' },
   { id:'m048', home:'🇨🇴 Colombia',       away:'🇨🇩 R.D. del Congo',     date:'2026-06-23', timeVZ:'11:00 pm', group:'K', jornada:2, venue:'Estadio Akron, Guadalajara' },
   // ══ JORNADA 3 — 24 al 27 junio (simultáneos por grupo) ══
   // Mié 24/6 — Grupos A, B, C
-  { id:'m049', home:'🇨🇿 Rep. Checa',     away:'🇲🇽 México',             date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio Azteca, CDMX' },
-  { id:'m050', home:'🇿🇦 Sudáfrica',      away:'🇰🇷 Corea del Sur',      date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio BBVA, Monterrey' },
+  { id:'m049', home:'🇨🇿 Rep. Checa',     away:'🇲🇽 México',             date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio Azteca, CDMX' },  { id:'m050', home:'🇿🇦 Sudáfrica',      away:'🇰🇷 Corea del Sur',      date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio BBVA, Monterrey' },
   { id:'m051', home:'🇨🇭 Suiza',          away:'🇨🇦 Canadá',             date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'BC Place, Vancouver' },
   { id:'m052', home:'🇧🇦 Bosnia y Herz.', away:'🇶🇦 Qatar',              date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'Lumen Field, Seattle' },
   { id:'m053', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇧🇷 Brasil',             date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Hard Rock Stadium, Miami' },
@@ -3836,7 +3836,7 @@ async function openStats(matchId) {
     window._statsRefreshMatchId  = null;
   }
   openModal('statsModal');
-    $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
+  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
   try {
     // Resolver el ID real de TheSportsDB:
     // 1) _apiIdMap persistente (nunca se borra aunque _wM cambie)
@@ -3848,7 +3848,13 @@ async function openStats(matchId) {
       if (fix) match = _wM.find(x => larezTeamMatch(fix.home,x.home) && larezTeamMatch(fix.away,x.away)) || fix;
     }
     // _apiIdMap persiste aunque _wM se haya vaciado y recargado
-    const realMatchId = _apiIdMap[String(matchId)] || match?._apiId || matchId;
+    // Si el ID en _apiIdMap no existe aún, intentar desde eventsnextleague/eventsday
+    let realMatchId = _apiIdMap[String(matchId)] || match?._apiId || matchId;
+    // Si sigue siendo un ID del fixture (m001..m072), buscar en _wM por Larez
+    if (String(realMatchId).startsWith('m') && match) {
+      const lv2 = _wM.find(x => larezTeamMatch(match.home||'',x.home) && larezTeamMatch(match.away||'',x.away));
+      if (lv2 && lv2.id) { realMatchId = String(lv2.id); _apiIdMap[String(matchId)] = realMatchId; }
+    }
     const home  = match?.home || '';
     const away  = match?.away || '';
 
@@ -3862,7 +3868,12 @@ async function openStats(matchId) {
         const r1 = await fetch(`${API_V1}/lookupevent.php?id=${realMatchId}`);
         const d1 = await r1.json();
         evFinal = d1?.events?.[0] || null;
-        if (evFinal) { if (!_statsCache[_cacheKey]) _statsCache[_cacheKey] = {}; _statsCache[_cacheKey].ev = evFinal; }
+        if (evFinal) {          if (!_statsCache[_cacheKey]) _statsCache[_cacheKey] = {};
+          _statsCache[_cacheKey].ev = evFinal;
+          // Guardar en _apiIdMap para que otros partidos lo encuentren
+          const fixForMap = FIXTURE_MUNDIAL.find(f => larezTeamMatch(f.home, evFinal.strHomeTeam||'') && larezTeamMatch(f.away, evFinal.strAwayTeam||''));
+          if (fixForMap) _apiIdMap[fixForMap.id] = String(realMatchId);
+        }
       } catch(e) {}
     }
     if (!evFinal) {
@@ -5767,7 +5778,8 @@ async function adminUsers() {
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);">${snap.size}</div>
       <div style="font-size:0.7em;color:var(--primary2);font-weight:700;">👥 Total</div>
     </div>
-    <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">      <div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${noPredCount}</div>
+    <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">
+      <div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${noPredCount}</div>
       <div style="font-size:0.7em;color:var(--red);font-weight:700;">🔴 Sin pred.</div>
     </div>
   </div>`;
@@ -5797,8 +5809,7 @@ async function adminUsers() {
         <div style="text-align:right;">
           <span style="font-family:var(--font-h);color:var(--primary2);">${totalPts}pts</span>${liveLabel}
           <div style="font-size:0.68em;color:var(--muted2);">⭐${rp.exact} · 🎯${rp.correct}</div>
-        </div>
-      </div>
+        </div>      </div>
       <div style="font-size:0.72em;color:var(--muted2);margin-bottom:8px;">${u.phoneDisplay||uphone||'—'} · Inv: ${u.personalInviteCode||'—'}</div>
       <div style="display:flex;gap:6px;margin-bottom:6px;">
         <button class="btn-wa" style="flex:1;" onclick="adminWAMenu('${uname}','${uphone}',${predicted})">${t('waBtn')}</button>
@@ -7268,7 +7279,7 @@ function renderMundialScreen() {
           ${predRow}
 
           ${(m.homeScore != null || m.date < vzDate() || (m.date === vzDate())) ? `
-          <div style="margin-top:8px;">
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
             <button onclick="openStats('${_apiIdMap[m.id] || m._apiId || m.id}')"
               style="width:100%;padding:9px;border-radius:10px;border:none;
               cursor:pointer;font-family:var(--font-h);font-size:0.82em;font-weight:800;
@@ -7277,6 +7288,7 @@ function renderMundialScreen() {
               -webkit-tap-highlight-color:transparent;">
               📊 Estadísticas · Goles · Tarjetas
             </button>
+            ${me && me.isAdmin ? `<button onclick="registrarGolesAdmin('${m.id}','${_apiIdMap[m.id]||m._apiId||m.id}','${m.home}','${m.away}')" style="width:100%;padding:9px;border-radius:10px;border:1px solid rgba(0,229,160,0.4);background:rgba(0,229,160,0.1);color:var(--green);font-family:var(--font-h);font-size:0.82em;font-weight:800;cursor:pointer;">⚽ Registrar Goles</button>` : ''}
           </div>` : ''}
 
         </div>
@@ -7974,7 +7986,8 @@ async function openMyPredictions() {
           </div>
           ${ev
             ? `<div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-size:0.72em;color:var(--muted2);">                  Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>
+                <div style="font-size:0.72em;color:var(--muted2);">
+                  Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>
                 <div style="font-size:0.82em;font-weight:800;color:${ptsColor};">${ptsLabel}</div>
                </div>`
             : `<div style="font-size:0.72em;color:var(--muted2);">
@@ -9551,153 +9564,177 @@ function _enviarPredPartido() {
 
 // ═══ CHAMPION GOLEADOR — tabla de goleadores del torneo ═══
 async function adminGoleadorTable() {
-  toast('Cargando goleadores...', 'info', 3000);
+  toast('Cargando Champion Goleador...', 'info', 2000);
   try {
-    if (!_wM.length) { try { await doSync(); } catch(e) {} }
-
-    var goleadores = {};
-
-    // Partidos finalizados con ID de TheSportsDB
-    var jugados = _wM.filter(function(m){ return isFinished(m.status) || isLive(m.status); });
-    if (!jugados.length) {
-      // Intentar con FIXTURE cruzado
-      jugados = FIXTURE_MUNDIAL.filter(function(m){ return m.date < vzDate(); }).map(function(m){
-        var lv = _wM.find(function(x){ return larezTeamMatch(m.home,x.home) && larezTeamMatch(m.away,x.away); });
-        return lv || null;
-      }).filter(Boolean);
-    }
-
-    toast('Cargando eventos de ' + jugados.length + ' partidos...', 'info', 4000);
-
-    // Para cada partido, cargar timeline de TheSportsDB
-    for (var pi=0; pi<jugados.length; pi++) {
-      var m = jugados[pi];
-      // Buscar ID real: _apiIdMap → _apiId → id de TheSportsDB
-      var fixMatch = FIXTURE_MUNDIAL.find(function(f){
-        return larezTeamMatch(f.home,m.home) && larezTeamMatch(f.away,m.away);
-      });
-      var mid = (fixMatch && _apiIdMap[fixMatch.id]) || m._apiId || m.id;
-      if (!mid) continue;
-      // Usar cache si ya se cargó este partido
-      if (_statsCache[String(mid)] && _statsCache[String(mid)].tl) {
-        var cachedTl = _statsCache[String(mid)].tl;
-        cachedTl.forEach(function(ev) {
-          var type = (ev.strTimelineType || ev.strType || '').toLowerCase();
-          if (type.indexOf('goal') === -1) return;
-          var isOG = type.indexOf('own') !== -1;
-          var player = (ev.strPlayer || '').replace(/\s*\(.*\)\s*/g,'').trim();
-          if (!player) return;
-          var pais = m.home;
-          if (!isOG) { if (!goleadores[player]) goleadores[player]={goles:0,pais:pais}; goleadores[player].goles++; }
-        });
-        continue;
-      }
-      // Delay para evitar rate limit (300ms entre llamadas)
-      if (pi > 0) await new Promise(function(r){ setTimeout(r, 300); });
-      try {
-        var r = await fetch(API_V1 + '/lookuptimeline.php?id=' + mid);
-        var data = await r.json();
-        var events = (data && data.timeline) ? data.timeline : [];
-        events.forEach(function(ev) {
-          var type = (ev.strTimelineType || ev.strType || '').toLowerCase();
-          if (type.indexOf('goal') === -1) return;
-          var isOG = type.indexOf('own') !== -1;
-          var player = ev.strPlayer || ev.strTimelineDetail || '';
-          player = player.replace(/\s*\(.*\)\s*/g,'').trim();
-          if (!player) return;
-          var pais = (ev.strTeam === m.home || ev.strTeam === m.strHomeTeam) ? m.home : m.away;
-          if (!isOG) {
-            if (!goleadores[player]) goleadores[player] = { goles:0, pais:pais };
-            goleadores[player].goles++;
-          } else {
-            var ogKey = player + ' (AG)';
-            if (!goleadores[ogKey]) goleadores[ogKey] = { goles:0, pais:'', isOG:true };
-            goleadores[ogKey].goles++;
-          }
-        });
-
-        // Fallback: si timeline vacío, usar homeGoals/awayGoals del partido
-        if (!events.length && (m.homeGoals || m.awayGoals)) {
-          var parseGoalStr = function(str, pais) {
-            if (!str) return;
-            str.split(';').forEach(function(g) {
-              g = g.trim(); if (!g) return;
-              var isOG2 = /\b(OG|own goal)\b/i.test(g);
-              var pl = g.replace(/\(?\d+\+?\d*'?\)?/g,'').replace(/[()]/g,'').trim();
-              if (!pl) return;
-              if (!isOG2) {
-                if (!goleadores[pl]) goleadores[pl] = { goles:0, pais:pais };
-                goleadores[pl].goles++;
-              }
-            });
-          };
-          parseGoalStr(m.homeGoals, m.home);
-          parseGoalStr(m.awayGoals, m.away);
-        }
-      } catch(e2) {}
-    }
-
-    var reales = Object.entries(goleadores)
-      .filter(function(e){ return !e[1].isOG && e[1].goles > 0; })
-      .sort(function(a,b){ return b[1].goles - a[1].goles; });
-
-    var autogoles = Object.entries(goleadores)
-      .filter(function(e){ return e[1].isOG && e[1].goles > 0; })
-      .sort(function(a,b){ return b[1].goles - a[1].goles; });
-
-    if (!reales.length && !autogoles.length) {
-      toast('TheSportsDB aun no tiene goleadores para estos partidos', 'warning', 3000);
+    var snap = await db.collection('goles').orderBy('ts').get();
+    if (snap.empty) {
+      toast('Sin goles aun. Toca Registrar Goles en cada partido finalizado.', 'warning', 4000);
       return;
     }
+    var goleadores = {};
+    snap.docs.forEach(function(d) {
+      var g = d.data();
+      if (g.isOG) {
+        var ogKey = (g.player||'?') + ' (AG)';
+        if (!goleadores[ogKey]) goleadores[ogKey] = { goles:0, pais:'', isOG:true };
+        goleadores[ogKey].goles++;
+        return;
+      }
+      var key = g.player || '?';
+      if (!goleadores[key]) goleadores[key] = { goles:0, pais:g.pais||'' };
+      goleadores[key].goles++;
+      if (g.pais) goleadores[key].pais = g.pais;
+    });
+    var reales = Object.entries(goleadores).filter(function(e){ return !e[1].isOG; })
+      .sort(function(a,b){ return b[1].goles - a[1].goles; });
+    var autogoles = Object.entries(goleadores).filter(function(e){ return e[1].isOG; })
+      .sort(function(a,b){ return b[1].goles - a[1].goles; });
 
     var NL = '\n'; var SEP = '========================';
     var fecha = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
-    var texto = 'CHAMPION GOLEADOR - Mundial FIFA 2026' + NL + fecha + NL + SEP + NL;
-    reales.forEach(function(e, i) {
-      var bal = e[1].goles === 1 ? 'gol' : 'goles';
-      texto += (i+1) + '. ' + e[0] + '  ' + e[1].goles + ' ' + bal + NL;
-    });
-    if (autogoles.length) {
-      texto += NL + '-- Autogoles (no cuentan) --' + NL;
-      autogoles.forEach(function(e){ texto += e[0] + '  ' + e[1].goles + ' AG' + NL; });
-    }
+    var texto = 'CHAMPION GOLEADOR - Mundial 2026' + NL + fecha + NL + SEP + NL;
+    reales.forEach(function(e,i){ texto += (i+1)+'. '+e[0]+'  '+e[1].goles+(e[1].goles===1?' gol':' goles')+NL; });
+    if (autogoles.length){ texto += NL+'-- Autogoles --'+NL; autogoles.forEach(function(e){ texto += e[0]+'  '+e[1].goles+' AG'+NL; }); }
     texto += SEP + NL + 'QuinielaLuAn - Arichuna';
     window._goleadorTexto = texto;
 
-    var old = document.getElementById('_goleadorModal'); if (old) old.remove();
+    var oldM = document.getElementById('_goleadorModal'); if (oldM) oldM.remove();
     var modal = document.createElement('div');
     modal.id = '_goleadorModal'; modal.className = 'modal-overlay'; modal.style.zIndex = '6000';
-    var rows = reales.map(function(e, i) {
+    var rows = reales.map(function(e,i){
       var medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
       return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);">'
-        + '<div style="font-family:var(--font-h);font-size:1em;min-width:28px;">' + medal + '</div>'
-        + '<div style="flex:1;"><div style="font-weight:800;font-size:0.88em;">' + e[0] + '</div>'
-        + '<div style="font-size:0.72em;color:var(--muted2);">' + e[1].pais + '</div></div>'
-        + '<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);font-weight:900;">' + e[1].goles + '</div>'
-        + '<div style="font-size:0.7em;color:var(--muted2);">⚽</div></div>';
+        +'<div style="font-family:var(--font-h);font-size:1em;min-width:32px;">'+medal+'</div>'
+        +'<div style="flex:1;"><div style="font-weight:800;font-size:0.88em;">'+e[0]+'</div>'
+        +'<div style="font-size:0.72em;color:var(--muted2);">'+e[1].pais+'</div></div>'
+        +'<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);font-weight:900;">'+e[1].goles+'</div>'
+        +'<div style="font-size:0.7em;color:var(--muted2);">⚽</div></div>';
     }).join('');
     var agRows = autogoles.map(function(e){
-      return '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.78em;color:var(--muted2);">'
-        + '<span>' + e[0] + '</span><span>' + e[1].goles + ' AG</span></div>';
+      return '<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:0.78em;color:var(--muted2);"><span>'+e[0]+'</span><span>'+e[1].goles+' AG</span></div>';
     }).join('');
     modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
-      + '<div class="modal-handle"></div>'
-      + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:var(--gold);margin-bottom:4px;">⚽ Champion Goleador</div>'
-      + '<div style="font-size:0.72em;color:var(--muted2);margin-bottom:12px;">Mundial FIFA 2026 · ' + fecha + '</div>'
-      + (reales.length ? rows : '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin goles aun</div>')
-      + (autogoles.length ? '<div style="margin-top:10px;font-size:0.75em;font-weight:800;color:var(--muted2);">Autogoles (no cuentan)</div>' + agRows : '')
-      + '<div style="display:flex;gap:8px;margin-top:14px;">'
-      + '<button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById(\"_goleadorModal\").remove()">Cerrar</button>'
-      + '<button onclick="_enviarGoleador()" style="flex:1;padding:11px;border-radius:8px;border:none;background:#25D366;color:#fff;font-family:var(--font-b);font-weight:800;cursor:pointer;">📲 Enviar WA</button>'
-      + '</div></div>';
+      +'<div class="modal-handle"></div>'
+      +'<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:var(--gold);margin-bottom:4px;">⚽ Champion Goleador</div>'
+      +'<div style="font-size:0.72em;color:var(--muted2);margin-bottom:12px;">Mundial FIFA 2026 · '+fecha+'</div>'
+      +(reales.length ? rows : '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin goles aun</div>')
+      +(autogoles.length ? '<div style="margin-top:10px;font-size:0.75em;font-weight:800;color:var(--muted2);">Autogoles (no cuentan)</div>'+agRows : '')
+      +'<div style="display:flex;gap:8px;margin-top:14px;">'
+      +'<button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById(\'_goleadorModal\').remove()">Cerrar</button>'
+      +'<button onclick="_enviarGoleador()" style="flex:1;padding:11px;border-radius:8px;border:none;background:#25D366;color:#fff;font-family:var(--font-b);font-weight:800;cursor:pointer;">📲 Enviar WA</button>'
+      +'</div></div>';
     document.body.appendChild(modal);
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
+
 
 function _enviarGoleador() {
   var txt = window._goleadorTexto;
   if (!txt) return;
   window.open('https://wa.me/?text=' + encodeURIComponent(txt), '_blank');
+}
+
+// ═══ REGISTRO MANUAL DE GOLES FIREBASE ═══
+async function registrarGolesAdmin(fixtureId, apiId, home, away) {
+  toast('Cargando goles...', 'info', 2000);
+  var goles = [];
+  try {
+    var realId = _apiIdMap[fixtureId] || apiId;
+    if (realId && !String(realId).startsWith('m')) {
+      var r = await fetch(API_V1 + '/lookuptimeline.php?id=' + realId);
+      var data = await r.json();
+      var events = (data && data.timeline) ? data.timeline : [];
+      events.forEach(function(ev) {
+        var type = (ev.strTimeline || ev.strTimelineType || ev.strType || '').toLowerCase();
+        if (type.indexOf('goal') === -1) return;
+        var isOG = type.indexOf('own') !== -1;
+        var min = ev.intTime ? String(ev.intTime)+(ev.intTimeExtra?'+'+ev.intTimeExtra:'')+"'" : '?';
+        var player = (ev.strPlayer||'').replace(/\s*\(.*\)\s*/g,'').trim();
+        var team = ev.strTeam||'';
+        var pais = larezTeamMatch(home,team) ? home : away;
+        if (player) goles.push({player:player,min:min,pais:pais,isOG:isOG});
+      });
+    }
+  } catch(e) {}
+  _modalRegistroGoles(fixtureId, home, away, goles);
+}
+
+function _modalRegistroGoles(fixtureId, home, away, golesPreload) {
+  var oldM = document.getElementById('_golesModal'); if (oldM) oldM.remove();
+  var homeShort = home.split(' ').slice(1).join(' ');
+  var awayShort = away.split(' ').slice(1).join(' ');
+  window._golesData = {fixtureId:fixtureId, home:home, away:away, count:golesPreload.length};
+  var rows = golesPreload.map(function(g,i){
+    return '<div class="_grow" style="display:flex;align-items:center;gap:5px;padding:6px 0;border-bottom:1px solid var(--border);">'
+      +'<input id="_gp_'+i+'" value="'+g.player+'" placeholder="Goleador" style="flex:2;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.8em;">'
+      +'<input id="_gm_'+i+'" value="'+g.min+'" placeholder="Min" style="width:46px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.8em;text-align:center;">'
+      +'<select id="_gt_'+i+'" style="padding:5px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.73em;">'
+      +'<option value="'+home+'"'+(g.pais===home?' selected':'')+'>'+homeShort+'</option>'
+      +'<option value="'+away+'"'+(g.pais===away?' selected':'')+'>'+awayShort+'</option>'
+      +'</select>'
+      +'<select id="_gog_'+i+'" style="padding:5px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.73em;">'
+      +'<option value="0"'+(g.isOG?'':' selected')+'>Gol</option>'
+      +'<option value="1"'+(g.isOG?' selected':'')+'>AG</option>'
+      +'</select></div>';
+  }).join('');
+  var modal = document.createElement('div');
+  modal.id = '_golesModal'; modal.className = 'modal-overlay'; modal.style.zIndex = '7000';
+  modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+    +'<div class="modal-handle"></div>'
+    +'<div style="font-family:var(--font-h);font-size:1em;font-weight:800;color:var(--green);margin-bottom:4px;">⚽ Registrar Goles</div>'
+    +'<div style="font-size:0.78em;color:var(--muted2);margin-bottom:10px;">'+home+' vs '+away+'</div>'
+    +'<div id="_goles_rows">'+rows+'</div>'
+    +'<button onclick="_agregarFilaGol()" style="width:100%;margin-top:8px;padding:8px;border-radius:8px;border:1px dashed var(--border2);background:transparent;color:var(--primary2);cursor:pointer;font-size:0.82em;font-family:var(--font-b);">+ Agregar manualmente</button>'
+    +'<div style="display:flex;gap:8px;margin-top:12px;">'
+    +'<button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById(\'_golesModal\').remove()">Cancelar</button>'
+    +'<button onclick="_guardarGolesPartido()" style="flex:1;padding:11px;border-radius:8px;border:none;background:var(--green);color:#000;font-family:var(--font-b);font-weight:800;cursor:pointer;">Guardar</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+function _agregarFilaGol() {
+  var d = window._golesData;
+  var i = d.count++;
+  var homeShort = d.home.split(' ').slice(1).join(' ');
+  var awayShort = d.away.split(' ').slice(1).join(' ');
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 0;border-bottom:1px solid var(--border);';
+  row.innerHTML = '<input id="_gp_'+i+'" placeholder="Goleador" style="flex:2;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.8em;">'
+    +'<input id="_gm_'+i+'" placeholder="Min" style="width:46px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.8em;text-align:center;">'
+    +'<select id="_gt_'+i+'" style="padding:5px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.73em;">'
+    +'<option value="'+d.home+'">'+homeShort+'</option>'
+    +'<option value="'+d.away+'">'+awayShort+'</option>'
+    +'</select>'
+    +'<select id="_gog_'+i+'" style="padding:5px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:0.73em;">'
+    +'<option value="0" selected>Gol</option><option value="1">AG</option>'
+    +'</select>';
+  document.getElementById('_goles_rows').appendChild(row);
+}
+
+async function _guardarGolesPartido() {
+  var d = window._golesData; if (!d) return;
+  toast('Guardando...', 'info', 1500);
+  try {
+    var batch = db.batch();
+    var saved = 0;
+    for (var i=0; i<d.count; i++) {
+      var pl = (document.getElementById('_gp_'+i)||{value:''}).value.trim();
+      var mn = (document.getElementById('_gm_'+i)||{value:''}).value.trim();
+      var ps = (document.getElementById('_gt_'+i)||{value:d.home}).value;
+      var og = (document.getElementById('_gog_'+i)||{value:'0'}).value==='1';
+      if (!pl) continue;
+      batch.set(db.collection('goles').doc(d.fixtureId+'_gol_'+i), {
+        player:pl, min:mn, pais:ps, isOG:og,
+        fixtureId:d.fixtureId, home:d.home, away:d.away,
+        ts:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      saved++;
+    }
+    if (!saved) { toast('No hay goles para guardar','warning'); return; }
+    await batch.commit();
+    toast(saved+' gol(es) guardado(s)','success',3000);
+    document.getElementById('_golesModal').remove();
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 </script>
 
@@ -9857,6 +9894,7 @@ function _enviarGoleador() {
 
 </body>
    </html>
+  
   
   
   
