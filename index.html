@@ -3835,8 +3835,8 @@ async function openStats(matchId) {
     window._statsRefreshInterval = null;
     window._statsRefreshMatchId  = null;
   }
-    openModal('statsModal');
-  $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
+  openModal('statsModal');
+    $('statsContent').innerHTML = '<div class="empty"><span class="empty-icon">⏳</span><span class="empty-text">Cargando...</span></div>';
   try {
     // Resolver el ID real de TheSportsDB:
     // 1) _apiIdMap persistente (nunca se borra aunque _wM cambie)
@@ -3927,8 +3927,7 @@ async function openStats(matchId) {
         }
       }
     } catch(e) {}
-    // Guardar timeline en cache para evitar re-fetch
-    if (timeline.length) { if (!_statsCache[_cacheKey]) _statsCache[_cacheKey]={}; _statsCache[_cacheKey].tl = timeline; }
+    // (cache de timeline se guarda después de cargarlo)
 
     // ── Cabecera marcador — estilo FlashScore ─────────────────
     // Leer el cronómetro actual del badge si el partido está en vivo
@@ -3989,6 +3988,14 @@ async function openStats(matchId) {
                : Array.isArray(liveEvData?.events)   ? liveEvData.events : [];
       if (tl.length > 0) timelineEvents = tl;
     }
+
+    // Guardar en cache para futuras visitas
+    if (timelineEvents.length) {
+      if (!_statsCache[_cacheKey]) _statsCache[_cacheKey] = {};
+      _statsCache[_cacheKey].tl = timelineEvents;
+    }
+
+
 
     // ── Render de cada evento — estilo FlashScore ────────────
     const renderTimelineEvent = (t) => {
@@ -5760,8 +5767,7 @@ async function adminUsers() {
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--primary2);">${snap.size}</div>
       <div style="font-size:0.7em;color:var(--primary2);font-weight:700;">👥 Total</div>
     </div>
-    <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">
-          <div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${noPredCount}</div>
+    <div style="flex:1;padding:10px;background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;text-align:center;">      <div style="font-family:var(--font-h);font-size:1.4em;color:var(--red);">${noPredCount}</div>
       <div style="font-size:0.7em;color:var(--red);font-weight:700;">🔴 Sin pred.</div>
     </div>
   </div>`;
@@ -7968,8 +7974,8 @@ async function openMyPredictions() {
           </div>
           ${ev
             ? `<div style="display:flex;justify-content:space-between;align-items:center;">
-                <div style="font-size:0.72em;color:var(--muted2);">
-                  Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>       <div style="font-size:0.82em;font-weight:800;color:${ptsColor};">${ptsLabel}</div>
+                <div style="font-size:0.72em;color:var(--muted2);">                  Real: <strong>${matchObj?.homeScore??'?'} — ${matchObj?.awayScore??'?'}</strong></div>
+                <div style="font-size:0.82em;font-weight:800;color:${ptsColor};">${ptsLabel}</div>
                </div>`
             : `<div style="font-size:0.72em;color:var(--muted2);">
                 ${p.groupName ? 'Grupo: '+p.groupName : ''} · ⏳ Sin evaluar</div>`
@@ -9851,6 +9857,7 @@ function _enviarGoleador() {
 
 </body>
    </html>
+  
   
   
   
