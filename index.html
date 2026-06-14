@@ -1846,7 +1846,7 @@ const FIXTURE_MUNDIAL = [
   // Sáb 21/6
   { id:'m037', home:'🇪🇸 España',         away:'🇸🇦 Arabia Saudita',     date:'2026-06-21', timeVZ:'2:00 pm',  group:'H', jornada:2, venue:'Mercedes-Benz Stadium, Atlanta' },
   { id:'m038', home:'🇧🇪 Bélgica',        away:'🇮🇷 Irán',               date:'2026-06-21', timeVZ:'3:00 pm',  group:'G', jornada:2, venue:'SoFi Stadium, Los Ángeles' },
-     { id:'m039', home:'🇺🇾 Uruguay',        away:'🇨🇻 Cabo Verde',         date:'2026-06-21', timeVZ:'8:00 pm',  group:'H', jornada:2, venue:'Hard Rock Stadium, Miami' },
+    { id:'m039', home:'🇺🇾 Uruguay',        away:'🇨🇻 Cabo Verde',         date:'2026-06-21', timeVZ:'8:00 pm',  group:'H', jornada:2, venue:'Hard Rock Stadium, Miami' },
   { id:'m040', home:'🇳🇿 Nueva Zelanda',  away:'🇪🇬 Egipto',             date:'2026-06-21', timeVZ:'9:00 pm',  group:'G', jornada:2, venue:'BC Place, Vancouver' },
   // Dom 22/6
   { id:'m041', home:'🇫🇷 Francia',        away:'🇮🇶 Iraq',               date:'2026-06-22', timeVZ:'5:00 pm',  group:'I', jornada:2, venue:'Lincoln Financial, Filadelfia' },
@@ -5703,7 +5703,7 @@ async function adminUsers() {
 
   // Summary badges
   const predCount = snap.docs.filter(d=>hasPredicted(d.id)).length;
-     const noPredCount = snap.size - predCount;
+    const noPredCount = snap.size - predCount;
   html += `<div style="display:flex;gap:8px;margin-bottom:14px;">
     <div style="flex:1;padding:10px;background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;text-align:center;">
       <div style="font-family:var(--font-h);font-size:1.4em;color:var(--green);">${predCount}</div>
@@ -7893,7 +7893,7 @@ async function openMyPredictions() {
           ? 'border-color:rgba(245,197,66,0.4);'
           : ev && p.pointsAwarded===3
             ? 'border-color:rgba(0,229,160,0.3);' : '';
-                 const dateLabel = p.jornadaDate && p.jornadaDate !== today
+                    const dateLabel = p.jornadaDate && p.jornadaDate !== today
           ? `<span style="font-size:0.65em;color:var(--muted2);margin-left:4px;">📅 ${p.jornadaDate}</span>` : '';
         html += `<div style="background:var(--surface2);border:1px solid var(--border);
           ${borderExtra}border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
@@ -9757,6 +9757,7 @@ function _enviarGoleador() {
 
 </body>
    </html>
+  
   
   
 
