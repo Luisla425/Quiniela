@@ -10515,6 +10515,16 @@ async function openTorneoStats() {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
+function _torneoItemModal(idx) {
+  if (!window._torneoCache || !window._torneoCache[idx]) {
+    toast('Error cargando datos, abre la pizarra de nuevo', 'warning');
+    return;
+  }
+  var item = window._torneoCache[idx];
+  if (item.tipo === 'equipo') _torneoEquipoModal(item.nombre, item.categoria, item.jugadores);
+  else if (item.tipo === 'goleador') _torneoGoleadorModal(item.nombre, item.info);
+}   
+
 // Cambiar tab del torneo
 function _torneoTab(n) {
   for (var i=0;i<3;i++) {
