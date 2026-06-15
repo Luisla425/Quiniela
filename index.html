@@ -1898,8 +1898,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m053', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇧🇷 Brasil',             date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Hard Rock Stadium, Miami' },
   { id:'m054', home:'🇲🇦 Marruecos',      away:'🇭🇹 Haití',              date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Mercedes-Benz Stadium, Atlanta' },
   // Jue 25/6 — Grupos D, E, F
-  { id:'m055', home:'🇹🇷 Turquía',        away:'🇺🇸 Estados Unidos',     date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:'SoFi Stadium, Los Ángeles' },  { id:'m056', home:'🇵🇾 Paraguay',       away:'🇦🇺 Australia',          date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:"Levi's Stadium, San Francisco" },
-  { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },
+  { id:'m055', home:'🇹🇷 Turquía',        away:'🇺🇸 Estados Unidos',     date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:'SoFi Stadium, Los Ángeles' },
+  { id:'m056', home:'🇵🇾 Paraguay',       away:'🇦🇺 Australia',          date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:"Levi's Stadium, San Francisco" },  { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },
   { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },
   { id:'m059', home:'🇯🇵 Japón',          away:'🇸🇪 Suecia',             date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'AT&T Stadium, Dallas' },
   { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
@@ -4005,13 +4005,12 @@ async function openStats(matchId) {
 
     // ── Cabecera marcador — estilo FlashScore ─────────────────
     // Leer el cronómetro actual del badge si el partido está en vivo
-        const liveBadge = document.getElementById(`badge_main_${matchId}`) || document.getElementById(`badge_${matchId}`);
+    const liveBadge = document.getElementById(`badge_main_${matchId}`) || document.getElementById(`badge_${matchId}`);
     const liveCronText = (isMatchLive && liveBadge) ? liveBadge.textContent.replace('🔴','').trim() : '';
     const minuteLabel = liveCronText || (minuteDisplay ? `${minuteDisplay}'` : '');
 
     let html = `
-      <div style="margin-bottom:16px;">
-        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;
+      <div style="margin-bottom:16px;">        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;
           letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
           <span>${leagueName}</span>
           ${isMatchLive
@@ -6089,7 +6088,8 @@ async function adminResetUserPass(username, phone, uid) {
   modal.style.zIndex = '9200';
   modal.innerHTML = `
     <div style="background:var(--surface2);border-radius:20px;padding:22px 18px;
-      max-width:340px;width:94%;border:1px solid rgba(108,71,255,0.4);      box-shadow:0 20px 60px rgba(0,0,0,.6);">
+      max-width:340px;width:94%;border:1px solid rgba(108,71,255,0.4);
+      box-shadow:0 20px 60px rgba(0,0,0,.6);">
       <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:4px;">
         🔑 Resetear Contraseña
       </div>
@@ -6098,8 +6098,7 @@ async function adminResetUserPass(username, phone, uid) {
       </div>
       <div style="background:rgba(108,71,255,0.12);border:2px solid rgba(108,71,255,0.4);
         border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;">
-        <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;
-          text-transform:uppercase;letter-spacing:1px;">Nueva contraseña temporal</div>
+        <div style="font-size:0.7em;color:var(--muted2);margin-bottom:6px;font-weight:700;          text-transform:uppercase;letter-spacing:1px;">Nueva contraseña temporal</div>
         <div style="font-family:var(--font-h);font-size:2em;font-weight:900;
           color:var(--primary2);letter-spacing:3px;">${tempPass}</div>
         <button onclick="navigator.clipboard?.writeText('${tempPass}');toast('📋 Copiada','success',1500);"
@@ -7364,7 +7363,24 @@ function renderMundialScreen() {
               </span>
             </div>
 
-            <span class="vs-divider">VS</span>
+            ${ (function(){
+              var hs = m.homeScore, aw = m.awayScore;
+              var st = (m.status||"").toUpperCase();
+              var live = ["1H","2H","HT","ET","P","BT","IN PLAY","LIVE"].indexOf(st) >= 0;
+              var done = ["FT","AET","AP","PEN","MATCH FINISHED","FINISHED"].indexOf(st) >= 0;
+              var pastDate = m.date < vzDate();
+              if (hs != null && aw != null && (live || done || pastDate)) {
+                var col = live ? "var(--red)" : "var(--gold)";
+                var ico = live ? "🔴" : "✅";
+                var lbl = live ? "En vivo" : "Final";
+                return '<div style="text-align:center;">'
+                  + '<div style="font-family:var(--font-h);font-size:1.8em;font-weight:900;'
+                  + 'color:' + col + ';line-height:1;">' + hs + ' — ' + aw + '</div>'
+                  + '<div style="font-size:0.65em;color:' + col + ';margin-top:2px;">' + ico + ' ' + lbl + '</div>'
+                  + '</div>';
+              }
+              return '<span class="vs-divider">VS</span>';
+            })() }
 
             <div class="team">
               <span class="team-flag" style="font-size:1.6em;">
@@ -8388,11 +8404,11 @@ const p25started = p25 && (isLive(p25.status) || isFinished(p25.status));
       } else {
         // Editable hasta partido 25
         $('mundialSaveBtn').textContent = '🔄 Actualizar Predicciones';
-        const info = $('mundialSavedMsg');
-        info.classList.remove('hidden');
+        const info = $('mundialSavedMsg');        info.classList.remove('hidden');
         info.style.background = 'rgba(245,197,66,0.1)';
         info.style.borderColor = 'var(--gold)';
-        info.style.color = 'var(--gold)';        info.innerHTML = '✏️ Ya tienes predicciones guardadas. Puedes actualizarlas hasta el partido 25.';
+        info.style.color = 'var(--gold)';
+        info.innerHTML = '✏️ Ya tienes predicciones guardadas. Puedes actualizarlas hasta el partido 25.';
       }
     }
   } catch(e) {}
@@ -10322,6 +10338,7 @@ function stopMatchesListener() {
 
 </body>
    </html>
+  
   
   
   
