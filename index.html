@@ -1908,7 +1908,8 @@ const FIXTURE_MUNDIAL = [
   { id:'m061', home:'🇪🇬 Egipto',         away:'🇮🇷 Irán',               date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'Lumen Field, Seattle' },
   { id:'m062', home:'🇳🇿 Nueva Zelanda',  away:'🇧🇪 Bélgica',            date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'BC Place, Vancouver' },
   { id:'m063', home:'🇨🇻 Cabo Verde',     away:'🇸🇦 Arabia Saudita',     date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'NRG Stadium, Houston' },
-  { id:'m064', home:'🇺🇾 Uruguay',        away:'🇪🇸 España',             date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'Estadio Akron, Guadalajara' },  { id:'m065', home:'🇳🇴 Noruega',        away:'🇫🇷 Francia',            date:'2026-06-26', timeVZ:'3:00 pm',  group:'I', jornada:3, venue:'Gillette Stadium, Boston' },
+  { id:'m064', home:'🇺🇾 Uruguay',        away:'🇪🇸 España',             date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'Estadio Akron, Guadalajara' },
+  { id:'m065', home:'🇳🇴 Noruega',        away:'🇫🇷 Francia',            date:'2026-06-26', timeVZ:'3:00 pm',  group:'I', jornada:3, venue:'Gillette Stadium, Boston' },
   { id:'m066', home:'🇸🇳 Senegal',        away:'🇮🇶 Iraq',               date:'2026-06-26', timeVZ:'3:00 pm',  group:'I', jornada:3, venue:'BMO Field, Toronto' },
   // Sáb 27/6 — Grupos J, K, L
   { id:'m067', home:'🇩🇿 Argelia',        away:'🇦🇹 Austria',            date:'2026-06-27', timeVZ:'10:00 pm', group:'J', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
@@ -1947,8 +1948,7 @@ let myTournaments = ['mundial'];
 let _wM = []; // Partidos del Mundial FIFA 2026
 const _statsCache = {}; // Cache de timeline/stats por matchId
 const _apiIdMap  = (function(){
-  try { return JSON.parse(localStorage.getItem('_apiIdMap')||'{}'); } catch(e){ return {}; }
-})(); // Mapa persistente fixtureId -> TheSportsDB ID (se guarda en localStorage)
+  try { return JSON.parse(localStorage.getItem('_apiIdMap')||'{}'); } catch(e){ return {}; }})(); // Mapa persistente fixtureId -> TheSportsDB ID (se guarda en localStorage)
 let _aM = _wM;  // alias — solo existe el Mundial
 let _dM = [];   // europeos — siempre vacío en modo Mundial
 let userEnteringPreds = false;
@@ -4058,7 +4058,8 @@ async function openStats(matchId) {
                <button onclick="openStats('${matchId}')" style="padding:2px 8px;background:rgba(255,77,109,0.15);border:1px solid rgba(255,77,109,0.4);border-radius:20px;color:var(--red);font-size:0.9em;cursor:pointer;font-weight:700;">🔄</button>`
             : ''}
         </div>
-        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;">          <div style="text-align:right;font-weight:900;font-size:0.9em;line-height:1.3;color:var(--primary2);">${home}</div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;">
+          <div style="text-align:right;font-weight:900;font-size:0.9em;line-height:1.3;color:var(--primary2);">${home}</div>
           <div style="text-align:center;">
             <div style="font-family:var(--font-h);font-size:2.6em;font-weight:900;color:var(--text);letter-spacing:2px;line-height:1;">${scoreH} — ${scoreA}</div>
             ${minuteLabel ? `<div style="color:var(--gold);font-size:0.78em;font-weight:800;margin-top:4px;">⏱ ${minuteLabel}</div>` : ''}
@@ -4170,7 +4171,7 @@ async function openStats(matchId) {
           mainLine = `${player} <span style="color:var(--muted2);font-size:0.78em;">(Penal fallado${penalDetail})</span>`;
         } else {
           icon='⚽'; color = isHome ? 'var(--primary2)' : 'var(--green)';
-          mainLine = `${player}${scoreChip}`;
+                    mainLine = `${player}${scoreChip}`;
         }
         if (player2 && !type.includes('miss'))
           subLine = `<span style="color:var(--muted2);">🅰 ${player2}</span>`;
@@ -5176,6 +5177,7 @@ async function renderGroups() {
         <div class="group-actions">
           ${me.isAdmin?`<button class="btn-del" onclick="deleteGroup('${doc.id}','${g.name}')">🗑️</button>`:''}
           <button class="btn-rank" onclick="openGroupRanking('${doc.id}')">${t('viewRanking')}</button>
+            <button class="btn-rank" onclick="openTorneoStats()" style="background:rgba(245,197,66,0.15);color:var(--gold);">🏆 Torneo</button>
           <button class="btn-wa" onclick="shareGroup('${g.code}','${g.name}')">📲</button>
         </div>
       </div>`;
@@ -6179,7 +6181,7 @@ async function _confirmarResetPass(uid, username, phone, tempPass) {
       uid, username, tempPass,
       requestedBy: me.uid,
       requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
-            used: false
+      used: false
     });
     const apiKey = 'AIzaSyCGfPIf-Q1x90hTne1tCMWNFuS0hiO4CtA';
     try {
@@ -6352,7 +6354,7 @@ async function generarPizarraWA() {
 
   const NL = '\n';
   const medals = ['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49'];
-  const now  = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});
+  const now  = vzNow().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit',hour12:true});  
   const date = vzNow().toLocaleDateString('es-VE',{day:'2-digit',month:'short'});
   const anyLive = _aM.some(function(m){ return isLive(m.status); });
 
@@ -8514,7 +8516,8 @@ async function saveMundialConfig() {
     lockedAt:      firebase.firestore.FieldValue.serverTimestamp()
   };
   try {
-    await db.collection('system').doc('mundialConfig').set(mundialConfig);    updateMundialLabels();
+    await db.collection('system').doc('mundialConfig').set(mundialConfig);
+    updateMundialLabels();
     toast('✅ Configuración guardada y bloqueada','success');
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
@@ -8749,7 +8752,7 @@ async function evalMundial() {
       const desglose = [];
 
       if (p.campeon    === campeon)    { pts += cfg.campeon;  desglose.push(`🥇+${cfg.campeon}`); }
-      if (p.subcampeon === subcampeon) { pts += cfg.sub;      desglose.push(`🥈+${cfg.sub}`); }
+            if (p.subcampeon === subcampeon) { pts += cfg.sub;      desglose.push(`🥈+${cfg.sub}`); }
       if (p.tercero    === tercero)    { pts += cfg.tercero;  desglose.push(`🥉+${cfg.tercero}`); }
       if (p.goleador?.toLowerCase() === goleador.toLowerCase()) {
         pts += cfg.goleador;
@@ -10311,7 +10314,263 @@ function stopMatchesListener() {
     _matchesUnsub = null;
   }
 }
-</script>
+
+
+// ═══ PIZARRAS DEL TORNEO — 3 tabs ═══
+async function openTorneoStats() {
+  toast('Cargando pizarras del torneo...', 'info', 2000);
+  try {
+    // 1. Leer mundialPreds — predicciones de todos los jugadores
+    var snap = await db.collection('mundialPreds').get();
+    if (snap.empty) { toast('Sin predicciones del torneo aun', 'warning'); return; }
+
+    // Acumular por equipo/goleador
+    var campeones   = {}; // { 'Francia': ['LUISLA1','FRED4'] }
+    var subcampeones= {};
+    var terceros    = {};
+    var goleadores  = {}; // { 'Mbappe': [{username, golesGoleador}] }
+    var totalGoles  = []; // [{username, golesGoleador}]
+
+    snap.docs.forEach(function(d) {
+      var u = d.data();
+      var usr = u.username || '?';
+      if (u.campeon) {
+        if (!campeones[u.campeon]) campeones[u.campeon] = [];
+        campeones[u.campeon].push(usr);
+      }
+      if (u.subcampeon) {
+        if (!subcampeones[u.subcampeon]) subcampeones[u.subcampeon] = [];
+        subcampeones[u.subcampeon].push(usr);
+      }
+      if (u.tercero) {
+        if (!terceros[u.tercero]) terceros[u.tercero] = [];
+        terceros[u.tercero].push(usr);
+      }
+      if (u.goleador) {
+        if (!goleadores[u.goleador]) goleadores[u.goleador] = [];
+        goleadores[u.goleador].push({ username: usr, goles: u.golesGoleador || '?' });
+      }
+      if (u.golesGoleador != null) {
+        totalGoles.push({ username: usr, pred: +u.golesGoleador });
+      }
+    });
+
+    // 2. Leer goles reales de Firestore para ranking goleador
+    var golesReales = {}; // { 'Mbappe': { goles:5, pais:'Francia' } }
+    try {
+      var gSnap = await db.collection('goles').orderBy('ts').get();
+      gSnap.docs.forEach(function(d) {
+        var g = d.data();
+        if (g.isOG) return;
+        var key = g.player || '?';
+        if (!golesReales[key]) golesReales[key] = { goles: 0, pais: g.pais || '' };
+        golesReales[key].goles++;
+        if (g.pais) golesReales[key].pais = g.pais;
+      });
+    } catch(e) {}
+
+    // Top 3 reales
+    var top3Reales = Object.entries(golesReales)
+      .sort(function(a,b){ return b[1].goles - a[1].goles; })
+      .slice(0, 3);
+
+    // Fusionar: elegidos + top3 reales (sin duplicar)
+    var goleadoresElegidos = Object.keys(goleadores);
+    var fusionados = {};
+    // Primero los top3 reales
+    top3Reales.forEach(function(e) {
+      fusionados[e[0]] = { goles: e[1].goles, pais: e[1].pais, elegidos: goleadores[e[0]] || [], esReal: true };
+    });
+    // Luego los elegidos que no estén en top3
+    goleadoresElegidos.forEach(function(nombre) {
+      if (!fusionados[nombre]) {
+        var gr = golesReales[nombre];
+        fusionados[nombre] = { goles: gr ? gr.goles : 0, pais: gr ? gr.pais : '', elegidos: goleadores[nombre], esReal: false };
+      } else {
+        // Ya está — solo agregar elegidos si faltaban
+        if (!fusionados[nombre].elegidos || !fusionados[nombre].elegidos.length) {
+          fusionados[nombre].elegidos = goleadores[nombre] || [];
+        }
+      }
+    });
+    // Ordenar por goles desc
+    var listaGoleadores = Object.entries(fusionados)
+      .sort(function(a,b){ return b[1].goles - a[1].goles; });
+
+    // Total de goles reales del torneo
+    var totalGolesReal = Object.values(golesReales).reduce(function(s,g){ return s + g.goles; }, 0);
+    // Ordenar predicciones por cercanía
+    totalGoles.sort(function(a,b){ return Math.abs(a.pred - totalGolesReal) - Math.abs(b.pred - totalGolesReal); });
+
+    // ── Construir HTML ──
+    var old = document.getElementById('_torneoModal'); if (old) old.remove();
+    var modal = document.createElement('div');
+    modal.id = '_torneoModal';
+    modal.className = 'modal-overlay';
+    modal.style.zIndex = '7000';
+
+    // ── Tab 1: Equipos ──
+    function buildEquipos() {
+      function seccion(titulo, mapa, pts) {
+        var equipos = Object.entries(mapa).sort(function(a,b){ return b[1].length - a[1].length; });
+        if (!equipos.length) return '<div style="color:var(--muted2);font-size:0.82em;padding:8px 0;">Sin predicciones</div>';
+        return '<div style="margin-bottom:16px;">'
+          + '<div style="font-size:0.75em;font-weight:800;color:var(--muted2);letter-spacing:1px;margin-bottom:6px;">' + titulo + ' \u00b7 ' + pts + ' pts</div>'
+          + equipos.map(function(e) {
+              var nombre = e[0], jugs = e[1];
+              return '<div onclick="_torneoEquipoModal(\'' + nombre.replace(/'/g,"\\'") + '\',\'' + titulo + '\',' + JSON.stringify(jugs) + ')"'
+                + ' style="display:flex;align-items:center;justify-content:space-between;'
+                + 'padding:10px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer;'
+                + 'background:var(--surface);border:1px solid var(--border);">'
+                + '<div style="font-weight:800;font-size:0.9em;">' + nombre + '</div>'
+                + '<div style="display:flex;align-items:center;gap:8px;">'
+                + '<div style="font-size:0.75em;color:var(--muted2);">' + jugs.length + ' jugador' + (jugs.length>1?'es':'') + '</div>'
+                + '<div style="color:var(--primary2);font-size:0.9em;">\u203a</div>'
+                + '</div></div>';
+            }).join('')
+          + '</div>';
+      }
+      return seccion('\ud83e\udd47 CAMPE\u00d3N', campeones, 15)
+           + seccion('\ud83e\udd48 SUBCAMPE\u00d3N', subcampeones, 10)
+           + seccion('\ud83e\udd49 TERCER LUGAR', terceros, 5);
+    }
+
+    // ── Tab 2: Goleador ──
+    function buildGoleador() {
+      if (!listaGoleadores.length) return '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin datos aun</div>';
+      return listaGoleadores.map(function(e, i) {
+        var nombre = e[0], info = e[1];
+        var medal = i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':'';
+        var isElegido = info.elegidos && info.elegidos.length > 0;
+        var isTop3 = info.esReal;
+        return '<div onclick="_torneoGoleadorModal(\'' + nombre.replace(/'/g,"\\'") + '\',' + JSON.stringify(info) + ')"'
+          + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;'
+          + 'margin-bottom:6px;cursor:pointer;'
+          + 'background:' + (isElegido ? 'rgba(108,71,255,0.08)' : 'var(--surface)') + ';'
+          + 'border:1px solid ' + (isElegido ? 'rgba(108,71,255,0.3)' : 'var(--border)') + ';">'
+          + '<div style="font-family:var(--font-h);font-size:1.1em;min-width:28px;">' + (medal||('#'+(i+1))) + '</div>'
+          + '<div style="flex:1;">'
+          + '<div style="font-weight:800;font-size:0.9em;">' + nombre + '</div>'
+          + '<div style="font-size:0.7em;color:var(--muted2);">' + (info.pais||'') + (isElegido ? ' \u00b7 elegido por ' + info.elegidos.length : '') + '</div>'
+          + '</div>'
+          + '<div style="text-align:right;">'
+          + '<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);font-weight:900;">' + info.goles + '</div>'
+          + '<div style="font-size:0.65em;color:var(--muted2);">\u26bd</div>'
+          + '</div>'
+          + '<div style="color:var(--primary2);">\u203a</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // ── Tab 3: Total Goles ──
+    function buildTotalGoles() {
+      if (!totalGoles.length) return '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin predicciones aun</div>';
+      var diff_str = totalGolesReal > 0 ? '\u26bd Real: ' + totalGolesReal + ' goles hasta ahora' : '\u26bd Real: sin goles registrados aun';
+      return '<div style="background:rgba(245,197,66,0.1);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82em;font-weight:800;color:var(--gold);">'
+        + diff_str + '</div>'
+        + totalGoles.map(function(u, i) {
+            var diff = totalGolesReal > 0 ? Math.abs(u.pred - totalGolesReal) : null;
+            var medal = i===0&&totalGolesReal>0?'\ud83e\udd47':i===1&&totalGolesReal>0?'\ud83e\udd48':i===2&&totalGolesReal>0?'\ud83e\udd49':'';
+            var isMe = u.username === (me && me.username);
+            return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:5px;'
+              + 'background:' + (isMe ? 'rgba(108,71,255,0.1)' : 'var(--surface)') + ';'
+              + 'border:1px solid ' + (isMe ? 'var(--primary)' : 'var(--border)') + ';">'
+              + '<div style="min-width:28px;font-size:0.9em;">' + (medal || ('#'+(i+1))) + '</div>'
+              + '<div style="flex:1;font-weight:800;font-size:0.88em;">' + u.username + (isMe ? ' <span style="color:var(--primary2);font-size:0.7em;">(t\u00fa)</span>' : '') + '</div>'
+              + '<div style="text-align:right;">'
+              + '<div style="font-family:var(--font-h);font-size:1.3em;font-weight:900;color:var(--text);">' + u.pred + '</div>'
+              + (diff !== null ? '<div style="font-size:0.65em;color:' + (diff===0?'var(--green)':diff<=5?'var(--gold)':'var(--muted2)') + ';">' + (diff===0?'\u2705 Exacto':'\u00b1'+diff) + '</div>' : '')
+              + '</div>'
+              + '</div>';
+          }).join('');
+    }
+
+    // ── Modal con tabs ──
+    var tab1 = buildEquipos();
+    var tab2 = buildGoleador();
+    var tab3 = buildTotalGoles();
+
+    modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+      + '<div class="modal-handle"></div>'
+      + '<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:var(--gold);margin-bottom:12px;">\ud83c\udfc6 Pizarras del Torneo</div>'
+      // Tabs
+      + '<div id="_torneoTabs" style="display:flex;gap:6px;margin-bottom:14px;">'
+      + '<button onclick="_torneoTab(0)" id="_ttab0" style="flex:1;padding:8px 4px;border-radius:8px;border:none;font-size:0.75em;font-weight:800;background:var(--primary);color:#fff;cursor:pointer;">\ud83c\udfc6 Equipos</button>'
+      + '<button onclick="_torneoTab(1)" id="_ttab1" style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid var(--border);font-size:0.75em;font-weight:800;background:var(--surface);color:var(--text);cursor:pointer;">\u26bd Goleador</button>'
+      + '<button onclick="_torneoTab(2)" id="_ttab2" style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid var(--border);font-size:0.75em;font-weight:800;background:var(--surface);color:var(--text);cursor:pointer;">\ud83d\udd22 Goles</button>'
+      + '</div>'
+      // Contenido tabs
+      + '<div id="_torneoTab0">' + tab1 + '</div>'
+      + '<div id="_torneoTab1" style="display:none;">' + tab2 + '</div>'
+      + '<div id="_torneoTab2" style="display:none;">' + tab3 + '</div>'
+      + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_torneoModal\').remove()">Cerrar</button>'
+      + '</div>';
+
+    document.body.appendChild(modal);
+
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// Cambiar tab del torneo
+function _torneoTab(n) {
+  for (var i=0;i<3;i++) {
+    var tab = document.getElementById('_torneoTab'+i);
+    var btn = document.getElementById('_ttab'+i);
+    if (tab) tab.style.display = i===n ? '' : 'none';
+    if (btn) {
+      btn.style.background = i===n ? 'var(--primary)' : 'var(--surface)';
+      btn.style.color = i===n ? '#fff' : 'var(--text)';
+      btn.style.border = i===n ? 'none' : '1px solid var(--border)';
+    }
+  }
+}
+
+// Modal al tocar un equipo
+function _torneoEquipoModal(equipo, categoria, jugadores) {
+  var old = document.getElementById('_torneoEqModal'); if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = '_torneoEqModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '8000';
+  var rows = jugadores.map(function(u) {
+    return '<div style="padding:9px 0;border-bottom:1px solid var(--border);font-weight:800;font-size:0.88em;">' + u + '</div>';
+  }).join('');
+  modal.innerHTML = '<div class="modal-box">'
+    + '<div class="modal-handle"></div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:4px;">' + categoria + '</div>'
+    + '<div style="font-family:var(--font-h);font-size:1.2em;font-weight:900;color:var(--gold);margin-bottom:12px;">' + equipo + '</div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">' + jugadores.length + ' jugador' + (jugadores.length>1?'es':'') + ' apostaron por este equipo</div>'
+    + rows
+    + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_torneoEqModal\').remove()">Cerrar</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+}
+
+// Modal al tocar un goleador
+function _torneoGoleadorModal(nombre, info) {
+  var old = document.getElementById('_torneoGolModal'); if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = '_torneoGolModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '8000';
+  var elegidos = info.elegidos || [];
+  var rows = elegidos.map(function(u) {
+    return '<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);">'
+      + '<span style="font-weight:800;font-size:0.88em;">' + u.username + '</span>'
+      + '<span style="font-size:0.82em;color:var(--muted2);">predijo ' + u.goles + ' goles</span>'
+      + '</div>';
+  }).join('');
+  modal.innerHTML = '<div class="modal-box">'
+    + '<div class="modal-handle"></div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:4px;">\u26bd Goleador elegido</div>'
+    + '<div style="font-family:var(--font-h);font-size:1.2em;font-weight:900;color:var(--gold);margin-bottom:2px;">' + nombre + '</div>'
+    + '<div style="font-size:0.82em;color:var(--muted2);margin-bottom:12px;">' + (info.pais||'') + ' \u00b7 ' + info.goles + ' goles reales</div>'
+    + (elegidos.length ? '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">' + elegidos.length + ' jugador' + (elegidos.length>1?'es':'') + ' apostaron por \u00e9l</div>' + rows
+      : '<div style="color:var(--muted2);font-size:0.82em;">Nadie lo eligi\u00f3 \u2014 est\u00e1 en top 3 real</div>')
+    + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_torneoGolModal\').remove()">Cerrar</button>'
+    + '</div>';
+  document.body.appendChild(modal);
+}</script>
 
 <!-- ═══════════ MANUAL LUAN ═══════════ -->
 <div id="luanManualOverlay" style="display:none;position:fixed;inset:0;z-index:9999;
@@ -10469,6 +10728,7 @@ function stopMatchesListener() {
 
 </body>
    </html>
+  
   
   
   
