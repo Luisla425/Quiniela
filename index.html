@@ -10418,14 +10418,16 @@ async function openTorneoStats() {
           + '<div style="font-size:0.75em;font-weight:800;color:var(--muted2);letter-spacing:1px;margin-bottom:6px;">' + titulo + ' \u00b7 ' + pts + ' pts</div>'
           + equipos.map(function(e) {
               var nombre = e[0], jugs = e[1];
-              return '<div onclick="_torneoEquipoModal(\'' + nombre.replace(/'/g,"\\'") + '\',\'' + titulo + '\',' + JSON.stringify(jugs) + ')"'
+             var cidx = window._torneoCache.length;
+              window._torneoCache.push({ tipo:'equipo', nombre:nombre, categoria:titulo, jugadores:jugs });
+              return '<div onclick="_torneoItemModal(' + cidx + ')"'
                 + ' style="display:flex;align-items:center;justify-content:space-between;'
                 + 'padding:10px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer;'
                 + 'background:var(--surface);border:1px solid var(--border);">'
                 + '<div style="font-weight:800;font-size:0.9em;">' + nombre + '</div>'
                 + '<div style="display:flex;align-items:center;gap:8px;">'
                 + '<div style="font-size:0.75em;color:var(--muted2);">' + jugs.length + ' jugador' + (jugs.length>1?'es':'') + '</div>'
-                + '<div style="color:var(--primary2);font-size:0.9em;">\u203a</div>'
+                + '<div style="color:var(--primary2);font-size:0.9em;">›</div>'
                 + '</div></div>';
             }).join('')
           + '</div>';
@@ -10443,7 +10445,9 @@ async function openTorneoStats() {
         var medal = i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':'';
         var isElegido = info.elegidos && info.elegidos.length > 0;
         var isTop3 = info.esReal;
-        return '<div onclick="_torneoGoleadorModal(\'' + nombre.replace(/'/g,"\\'") + '\',' + JSON.stringify(info) + ')"'
+        var gidx = window._torneoCache.length;
+        window._torneoCache.push({ tipo:'goleador', nombre:nombre, info:info });
+        return '<div onclick="_torneoItemModal(' + gidx + ')"'
           + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;'
           + 'margin-bottom:6px;cursor:pointer;'
           + 'background:' + (isElegido ? 'rgba(108,71,255,0.08)' : 'var(--surface)') + ';'
@@ -10451,13 +10455,13 @@ async function openTorneoStats() {
           + '<div style="font-family:var(--font-h);font-size:1.1em;min-width:28px;">' + (medal||('#'+(i+1))) + '</div>'
           + '<div style="flex:1;">'
           + '<div style="font-weight:800;font-size:0.9em;">' + nombre + '</div>'
-          + '<div style="font-size:0.7em;color:var(--muted2);">' + (info.pais||'') + (isElegido ? ' \u00b7 elegido por ' + info.elegidos.length : '') + '</div>'
+          + '<div style="font-size:0.7em;color:var(--muted2);">' + (info.pais||'') + (isElegido ? ' · elegido por ' + info.elegidos.length : '') + '</div>'
           + '</div>'
           + '<div style="text-align:right;">'
           + '<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);font-weight:900;">' + info.goles + '</div>'
-          + '<div style="font-size:0.65em;color:var(--muted2);">\u26bd</div>'
+          + '<div style="font-size:0.65em;color:var(--muted2);">⚽</div>'
           + '</div>'
-          + '<div style="color:var(--primary2);">\u203a</div>'
+          + '<div style="color:var(--primary2);">›</div>'
           + '</div>';
       }).join('');
     }
@@ -10728,6 +10732,7 @@ function _torneoGoleadorModal(nombre, info) {
 
 </body>
    </html>
+  
   
   
   
