@@ -1900,10 +1900,10 @@ const FIXTURE_MUNDIAL = [
   // Jue 25/6 — Grupos D, E, F
   { id:'m055', home:'🇹🇷 Turquía',        away:'🇺🇸 Estados Unidos',     date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m056', home:'🇵🇾 Paraguay',       away:'🇦🇺 Australia',          date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:"Levi's Stadium, San Francisco" },
-  { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },  { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },
+  { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },
+  { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },
   { id:'m059', home:'🇯🇵 Japón',          away:'🇸🇪 Suecia',             date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'AT&T Stadium, Dallas' },
-  { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
-  // Vie 26/6 — Grupos G, H, I
+  { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },  // Vie 26/6 — Grupos G, H, I
   { id:'m061', home:'🇪🇬 Egipto',         away:'🇮🇷 Irán',               date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'Lumen Field, Seattle' },
   { id:'m062', home:'🇳🇿 Nueva Zelanda',  away:'🇧🇪 Bélgica',            date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'BC Place, Vancouver' },
   { id:'m063', home:'🇨🇻 Cabo Verde',     away:'🇸🇦 Arabia Saudita',     date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'NRG Stadium, Houston' },
@@ -4020,7 +4020,7 @@ async function openStats(matchId) {
             + '</div>';
         }
       }
-    } catch(e) {}    
+    } catch(e) {}
     // (cache de timeline se guarda después de cargarlo)
 
     // ── Cabecera marcador — estilo FlashScore ─────────────────
@@ -4031,8 +4031,7 @@ async function openStats(matchId) {
 
     let html = `
       <div style="margin-bottom:16px;">
-        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-          letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;          letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
           <span>${leagueName}</span>
           ${isMatchLive
             ? `<span style="color:var(--red);animation:pulse 2s infinite;">🔴 EN VIVO</span>
@@ -6113,7 +6112,7 @@ async function adminResetUserPass(username, phone, uid) {
       box-shadow:0 20px 60px rgba(0,0,0,.6);">
       <div style="font-family:var(--font-h);font-weight:800;font-size:1.1em;margin-bottom:4px;">
         🔑 Resetear Contraseña
-      </div>      
+      </div>
       <div style="color:var(--muted2);font-size:0.78em;margin-bottom:16px;">
         ${username} · ${phone||'sin teléfono'}
       </div>
@@ -6131,8 +6130,7 @@ async function adminResetUserPass(username, phone, uid) {
         </button>
       </div>
       <div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;
-        background:rgba(245,197,66,0.08);border-radius:8px;padding:8px 10px;
-        border:1px solid rgba(245,197,66,0.2);">
+        background:rgba(245,197,66,0.08);border-radius:8px;padding:8px 10px;        border:1px solid rgba(245,197,66,0.2);">
         ⚠️ Esta clave se guarda en Firestore. El usuario debe cambiarla al entrar.
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -7416,6 +7414,42 @@ function renderMundialScreen() {
 
           </div>
 
+          ${ (function() {
+            if (!m.homeGoals && !m.awayGoals) return "";
+            var goals = [];
+            var parseG = function(str, side) {
+              if (!str) return;
+              str.split(";").forEach(function(g) {
+                g = g.trim(); if (!g) return;
+                var mm = g.match(/(\d+\+?\d*)'?/);
+                var min = mm ? mm[0] : "?";
+                var player = g.replace(/(\d+\+?\d*)'?/g,"").replace(/[()]/g,"").trim() || g;
+                goals.push({ min: parseInt(min)||0, minStr: min, player: player, side: side });
+              });
+            };
+            parseG(m.homeGoals, "home");
+            parseG(m.awayGoals, "away");
+            goals.sort(function(a,b){ return a.min - b.min; });
+            if (!goals.length) return "";
+            var h = '<div style="margin:6px 0 4px;padding:4px 8px;background:rgba(245,197,66,0.06);border-radius:8px;border:1px solid rgba(245,197,66,0.15);">';
+            goals.forEach(function(g) {
+              var isHome = g.side === "home";
+              h += '<div style="display:flex;align-items:center;gap:5px;font-size:0.73em;padding:2px 0;' + (isHome ? "" : "justify-content:flex-end;") + '">' ;
+              if (isHome) {
+                h += '<span style="color:var(--gold);font-weight:800;min-width:26px;">' + g.minStr + "'</span>";
+                h += "<span>⚽</span>";
+                h += '<span style="color:var(--text);">' + g.player + "</span>";
+              } else {
+                h += '<span style="color:var(--text);">' + g.player + "</span>";
+                h += "<span>⚽</span>";
+                h += '<span style="color:var(--gold);font-weight:800;min-width:26px;text-align:right;">' + g.minStr + "'</span>";
+              }
+              h += "</div>";
+            });
+            h += "</div>";
+            return h;
+          })() }
+
           ${predRow}
 
           ${(m.homeScore != null || m.date < vzDate() || (m.date === vzDate())) ? `
@@ -8416,14 +8450,14 @@ async function openMundialModal() {
 const p25started = p25 && (isLive(p25.status) || isFinished(p25.status));
       if (p25started) {
         $('mCampeon').disabled    = true;
-        $('mSubcampeon').disabled = true;
+        $('mSubcampeon').disabled = true;        
         $('mTercero').disabled    = true;
         $('mGoleador').disabled   = true;
         if ($('mGolesGoleador')) $('mGolesGoleador').disabled = true;
         $('mundialSaveBtn').classList.add('hidden');
         $('mundialSavedMsg').classList.remove('hidden');
         $('mundialSavedMsg').innerHTML = '🔒 Predicciones bloqueadas — el partido 25 ya comenzó';
-      } else {       
+      } else {
         // Editable hasta partido 25
         $('mundialSaveBtn').textContent = '🔄 Actualizar Predicciones';
         const info = $('mundialSavedMsg');
@@ -10361,7 +10395,6 @@ function stopMatchesListener() {
 
 </body>
    </html>
-  
   
   
   
