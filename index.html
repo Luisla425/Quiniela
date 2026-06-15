@@ -1862,15 +1862,15 @@ const FIXTURE_MUNDIAL = [
   // Mié 24/6 — Grupos A, B, C
   { id:'m049', home:'🇨🇿 Rep. Checa',     away:'🇲🇽 México',             date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio Azteca, CDMX' },
   { id:'m050', home:'🇿🇦 Sudáfrica',      away:'🇰🇷 Corea del Sur',      date:'2026-06-24', timeVZ:'9:00 pm',  group:'A', jornada:3, venue:'Estadio BBVA, Monterrey' },
-  { id:'m051', home:'🇨🇭 Suiza',          away:'🇨🇦 Canadá',             date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'BC Place, Vancouver' },  { id:'m052', home:'🇧🇦 Bosnia y Herz.', away:'🇶🇦 Qatar',              date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'Lumen Field, Seattle' },
+  { id:'m051', home:'🇨🇭 Suiza',          away:'🇨🇦 Canadá',             date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'BC Place, Vancouver' },
+  { id:'m052', home:'🇧🇦 Bosnia y Herz.', away:'🇶🇦 Qatar',              date:'2026-06-24', timeVZ:'3:00 pm',  group:'B', jornada:3, venue:'Lumen Field, Seattle' },
   { id:'m053', home:'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Escocia',         away:'🇧🇷 Brasil',             date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Hard Rock Stadium, Miami' },
   { id:'m054', home:'🇲🇦 Marruecos',      away:'🇭🇹 Haití',              date:'2026-06-24', timeVZ:'6:00 pm',  group:'C', jornada:3, venue:'Mercedes-Benz Stadium, Atlanta' },
   // Jue 25/6 — Grupos D, E, F
   { id:'m055', home:'🇹🇷 Turquía',        away:'🇺🇸 Estados Unidos',     date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:'SoFi Stadium, Los Ángeles' },
   { id:'m056', home:'🇵🇾 Paraguay',       away:'🇦🇺 Australia',          date:'2026-06-25', timeVZ:'10:00 pm', group:'D', jornada:3, venue:"Levi's Stadium, San Francisco" },
   { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },
-  { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },
-  { id:'m059', home:'🇯🇵 Japón',          away:'🇸🇪 Suecia',             date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'AT&T Stadium, Dallas' },
+  { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },  { id:'m059', home:'🇯🇵 Japón',          away:'🇸🇪 Suecia',             date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'AT&T Stadium, Dallas' },
   { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
   // Vie 26/6 — Grupos G, H, I
   { id:'m061', home:'🇪🇬 Egipto',         away:'🇮🇷 Irán',               date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'Lumen Field, Seattle' },
@@ -3878,7 +3878,8 @@ async function openStats(matchId) {
     if (String(realMatchId).startsWith('m') && match) {
       const lv2 = _wM.find(x => larezTeamMatch(match.home||'',x.home) && larezTeamMatch(match.away||'',x.away));
       if (lv2 && lv2.id) { realMatchId = String(lv2.id); _apiIdMap[String(matchId)] = realMatchId; }
-    }    const home  = match?.home || '';
+    }
+    const home  = match?.home || '';
     const away  = match?.away || '';
 
     // ── Datos frescos del evento — con cache para evitar rate limit ──
@@ -3933,8 +3934,7 @@ async function openStats(matchId) {
     const isMatchLive = isLive(statusStr) || isLive(match?.status);
 
     if (scoreH !== '–' && scoreA !== '–') {
-      const idx = _aM.findIndex(m => String(m.id) === String(matchId));
-      if (idx !== -1) {
+      const idx = _aM.findIndex(m => String(m.id) === String(matchId));      if (idx !== -1) {
         _aM[idx].homeScore = +scoreH;
         _aM[idx].awayScore = +scoreA;
         _aM[idx].status    = statusStr || _aM[idx].status;
@@ -5553,9 +5553,10 @@ async function openGroupRanking(gid) {
       const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
       const isTop = i < 3;
 
-      html += `<div style="
+      html += `<div onclick="openPlayerStats('${u.username}','${u.grpPts}','${u.grpExact}','${u.grpCorrect}','${u.grpLive}','${u.id}')"
+        style="
         display:flex;align-items:center;gap:12px;
-        padding:14px 12px;border-radius:12px;margin-bottom:8px;
+        padding:14px 12px;border-radius:12px;margin-bottom:8px;cursor:pointer;
         background:${isMe
           ? 'rgba(108,71,255,0.15)'
           : isTop
@@ -5593,6 +5594,7 @@ async function openGroupRanking(gid) {
             ? `<div style="font-size:0.6em;color:var(--red);animation:pulse 2s infinite;">🔴 vivo</div>`
             : ''}
         </div>
+        <div style="font-size:0.7em;color:var(--primary2);padding-left:4px;">›</div>
       </div>`;
     });
 
@@ -5829,7 +5831,8 @@ async function adminUsers() {
     html+=`<div style="background:var(--surface2);border:1px solid ${predicted?'rgba(0,229,160,0.2)':'rgba(255,77,109,0.15)'};border-radius:var(--r-sm);padding:12px;margin-bottom:8px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <div style="display:flex;align-items:center;">
-          ${dot}          <span style="color:var(--muted2);font-size:0.75em;">#${u.playerNumber||'?'}</span>
+          ${dot}
+          <span style="color:var(--muted2);font-size:0.75em;">#${u.playerNumber||'?'}</span>
           <strong style="margin-left:6px;">${uname}</strong>
           ${u.isAdmin?'👑':''}
         </div>
@@ -5940,7 +5943,6 @@ _— Luis Lárez_`
       text: `🎂 *¡Feliz Cumpleaños ${nombre}!*
 
 De parte de toda la Quiniela LuAn te deseamos un día increíble 🎉🥳
-
 ¡Que los goles y los puntos te acompañen! ⚽🎊
 
 _— Luis Lárez y toda la quiniela_`
@@ -8078,7 +8080,7 @@ async function openBetStats(matchId, home, away) {
       .sort((a,b) => b[1]-a[1]).slice(0, 5);
 
     // My prediction
-        const myPred = preds.find(p => p.userId === me.uid);
+    const myPred = preds.find(p => p.userId === me.uid);
 
     el.innerHTML = `
       <div style="text-align:center;font-size:0.72em;color:var(--muted2);margin-bottom:14px;">
@@ -8193,8 +8195,8 @@ async function loadStandings(leagueId, leagueKey, tabEl) {
 function renderStandings(table) {
   const el = $('standingsContent');
 
-  let html = `
-    <div class="standing-row" style="border-bottom:2px solid #c8c0f0;padding-bottom:6px;margin-bottom:2px;font-weight:800;color:#5550a0;">
+  let html = `   
+  <div class="standing-row" style="border-bottom:2px solid #c8c0f0;padding-bottom:6px;margin-bottom:2px;font-weight:800;color:#5550a0;">
       <div class="standing-pos">#</div>
       <div class="standing-team" style="font-size:0.82em;">EQUIPO</div>
       <div class="standing-num">PJ</div>
@@ -9771,6 +9773,127 @@ async function _guardarGolesPartido() {
     document.getElementById('_golesModal').remove();
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
+
+// ═══ TABLA DE POSICIONES COMPLETA — Stats por jugador ═══
+async function openPlayerStats(username, pts, exact, correct, live, userId) {
+  var failed = '?';
+  var total  = '?';
+  // Intentar calcular fallados y total desde predicciones
+  try {
+    var snaps = await db.collection('predictions')
+      .where('tournamentId','==','mundial')
+      .where('username','==',username)
+      .get();
+    if (snaps.empty) {
+      snaps = await db.collection('predictions')
+        .where('jornadaDate','==','2026-mundial-j1')
+        .where('username','==',username)
+        .get();
+    }
+    var totalPreds = snaps.size;
+    var exactN   = parseInt(exact)  || 0;
+    var correctN = parseInt(correct)|| 0;
+    var liveN    = parseInt(live)   || 0;
+    var failedN  = Math.max(0, totalPreds - exactN - correctN);
+    failed = String(failedN);
+    total  = String(totalPreds);
+  } catch(e) {}
+
+  var ptsN    = parseInt(pts)   || 0;
+  var exactN  = parseInt(exact) || 0;
+  var correctN= parseInt(correct)||0;
+  var liveN   = parseInt(live)  || 0;
+
+  // Calcular % de acierto
+  var totalN = parseInt(total) || 1;
+  var acierto = totalN > 0 ? Math.round(((exactN+correctN)/totalN)*100) : 0;
+
+  // Barra de progreso
+  var barExact   = totalN > 0 ? Math.round((exactN/totalN)*100) : 0;
+  var barCorrect = totalN > 0 ? Math.round((correctN/totalN)*100) : 0;
+  var barFailed  = 100 - barExact - barCorrect;
+
+  var oldM = document.getElementById('_playerStatsModal');
+  if (oldM) oldM.remove();
+
+  var modal = document.createElement('div');
+  modal.id = '_playerStatsModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '8000';
+  modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+    +'<div class="modal-handle"></div>'
+
+    // Cabecera jugador
+    +'<div style="text-align:center;padding:12px 0 16px;">'
+    +'<div style="font-family:var(--font-h);font-size:1.8em;font-weight:900;color:var(--gold);">'+ptsN+'</div>'
+    +'<div style="font-size:0.65em;color:var(--muted2);margin-top:2px;">PUNTOS TOTALES</div>'
+    +'<div style="font-family:var(--font-b);font-size:1em;font-weight:800;margin-top:8px;">'+username+'</div>'
+    +'</div>'
+
+    // Stats principales
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">'
+    +'<div style="background:rgba(0,229,160,0.1);border:1px solid rgba(0,229,160,0.3);border-radius:10px;padding:12px;text-align:center;">'
+    +'<div style="font-family:var(--font-h);font-size:1.6em;color:var(--green);font-weight:900;">'+exactN+'</div>'
+    +'<div style="font-size:0.65em;color:var(--muted2);">⭐ Exactos</div>'
+    +'<div style="font-size:0.6em;color:var(--green);">+5 pts c/u</div>'
+    +'</div>'
+    +'<div style="background:rgba(59,158,255,0.1);border:1px solid rgba(59,158,255,0.3);border-radius:10px;padding:12px;text-align:center;">'
+    +'<div style="font-family:var(--font-h);font-size:1.6em;color:var(--primary2);font-weight:900;">'+correctN+'</div>'
+    +'<div style="font-size:0.65em;color:var(--muted2);">🎯 Resultados</div>'
+    +'<div style="font-size:0.6em;color:var(--primary2);">+3 pts c/u</div>'
+    +'</div>'
+    +'<div style="background:rgba(255,77,109,0.1);border:1px solid rgba(255,77,109,0.3);border-radius:10px;padding:12px;text-align:center;">'
+    +'<div style="font-family:var(--font-h);font-size:1.6em;color:var(--red);font-weight:900;">'+failed+'</div>'
+    +'<div style="font-size:0.65em;color:var(--muted2);">❌ Fallados</div>'
+    +'<div style="font-size:0.6em;color:var(--red);">0 pts</div>'
+    +'</div>'
+    +'</div>'
+
+    // Barra de progreso
+    +'<div style="margin-bottom:16px;">'
+    +'<div style="display:flex;justify-content:space-between;font-size:0.72em;color:var(--muted2);margin-bottom:6px;">'
+    +'<span>Efectividad</span><span>'+acierto+'%</span>'
+    +'</div>'
+    +'<div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;display:flex;">'
+    +'<div style="width:'+barExact+'%;background:var(--green);"></div>'
+    +'<div style="width:'+barCorrect+'%;background:var(--primary2);"></div>'
+    +'<div style="width:'+barFailed+'%;background:rgba(255,77,109,0.4);"></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;margin-top:5px;font-size:0.65em;color:var(--muted2);">'
+    +'<span style="color:var(--green);">■ Exacto</span>'
+    +'<span style="color:var(--primary2);">■ Resultado</span>'
+    +'<span style="color:rgba(255,77,109,0.7);">■ Fallado</span>'
+    +'</div>'
+    +'</div>'
+
+    // Stats secundarias
+    +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;">'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82em;">'
+    +'<span style="color:var(--muted2);">Total predicciones</span><span style="font-weight:800;">'+total+'</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82em;">'
+    +'<span style="color:var(--muted2);">Puntos por exacto</span><span style="font-weight:800;color:var(--green);">'+(exactN*5)+' pts</span>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82em;">'
+    +'<span style="color:var(--muted2);">Puntos por resultado</span><span style="font-weight:800;color:var(--primary2);">'+(correctN*3)+' pts</span>'
+    +'</div>'
+    +(liveN > 0
+      ? '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.82em;">'
+        +'<span style="color:var(--red);">🔴 En vivo ahora</span><span style="font-weight:800;color:var(--red);">'+liveN+' pts</span>'
+        +'</div>'
+      : '<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.82em;">'
+        +'<span style="color:var(--muted2);">Pts en vivo</span><span style="font-weight:800;">0 pts</span>'
+        +'</div>'
+    )
+    +'</div>'
+
+    // Boton cerrar
+    +'<button class="btn btn-ghost" style="width:100%;" '
+    +'onclick="document.getElementById(\'_playerStatsModal\').remove()">Cerrar</button>'
+    +'</div>';
+
+  document.body.appendChild(modal);
+}
 </script>
 
 <!-- ═══════════ MANUAL LUAN ═══════════ -->
@@ -9929,6 +10052,7 @@ async function _guardarGolesPartido() {
 
 </body>
    </html>
+  
   
   
   
