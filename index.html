@@ -2780,7 +2780,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
       // Incluir partidos del Mundial en el cronómetro
-      const _allLive = [..._dM, ..._wM];
+       const _allLive = [...(typeof _dM !== 'undefined' ? _dM : []), ...(typeof _wM !== 'undefined' ? _wM : [])];
       _allLive.forEach(m => {
         if (!isLive(m.status)) return;
         const wrap = document.getElementById(`badge_${m.id}`);
