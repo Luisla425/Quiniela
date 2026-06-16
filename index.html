@@ -5840,6 +5840,10 @@ function renderAdmin() {
         style="background:rgba(255,140,0,0.15);color:#ff8c00;margin-top:4px;">
         ⚡ Forzar Cierre de Partido
       </button>
+      <button class="admin-btn full" onclick="adminForzarCierre()"
+        style="background:rgba(255,140,0,0.15);color:#ff8c00;margin-top:4px;">
+        ⚡ Forzar Cierre de Partido
+      </button>
       <button class="admin-btn full" onclick="adminEditPredicciones()"
         style="background:rgba(255,100,100,0.12);color:#ff6464;margin-top:4px;">
         ✏️ Editar Predicciones (Admin)
@@ -10680,6 +10684,94 @@ async function _forzarPartido(idx) {
     if (_pizarraGid) setTimeout(function(){ _refrescarPizarraLocal(); }, 600);
 
   } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+function _cerrarForzarModal() {
+  var m = document.getElementById('_forzarModal'); if (m) m.remove();
+}
+
+async function adminForzarCierre() {
+  if (!me || !me.isAdmin) return;
+  var partidos = FIXTURE_MUNDIAL.filter(function(f){ return f.jornada === 1; })
+    .map(function(f) {
+      var lv = (_wM||[]).find(function(m){
+        return larezTeamMatch(f.home, m.home) && larezTeamMatch(f.away, m.away);
+      });
+      return { id:f.id, home:f.home, away:f.away,
+        homeScore: lv?lv.homeScore:null, awayScore:lv?lv.awayScore:null,
+        status: lv?(lv.status||''):'NS' };
+    });
+  var old = document.getElementById('_forzarModal'); if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = '_forzarModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '9000';
+  window._forzarCache = partidos;
+  var filas = partidos.map(function(p,i) {
+    var isFT = isFinished(p.status);
+    var score = (p.homeScore!=null)?(p.homeScore+'-'+p.awayScore):'Sin datos';
+    var badge = isFT?'✅ FT':(p.homeScore!=null?'🔴 Pendiente':'⏳ NS');
+    var color = isFT?'var(--green)':'var(--gold)';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">'
+      +'<div style="flex:1;">'
+      +'<div style="font-size:0.78em;font-weight:800;">'+p.home.split(' ').slice(1).join(' ')+' vs '+p.away.split(' ').slice(1).join(' ')+'</div>'
+      +'<div style="font-size:0.7em;color:'+color+';">'+badge+' '+score+'</div>'
+      +'</div>'
+      +(!isFT?'<button onclick="_forzarPartido('+i+')" style="padding:6px 12px;border-radius:8px;border:none;background:rgba(255,140,0,0.2);color:#ff8c00;font-size:0.72em;font-weight:800;cursor:pointer;">⚡ Cerrar</button>':'')
+      +'</div>';
+  }).join('');
+  modal.innerHTML = '<div class="modal-box" style="max-height:88vh;overflow-y:auto;">'
+    +'<div class="modal-handle"></div>'
+    +'<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:#ff8c00;margin-bottom:4px;">⚡ Forzar Cierre</div>'
+    +'<div style="font-size:0.75em;color:var(--muted2);margin-bottom:12px;">Registra el resultado cuando TheSportsDB no cierra el partido</div>'
+    +filas
+    +'<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="_cerrarForzarModal()">Cerrar</button>'
+    +'</div>';
+  document.body.appendChild(modal);
+}
+
+async function _forzarPartido(idx) {
+  var p = window._forzarCache && window._forzarCache[idx];
+  if (!p) return;
+  var fix = FIXTURE_MUNDIAL.find(function(f){ return f.id===p.id; });
+  if (!fix) return;
+  var homeShort = fix.home.split(' ').slice(1).join(' ');
+  var awayShort = fix.away.split(' ').slice(1).join(' ');
+  var golesH = prompt(homeShort+' — ¿Cuántos goles?');
+  if (golesH===null||golesH==='') return;
+  var golesA = prompt(awayShort+' — ¿Cuántos goles?');
+  if (golesA===null||golesA==='') return;
+  var h=parseInt(golesH), a=parseInt(golesA);
+  if (isNaN(h)||isNaN(a)) { toast('Números inválidos','error'); return; }
+  toast('Guardando...','info',2000);
+  try {
+    await db.collection('matches').doc(fix.id).set({
+      id:fix.id, home:fix.home, away:fix.away,
+      homeScore:h, awayScore:a, status:'Match Finished',
+      date:fix.date, time:fix.time||'00:00', tournamentId:'mundial',
+      forzado:true, forzadoPor:me.username,
+      forzadoTs:firebase.firestore.FieldValue.serverTimestamp()
+    },{merge:true});
+    var wi=(_wM||[]).findIndex(function(m){
+      return larezTeamMatch(fix.home,m.home)&&larezTeamMatch(fix.away,m.away);
+    });
+    if (wi!==-1) {
+      _wM[wi].homeScore=h; _wM[wi].awayScore=a; _wM[wi].status='Match Finished';
+    } else {
+      _wM.push({id:fix.id,home:fix.home,away:fix.away,homeScore:h,awayScore:a,
+        status:'Match Finished',date:fix.date,time:fix.time||'00:00',
+        tournamentId:'mundial',homeGoals:'',awayGoals:''});
+    }
+    try {
+      localStorage.setItem('_wMCache',JSON.stringify(_wM.map(function(m){
+        return {id:m.id,home:m.home,away:m.away,homeScore:m.homeScore,awayScore:m.awayScore,
+          status:m.status,date:m.date,time:m.time,homeGoals:m.homeGoals||'',awayGoals:m.awayGoals||''};
+      })));
+    } catch(e) {}
+    toast('✅ '+homeShort+' '+h+'-'+a+' '+awayShort+' cerrado','success',4000);
+    _cerrarForzarModal();
+    setTimeout(function(){ try{renderMundialScreen();}catch(e){} },500);
+    if (_pizarraGid) setTimeout(function(){ _refrescarPizarraLocal(); },600);
+  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 </script>
 
