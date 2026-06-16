@@ -1970,7 +1970,7 @@ function selectRol(rol) {
   if (!btnJ || !btnO) return;
   if (rol === 'jugador') {
     btnJ.style.cssText += ';border-color:var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);';
-    btnO.styl    btnJ.style.cssText += ';border-color:var(--border2);background:var(--surface2);color:var(--muted2);';
+    btnJ.style.cssText += ';border-color:var(--border2);background:var(--surface2);color:var(--muted2);';
   }
 }
 let activeGroupId = null;      // ID del grupo activo en vista de partidos
@@ -4212,7 +4212,7 @@ async function openStats(matchId) {
         mainLine = `<span style="color:${v.color};font-weight:800;">${v.label}</span>`;
         if (player) subLine = `<span style="color:var(--muted2);">${player}</span>`;
       }
-             else if (isPenalty) {
+            else if (isPenalty) {
         icon='⚡'; color='var(--orange)';
         mainLine = player;
       }
@@ -6431,8 +6431,8 @@ async function generarPrediccionesWA() {
   try {
     var mSnap = await db.collection("mundialPreds").get();
     var torMap = {};
-    mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });
-         var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
+    mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });    
+    var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
     var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
     var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
     var seen = new Set(); var allP = [];
@@ -10837,6 +10837,7 @@ async function _forzarPartido(idx) {
 
 </body>
    </html>
+  
   
   
   
