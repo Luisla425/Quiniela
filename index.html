@@ -10397,12 +10397,28 @@ async function openTorneoStats() {
     snap.docs.forEach(function(d) {
       var u = d.data();
       var usr = u.username || '?';
-      if (u.campeon)    { if (!campeones[u.campeon])       campeones[u.campeon]       = []; campeones[u.campeon].push(usr); }
-      if (u.subcampeon) { if (!subcampeones[u.subcampeon]) subcampeones[u.subcampeon] = []; subcampeones[u.subcampeon].push(usr); }
-      if (u.tercero)    { if (!terceros[u.tercero])        terceros[u.tercero]        = []; terceros[u.tercero].push(usr); }
+
+      // Método Lárez — normalizar nombres para evitar duplicados
+      function _normNombre(n) {
+        if (!n) return '';
+        return n.trim().toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // quitar acentos
+          .replace(/\s+/g,' '); // espacios múltiples a uno
+      }
+      function _canonico(mapa, nombre) {
+        var norm = _normNombre(nombre);
+        // Buscar si ya existe una variante del mismo nombre
+        var existing = Object.keys(mapa).find(function(k){ return _normNombre(k) === norm; });
+        return existing || nombre; // usar el primero que se registró
+      }
+
+      if (u.campeon)    { var kc = _canonico(campeones,u.campeon);       if (!campeones[kc])       campeones[kc]       = []; campeones[kc].push(usr); }
+      if (u.subcampeon) { var ks = _canonico(subcampeones,u.subcampeon); if (!subcampeones[ks])    subcampeones[ks]    = []; subcampeones[ks].push(usr); }
+      if (u.tercero)    { var kt = _canonico(terceros,u.tercero);        if (!terceros[kt])        terceros[kt]        = []; terceros[kt].push(usr); }
       if (u.goleador)   {
-        if (!goleadores[u.goleador]) goleadores[u.goleador] = [];
-        goleadores[u.goleador].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
+        var kg = _canonico(goleadores, u.goleador);
+        if (!goleadores[kg]) goleadores[kg] = [];
+        goleadores[kg].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
       }
       if (u.golesGoleador != null) totalGoles.push({ username: usr, pred: +u.golesGoleador });
     });
