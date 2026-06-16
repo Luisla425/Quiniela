@@ -6429,8 +6429,8 @@ async function generarPrediccionesWA() {
     var torMap = {};
     mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });
     var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
-    var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();    
-    var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
+    var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
+        var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
     var seen = new Set(); var allP = [];
     s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)){seen.add(d.id);allP.push(d.data());}
@@ -8869,8 +8869,8 @@ function _showExpressMatch() {
       <div id="expressBody"></div>
     </div>`;
 
-  document.body.appendChild(overlay);  
-  // Click outside = close
+  document.body.appendChild(overlay);
+    // Click outside = close
   overlay.addEventListener('click', e => {
     if (e.target === overlay) _closeExpress();
   });
@@ -10839,6 +10839,7 @@ async function _forzarPartido(idx) {
 
 </body>
    </html>
+  
   
   
   
