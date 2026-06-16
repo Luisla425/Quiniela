@@ -1903,8 +1903,7 @@ const FIXTURE_MUNDIAL = [
   { id:'m057', home:'🇪🇨 Ecuador',        away:'🇩🇪 Alemania',           date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'MetLife Stadium, Nueva York' },
   { id:'m058', home:'🇨🇼 Curazao',        away:'🇨🇮 Costa de Marfil',    date:'2026-06-25', timeVZ:'5:00 pm',  group:'E', jornada:3, venue:'Lincoln Financial, Filadelfia' },
   { id:'m059', home:'🇯🇵 Japón',          away:'🇸🇪 Suecia',             date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'AT&T Stadium, Dallas' },
-  { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },
-  // Vie 26/6 — Grupos G, H, I
+  { id:'m060', home:'🇹🇳 Túnez',          away:'🇳🇱 Países Bajos',       date:'2026-06-25', timeVZ:'8:00 pm',  group:'F', jornada:3, venue:'Arrowhead Stadium, Kansas City' },  // Vie 26/6 — Grupos G, H, I
   { id:'m061', home:'🇪🇬 Egipto',         away:'🇮🇷 Irán',               date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'Lumen Field, Seattle' },
   { id:'m062', home:'🇳🇿 Nueva Zelanda',  away:'🇧🇪 Bélgica',            date:'2026-06-26', timeVZ:'11:00 pm', group:'G', jornada:3, venue:'BC Place, Vancouver' },
   { id:'m063', home:'🇨🇻 Cabo Verde',     away:'🇸🇦 Arabia Saudita',     date:'2026-06-26', timeVZ:'9:00 pm',  group:'H', jornada:3, venue:'NRG Stadium, Houston' },
@@ -1970,7 +1969,13 @@ function selectRol(rol) {
   if (!btnJ || !btnO) return;
   if (rol === 'jugador') {
     btnJ.style.cssText += ';border-color:var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);';
-    btnO.styllet activeGroupId = null;      // ID del grupo activo en vista de partidos
+    btnO.style.cssText += ';border-color:var(--border2);background:var(--surface2);color:var(--muted2);';
+  } else {
+    btnO.style.cssText += ';border-color:var(--green);background:rgba(0,229,160,0.12);color:var(--green);';
+    btnJ.style.cssText += ';border-color:var(--border2);background:var(--surface2);color:var(--muted2);';
+  }
+}
+let activeGroupId = null;      // ID del grupo activo en vista de partidos
 let _pizarraGid    = null;      // GroupId si la pizarra está abierta (para refresh en vivo)
 let _matchesUnsub  = null;        // Listener onSnapshot de matches (tiempo real)
 let _prevWMScores  = {};          // Marcadores anteriores para detectar goles nuevos
@@ -2661,15 +2666,6 @@ auth.onAuthStateChanged(async user => {
 // ENTER APP
 // ═══════════════════════════════════════════
 async function enterApp() {
-  // Cargar _wM desde cache instantáneamente antes del primer sync
-  try {
-    const cached = localStorage.getItem('_wMCache');
-    if (cached && !_wM.length) {
-      const arr = JSON.parse(cached);
-      arr.forEach(m => _wM.push(m));
-      console.log('QuinielaLuAn: _wM cargado desde cache:', arr.length, 'partidos');
-    }
-  } catch(e) {}
   // Iniciar listener en tiempo real de matches
   setTimeout(initMatchesListener, 1500);
   const authScr = $('authScreen');
@@ -2726,7 +2722,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
   // • User typing: skip
   async function scheduleNextSync() {
     // Incluir _wM (Mundial) en la detección de partidos en vivo
-    const hasLive = (typeof _dM !== 'undefined' && _dM.some(m => isLive(m.status)))
+    const hasLive = _dM.some(m => isLive(m.status))
                  || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 30000 : 300000; // 30s en vivo para pizarra instantánea
     syncTimer = setTimeout(async () => {
@@ -2775,7 +2771,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
   if (!window._cronInterval) {
     window._cronInterval = setInterval(() => {
       // Incluir partidos del Mundial en el cronómetro
-      const _allLive = [...(typeof _dM !== 'undefined' ? _dM : []), ...(typeof _wM !== 'undefined' ? _wM : [])];
+      const _allLive = [..._dM, ..._wM];
       _allLive.forEach(m => {
         if (!isLive(m.status)) return;
         const wrap = document.getElementById(`badge_${m.id}`);
@@ -2917,7 +2913,7 @@ async function loadMatches() {
     setDayMatches();
     renderMatches();
     // Only sync if cache is old or there are live games
-    const hasLive = (typeof _dM !== 'undefined' && _dM.some(m => isLive(m.status)));
+    const hasLive = _dM.some(m => isLive(m.status));
     const lastSync = +localStorage.getItem(CACHE_KEY_SYNC) || 0;
     const sinceLast = Date.now() - lastSync;
     if (sinceLast < CACHE_TTL_MATCHES && !hasLive) return; // Cache fresh, no sync needed
@@ -2986,17 +2982,7 @@ async function doSync() {
         try { localStorage.setItem('_apiIdMap', JSON.stringify(_apiIdMap)); } catch(e){}
       }
     });
-
-    // Guardar _wM en localStorage para carga instantánea al reabrir
-    try {
-      const wMCache = _wM.map(m => ({
-        id: m.id, home: m.home, away: m.away,
-        homeScore: m.homeScore, awayScore: m.awayScore,
-        status: m.status, date: m.date, time: m.time,
-        homeGoals: m.homeGoals||'', awayGoals: m.awayGoals||''
-      }));
-      localStorage.setItem('_wMCache', JSON.stringify(wMCache));
-    } catch(e) {}    // Guardar en Firestore
+    // Guardar en Firestore
     try {
       const bw = db.batch();
       allMatches.forEach(m => bw.set(db.collection('matches').doc(String(m.id)), m, {merge:true}));
@@ -4045,8 +4031,7 @@ async function openStats(matchId) {
 
     let html = `
       <div style="margin-bottom:16px;">
-        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;
-          letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <div style="font-size:0.68em;color:var(--muted2);font-weight:700;text-transform:uppercase;          letter-spacing:1px;text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;">
           <span>${leagueName}</span>
           ${isMatchLive
             ? `<span style="color:var(--red);animation:pulse 2s infinite;">🔴 EN VIVO</span>
@@ -4214,6 +4199,7 @@ async function openStats(matchId) {
         mainLine = player;
       }
       else return '';
+
       // ── Layout FlashScore: local izquierda, visitante derecha ──
       // Minuto en el centro como eje divisor
       const timeEl    = `<span style="font-family:var(--font-h);color:var(--gold);font-size:0.78em;font-weight:900;white-space:nowrap;flex-shrink:0;">${minStr}</span>`;
@@ -5171,7 +5157,6 @@ async function renderGroups() {
         <div class="group-actions">
           ${me.isAdmin?`<button class="btn-del" onclick="deleteGroup('${doc.id}','${g.name}')">🗑️</button>`:''}
           <button class="btn-rank" onclick="openGroupRanking('${doc.id}')">${t('viewRanking')}</button>
-            <button class="btn-rank" onclick="openTorneoStats()" style="background:rgba(245,197,66,0.15);color:var(--gold);">🏆 Torneo</button>
           <button class="btn-wa" onclick="shareGroup('${g.code}','${g.name}')">📲</button>
         </div>
       </div>`;
@@ -5836,14 +5821,6 @@ function renderAdmin() {
         style="background:rgba(255,77,109,0.12);color:var(--red);margin-top:4px;">
         📣 Notificar a jugadores
       </button>
-      <button class="admin-btn full" onclick="adminForzarCierre()"
-        style="background:rgba(255,140,0,0.15);color:#ff8c00;margin-top:4px;">
-        ⚡ Forzar Cierre de Partido
-      </button>
-      <button class="admin-btn full" onclick="adminForzarCierre()"
-        style="background:rgba(255,140,0,0.15);color:#ff8c00;margin-top:4px;">
-        ⚡ Forzar Cierre de Partido
-      </button>
       <button class="admin-btn full" onclick="adminEditPredicciones()"
         style="background:rgba(255,100,100,0.12);color:#ff6464;margin-top:4px;">
         ✏️ Editar Predicciones (Admin)
@@ -6153,8 +6130,7 @@ async function adminResetUserPass(username, phone, uid) {
         </button>
       </div>
       <div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;
-        background:rgba(245,197,66,0.08);border-radius:8px;padding:8px 10px;
-        border:1px solid rgba(245,197,66,0.2);">
+        background:rgba(245,197,66,0.08);border-radius:8px;padding:8px 10px;        border:1px solid rgba(245,197,66,0.2);">
         ⚠️ Esta clave se guarda en Firestore. El usuario debe cambiarla al entrar.
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -6434,7 +6410,7 @@ async function generarPrediccionesWA() {
     mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });
     var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
     var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
-        var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
+    var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
     var seen = new Set(); var allP = [];
     s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)){seen.add(d.id);allP.push(d.data());}
@@ -8474,7 +8450,7 @@ async function openMundialModal() {
 const p25started = p25 && (isLive(p25.status) || isFinished(p25.status));
       if (p25started) {
         $('mCampeon').disabled    = true;
-        $('mSubcampeon').disabled = true;
+        $('mSubcampeon').disabled = true;        
         $('mTercero').disabled    = true;
         $('mGoleador').disabled   = true;
         if ($('mGolesGoleador')) $('mGolesGoleador').disabled = true;
@@ -8874,7 +8850,7 @@ function _showExpressMatch() {
     </div>`;
 
   document.body.appendChild(overlay);
-    // Click outside = close
+  // Click outside = close
   overlay.addEventListener('click', e => {
     if (e.target === overlay) _closeExpress();
   });
@@ -10110,56 +10086,11 @@ async function notificarTodos(title, body) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
-async function adminNotificar() {
-  var titulo = prompt('Título / Asunto:') || '⚽ QuinielaLuAn';
-  if (!titulo) return;
-  var cuerpo = prompt('Mensaje para los jugadores:') || '';
-  if (!cuerpo) return;
-
-  var texto = titulo + '\n\n' + cuerpo + '\n\n👉 https://luisla425.github.io/Quiniela/\n\n_QuinielaLuAn · LuAn System™_';
-
-  toast('Cargando jugadores...', 'info', 2000);
-  var snap;
-  try {
-    snap = await db.collection('users').where('isSpectator','==',false).get();
-  } catch(e) { toast('Error: ' + e.message, 'error'); return; }
-
-  if (snap.empty) { toast('Sin jugadores registrados', 'warning'); return; }
-
-  var old = document.getElementById('_notifWAModal');
-  if (old) old.remove();
-
-  var jugadores = [];
-  snap.forEach(function(d) {
-    var u = d.data();
-    if (u.phone) jugadores.push({ username: u.username, phone: u.phone });
-  });
-  jugadores.sort(function(a,b){ return a.username.localeCompare(b.username); });
-
-  var filas = jugadores.map(function(j) {
-    var num = j.phone.replace(/[^0-9]/g,'');
-    var url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(texto);
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">'
-      + '<span style="font-weight:800;font-size:0.9em;">' + j.username + '</span>'
-      + '<a href="' + url + '" target="_blank" style="background:#25D366;color:#fff;padding:8px 16px;border-radius:20px;font-size:0.82em;font-weight:800;text-decoration:none;">📲 WA</a>'
-      + '</div>';
-  }).join('');
-
-  var modal = document.createElement('div');
-  modal.id = '_notifWAModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9000';
-  modal.innerHTML = '<div class="modal-box" style="max-height:85vh;overflow-y:auto;">'
-    + '<div class="modal-handle"></div>'
-    + '<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:var(--primary2);margin-bottom:4px;">📣 Notificar por WhatsApp</div>'
-    + '<div style="font-size:0.78em;color:var(--muted2);margin-bottom:12px;">' + jugadores.length + ' jugadores · toca 📲 WA para enviar</div>'
-    + '<div style="background:var(--surface);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.78em;color:var(--muted2);">'
-    + '<b style="color:var(--text);">' + titulo + '</b><br>' + cuerpo + '</div>'
-    + filas
-    + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_notifWAModal\').remove()">Cerrar</button>'
-    + '</div>';
-
-  document.body.appendChild(modal);
+function adminNotificar() {
+  var titulo = prompt('Тítulo de la notificación:') || '⚽ QuinielaLuAn';
+  var cuerpo = prompt('Mensaje:') || 'Hay novedades en el Mundial';
+  if (!titulo && !cuerpo) return;
+  notificarTodos(titulo, cuerpo);
 }
 
 // ═══ Refresco local de pizarra (sin Firestore) — para goles en vivo ═══
@@ -10277,16 +10208,6 @@ function initMatchesListener() {
             // Actualizar el partido en memoria
             _wM[idx] = { ..._wM[idx], ...data };
             _prevWMScores[String(data.id || change.doc.id)] = { h: newH, a: newA };
-            // Actualizar cache localStorage
-            try {
-              const wMCache = _wM.map(m => ({
-                id: m.id, home: m.home, away: m.away,
-                homeScore: m.homeScore, awayScore: m.awayScore,
-                status: m.status, date: m.date, time: m.time,
-                homeGoals: m.homeGoals||'', awayGoals: m.awayGoals||''
-              }));
-              localStorage.setItem('_wMCache', JSON.stringify(wMCache));
-            } catch(e) {}
           } else {
             // Partido nuevo en _wM
             _wM.push({ id: String(data.id || change.doc.id), ...data });
@@ -10315,463 +10236,6 @@ function stopMatchesListener() {
     _matchesUnsub();
     _matchesUnsub = null;
   }
-}
-
-// ═══ PIZARRAS DEL TORNEO ═══
-// Cache para onclicks seguros (sin JS inline con datos)
-window._torneoCache = [];
-
-function _torneoItemModal(idx) {
-  var cache = window._torneoCache;
-  if (!cache || idx == null || !cache[idx]) {
-    toast('Abre la pizarra de nuevo', 'warning'); return;
-  }
-  var item = cache[idx];
-  if (item.tipo === 'equipo')    _torneoEquipoModal(item.nombre, item.categoria, item.jugadores);
-  else if (item.tipo === 'gol')  _torneoGoleadorModal(item.nombre, item.info);
-}
-
-function _torneoTab(n) {
-  for (var i = 0; i < 3; i++) {
-    var tab = document.getElementById('_ttab_c' + i);
-    var btn = document.getElementById('_ttab_b' + i);
-    if (tab) tab.style.display = (i === n) ? '' : 'none';
-    if (btn) {
-      btn.style.background = (i === n) ? 'var(--primary)' : 'var(--surface)';
-      btn.style.color      = (i === n) ? '#fff' : 'var(--text)';
-      btn.style.border     = (i === n) ? 'none' : '1px solid var(--border)';
-    }
-  }
-}
-
-function _torneoEquipoModal(nombre, categoria, jugadores) {
-  var old = document.getElementById('_teqModal'); if (old) old.remove();
-  var modal = document.createElement('div');
-  modal.id = '_teqModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '8000';
-  var rows = (jugadores||[]).map(function(u) {
-    return '<div style="padding:9px 0;border-bottom:1px solid var(--border);font-weight:800;font-size:0.88em;">' + u + '</div>';
-  }).join('');
-  modal.innerHTML = '<div class="modal-box">'
-    + '<div class="modal-handle"></div>'
-    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:4px;">' + categoria + '</div>'
-    + '<div style="font-family:var(--font-h);font-size:1.2em;font-weight:900;color:var(--gold);margin-bottom:12px;">' + nombre + '</div>'
-    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">' + (jugadores||[]).length + ' jugador' + ((jugadores||[]).length !== 1 ? 'es' : '') + ' apostaron por este equipo</div>'
-    + rows
-    + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_teqModal\').remove()">Cerrar</button>'
-    + '</div>';
-  document.body.appendChild(modal);
-}
-
-function _torneoGoleadorModal(nombre, info) {
-  var old = document.getElementById('_tgolModal'); if (old) old.remove();
-  var modal = document.createElement('div');
-  modal.id = '_tgolModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '8000';
-  var elegidos = (info && info.elegidos) ? info.elegidos : [];
-  var rows = elegidos.map(function(u) {
-    return '<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);">'
-      + '<span style="font-weight:800;font-size:0.88em;">' + u.username + '</span>'
-      + '<span style="font-size:0.82em;color:var(--muted2);">predijo ' + u.goles + ' goles</span>'
-      + '</div>';
-  }).join('');
-  modal.innerHTML = '<div class="modal-box">'
-    + '<div class="modal-handle"></div>'
-    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:4px;">\u26bd Goleador elegido</div>'
-    + '<div style="font-family:var(--font-h);font-size:1.2em;font-weight:900;color:var(--gold);margin-bottom:2px;">' + nombre + '</div>'
-    + '<div style="font-size:0.82em;color:var(--muted2);margin-bottom:12px;">' + ((info&&info.pais)||'') + ' \u00b7 ' + ((info&&info.goles)||0) + ' goles reales</div>'
-    + (elegidos.length
-      ? '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:8px;">' + elegidos.length + ' jugador' + (elegidos.length !== 1 ? 'es' : '') + ' apostaron por \u00e9l</div>' + rows
-      : '<div style="color:var(--muted2);font-size:0.82em;">Nadie lo eligi\u00f3 \u2014 est\u00e1 en top 3 real</div>')
-    + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_tgolModal\').remove()">Cerrar</button>'
-    + '</div>';
-  document.body.appendChild(modal);
-}
-
-async function openTorneoStats() {
-  toast('Cargando pizarras del torneo...', 'info', 2000);
-  try {
-    // 1. Leer predicciones del torneo
-    var snap = await db.collection('mundialPreds').get();
-    if (snap.empty) { toast('Sin predicciones del torneo aun', 'warning'); return; }
-
-    var campeones = {}, subcampeones = {}, terceros = {}, goleadores = {}, totalGoles = [];
-
-    snap.docs.forEach(function(d) {
-      var u = d.data();
-      var usr = u.username || '?';
-      if (u.campeon)    { if (!campeones[u.campeon])       campeones[u.campeon]       = []; campeones[u.campeon].push(usr); }
-      if (u.subcampeon) { if (!subcampeones[u.subcampeon]) subcampeones[u.subcampeon] = []; subcampeones[u.subcampeon].push(usr); }
-      if (u.tercero)    { if (!terceros[u.tercero])        terceros[u.tercero]        = []; terceros[u.tercero].push(usr); }
-      if (u.goleador)   {
-        if (!goleadores[u.goleador]) goleadores[u.goleador] = [];
-        goleadores[u.goleador].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
-      }
-      if (u.golesGoleador != null) totalGoles.push({ username: usr, pred: +u.golesGoleador });
-    });
-
-    // 2. Goles reales desde _wM (TheSportsDB strHomeGoalDetails/strAwayGoalDetails)
-    var golesReales = {};
-    var totalGolesReal = 0;
-
-    function _parseGolStr(str, paisEquipo) {
-      if (!str) return;
-      str.split(';').forEach(function(g) {
-        g = g.trim(); if (!g) return;
-        // Ignorar autogoles
-        if (g.toLowerCase().indexOf('own') !== -1 || g.toLowerCase().indexOf('(og)') !== -1) return;
-        // Extraer nombre (quitar minuto y paréntesis)
-        var player = g.replace(/(\d+\+?\d*)'?/g,'').replace(/[()]/g,'').trim();
-        if (!player || player.length < 2) return;
-        if (!golesReales[player]) golesReales[player] = { goles: 0, pais: paisEquipo || '' };
-        golesReales[player].goles++;
-        totalGolesReal++;
-      });
-    }
-
-    // Leer de _wM (en memoria — ya cargado por doSync)
-    (_wM || []).forEach(function(m) {
-      var hs = m.homeScore, as_ = m.awayScore;
-      if (hs == null || as_ == null) return; // partido no jugado
-      if (m.homeGoals) _parseGolStr(m.homeGoals, m.home ? m.home.split(' ').slice(1).join(' ') : '');
-      if (m.awayGoals) _parseGolStr(m.awayGoals, m.away ? m.away.split(' ').slice(1).join(' ') : '');
-    });
-
-    // Si _wM no tiene homeGoals, intentar con eventspastleague
-    if (totalGolesReal === 0) {
-      try {
-        var rPast = await fetchTimeout(API_V1 + '/eventspastleague.php?id=4429', 8000);
-        if (rPast && rPast.ok) {
-          var dPast = await rPast.json();
-          (dPast.events || []).forEach(function(ev) {
-            if (ev.intHomeScore == null) return;
-            _parseGolStr(ev.strHomeGoalDetails, ev.strHomeTeam);
-            _parseGolStr(ev.strAwayGoalDetails, ev.strAwayTeam);
-          });
-        }
-      } catch(e) {}
-    }
-
-    var top3 = Object.entries(golesReales).sort(function(a,b){ return b[1].goles - a[1].goles; }).slice(0,3);
-
-    // Fusionar top3 + elegidos
-    var fusionados = {};
-    top3.forEach(function(e) {
-      fusionados[e[0]] = { goles: e[1].goles, pais: e[1].pais, elegidos: goleadores[e[0]] || [], esReal: true };
-    });
-    Object.keys(goleadores).forEach(function(nombre) {
-      if (!fusionados[nombre]) {
-        var gr = golesReales[nombre];
-        fusionados[nombre] = { goles: gr ? gr.goles : 0, pais: gr ? gr.pais : '', elegidos: goleadores[nombre], esReal: false };
-      } else if (!fusionados[nombre].elegidos.length) {
-        fusionados[nombre].elegidos = goleadores[nombre] || [];
-      }
-    });
-    var listaGol = Object.entries(fusionados).sort(function(a,b){ return b[1].goles - a[1].goles; });
-
-    totalGoles.sort(function(a,b){ return Math.abs(a.pred - totalGolesReal) - Math.abs(b.pred - totalGolesReal); });
-
-    // Resetear cache
-    window._torneoCache = [];
-
-    // ── Tab 1: Equipos ──
-    function buildSeccion(titulo, mapa, pts) {
-      var equipos = Object.entries(mapa).sort(function(a,b){ return b[1].length - a[1].length; });
-      if (!equipos.length) return '<div style="color:var(--muted2);font-size:0.82em;padding:8px 0;">Sin predicciones</div>';
-      return '<div style="margin-bottom:16px;">'
-        + '<div style="font-size:0.75em;font-weight:800;color:var(--muted2);letter-spacing:1px;margin-bottom:6px;">' + titulo + ' \u00b7 ' + pts + ' pts</div>'
-        + equipos.map(function(e) {
-            var nombre = e[0], jugs = e[1];
-            var ci = window._torneoCache.length;
-            window._torneoCache.push({ tipo:'equipo', nombre:nombre, categoria:titulo, jugadores:jugs });
-            return '<div onclick="_torneoItemModal(' + ci + ')"'
-              + ' style="display:flex;align-items:center;justify-content:space-between;'
-              + 'padding:10px 12px;border-radius:10px;margin-bottom:6px;cursor:pointer;'
-              + 'background:var(--surface);border:1px solid var(--border);">'
-              + '<div style="font-weight:800;font-size:0.9em;">' + nombre + '</div>'
-              + '<div style="display:flex;align-items:center;gap:8px;">'
-              + '<div style="font-size:0.75em;color:var(--muted2);">' + jugs.length + ' jugador' + (jugs.length !== 1 ? 'es' : '') + '</div>'
-              + '<div style="color:var(--primary2);font-size:0.9em;">\u203a</div>'
-              + '</div></div>';
-          }).join('')
-        + '</div>';
-    }
-
-    var tab1 = buildSeccion('\ud83e\udd47 CAMPE\u00d3N', campeones, 15)
-             + buildSeccion('\ud83e\udd48 SUBCAMPE\u00d3N', subcampeones, 10)
-             + buildSeccion('\ud83e\udd49 TERCER LUGAR', terceros, 5);
-
-    // ── Tab 2: Goleador ──
-    var tab2 = listaGol.length ? listaGol.map(function(e, i) {
-      var nombre = e[0], info = e[1];
-      var medal = i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':'';
-      var isElegido = info.elegidos && info.elegidos.length > 0;
-      var gi = window._torneoCache.length;
-      window._torneoCache.push({ tipo:'gol', nombre:nombre, info:info });
-      return '<div onclick="_torneoItemModal(' + gi + ')"'
-        + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;'
-        + 'margin-bottom:6px;cursor:pointer;'
-        + 'background:' + (isElegido ? 'rgba(108,71,255,0.08)' : 'var(--surface)') + ';'
-        + 'border:1px solid ' + (isElegido ? 'rgba(108,71,255,0.3)' : 'var(--border)') + ';">'
-        + '<div style="font-family:var(--font-h);font-size:1.1em;min-width:28px;">' + (medal || ('#'+(i+1))) + '</div>'
-        + '<div style="flex:1;">'
-        + '<div style="font-weight:800;font-size:0.9em;">' + nombre + '</div>'
-        + '<div style="font-size:0.7em;color:var(--muted2);">' + (info.pais||'') + (isElegido ? ' \u00b7 elegido por ' + info.elegidos.length : '') + '</div>'
-        + '</div>'
-        + '<div style="text-align:right;">'
-        + '<div style="font-family:var(--font-h);font-size:1.4em;color:var(--gold);font-weight:900;">' + info.goles + '</div>'
-        + '<div style="font-size:0.65em;color:var(--muted2);">\u26bd</div>'
-        + '</div>'
-        + '<div style="color:var(--primary2);">\u203a</div>'
-        + '</div>';
-    }).join('') : '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin datos aun</div>';
-
-    // ── Tab 3: Total Goles ──
-    var tab3 = '<div style="background:rgba(245,197,66,0.1);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.82em;font-weight:800;color:var(--gold);">'
-      + '\u26bd Real: ' + (totalGolesReal > 0 ? totalGolesReal + ' goles hasta ahora' : 'sin goles registrados aun') + '</div>'
-      + (totalGoles.length ? totalGoles.map(function(u, i) {
-          var diff = totalGolesReal > 0 ? Math.abs(u.pred - totalGolesReal) : null;
-          var medal = totalGolesReal > 0 ? (i===0?'\ud83e\udd47':i===1?'\ud83e\udd48':i===2?'\ud83e\udd49':'') : '';
-          var isMe = me && u.username === me.username;
-          return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:5px;'
-            + 'background:' + (isMe ? 'rgba(108,71,255,0.1)' : 'var(--surface)') + ';'
-            + 'border:1px solid ' + (isMe ? 'var(--primary)' : 'var(--border)') + ';">'
-            + '<div style="min-width:28px;font-size:0.9em;">' + (medal || ('#'+(i+1))) + '</div>'
-            + '<div style="flex:1;font-weight:800;font-size:0.88em;">' + u.username + (isMe ? ' <span style="color:var(--primary2);font-size:0.7em;">(t\u00fa)</span>' : '') + '</div>'
-            + '<div style="text-align:right;">'
-            + '<div style="font-family:var(--font-h);font-size:1.3em;font-weight:900;">' + u.pred + '</div>'
-            + (diff !== null ? '<div style="font-size:0.65em;color:' + (diff===0?'var(--green)':diff<=5?'var(--gold)':'var(--muted2)') + ';">' + (diff===0?'\u2705 Exacto':'\u00b1'+diff) + '</div>' : '')
-            + '</div></div>';
-        }).join('') : '<div style="color:var(--muted2);text-align:center;padding:20px;">Sin predicciones aun</div>');
-
-    // ── Modal ──
-    var old = document.getElementById('_torneoModal'); if (old) old.remove();
-    var modal = document.createElement('div');
-    modal.id = '_torneoModal';
-    modal.className = 'modal-overlay';
-    modal.style.zIndex = '7000';
-    modal.innerHTML = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
-      + '<div class="modal-handle"></div>'
-      + '<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:var(--gold);margin-bottom:12px;">\ud83c\udfc6 Pizarras del Torneo</div>'
-      + '<div style="display:flex;gap:6px;margin-bottom:14px;">'
-      + '<button onclick="_torneoTab(0)" id="_ttab_b0" style="flex:1;padding:8px 4px;border-radius:8px;border:none;font-size:0.72em;font-weight:800;background:var(--primary);color:#fff;cursor:pointer;">\ud83c\udfc6 Equipos</button>'
-      + '<button onclick="_torneoTab(1)" id="_ttab_b1" style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid var(--border);font-size:0.72em;font-weight:800;background:var(--surface);color:var(--text);cursor:pointer;">\u26bd Goleador</button>'
-      + '<button onclick="_torneoTab(2)" id="_ttab_b2" style="flex:1;padding:8px 4px;border-radius:8px;border:1px solid var(--border);font-size:0.72em;font-weight:800;background:var(--surface);color:var(--text);cursor:pointer;">\ud83d\udd22 Goles</button>'
-      + '</div>'
-      + '<div id="_ttab_c0">' + tab1 + '</div>'
-      + '<div id="_ttab_c1" style="display:none;">' + tab2 + '</div>'
-      + '<div id="_ttab_c2" style="display:none;">' + tab3 + '</div>'
-      + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="document.getElementById(\'_torneoModal\').remove()">Cerrar</button>'
-      + '</div>';
-    document.body.appendChild(modal);
-
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
-}
-// ═══ FORZAR CIERRE MANUAL DE PARTIDO ═══
-async function adminForzarCierre() {
-  if (!me || !me.isAdmin) return;
-
-  var partidos = FIXTURE_MUNDIAL.filter(function(f){ return f.jornada === 1; })
-    .map(function(f) {
-      var lv = (_wM||[]).find(function(m){
-        return larezTeamMatch(f.home, m.home) && larezTeamMatch(f.away, m.away);
-      });
-      return {
-        id: f.id, home: f.home, away: f.away,
-        homeScore: lv ? lv.homeScore : null,
-        awayScore: lv ? lv.awayScore : null,
-        status: lv ? (lv.status||'') : 'NS'
-      };
-    });
-
-  var old = document.getElementById('_forzarModal'); if (old) old.remove();
-  var modal = document.createElement('div');
-  modal.id = '_forzarModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9000';
-
-  window._forzarCache = partidos;
-
-  var filas = partidos.map(function(p, i) {
-    var isFT = isFinished(p.status);
-    var score = (p.homeScore != null) ? (p.homeScore + '-' + p.awayScore) : 'Sin datos';
-    var badge = isFT ? '✅ FT' : (p.homeScore != null ? ' Pendiente' : '⏳ NS');
-    var color = isFT ? 'var(--green)' : 'var(--gold)';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">'
-      + '<div style="flex:1;">'
-      + '<div style="font-size:0.78em;font-weight:800;">'
-      + p.home.split(' ').slice(1).join(' ') + ' vs ' + p.away.split(' ').slice(1).join(' ')
-      + '</div>'
-      + '<div style="font-size:0.7em;color:' + color + ';">' + badge + ' ' + score + '</div>'
-      + '</div>'
-      + (!isFT ? '<button onclick="_forzarPartido(' + i + ')"'
-        + ' style="padding:6px 12px;border-radius:8px;border:none;'
-        + 'background:rgba(255,140,0,0.2);color:#ff8c00;font-size:0.72em;font-weight:800;cursor:pointer;">'
-        + '⚡ Cerrar</button>' : '')
-      + '</div>';
-  }).join('');
-
-  modal.innerHTML = '<div class="modal-box" style="max-height:88vh;overflow-y:auto;">'
-    + '<div class="modal-handle"></div>'
-    + '<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:#ff8c00;margin-bottom:4px;">⚡ Forzar Cierre</div>'
-    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:12px;">Registra el resultado cuando TheSportsDB no cierra el partido</div>'
-    + filas
-    + '<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="_cerrarForzarModal()">Cerrar</button>'
-    + '</div>';
-
-  document.body.appendChild(modal);
-}
-
-function _cerrarForzarModal() {
-  var m = document.getElementById('_forzarModal'); if (m) m.remove();
-}
-
-async function _forzarPartido(idx) {
-  var p = window._forzarCache && window._forzarCache[idx];
-  if (!p) return;
-  var fix = FIXTURE_MUNDIAL.find(function(f){ return f.id === p.id; });
-  if (!fix) return;
-
-  var homeShort = fix.home.split(' ').slice(1).join(' ');
-  var awayShort = fix.away.split(' ').slice(1).join(' ');
-
-  var golesH = prompt(homeShort + ' — ¿Cuántos goles?');
-  if (golesH === null || golesH === '') return;
-  var golesA = prompt(awayShort + ' — ¿Cuántos goles?');
-  if (golesA === null || golesA === '') return;
-
-  var h = parseInt(golesH), a = parseInt(golesA);
-  if (isNaN(h) || isNaN(a)) { toast('Números inválidos', 'error'); return; }
-
-  toast('Guardando...', 'info', 2000);
-  try {
-    await db.collection('matches').doc(fix.id).set({
-      id: fix.id, home: fix.home, away: fix.away,
-      homeScore: h, awayScore: a,
-      status: 'Match Finished',
-      date: fix.date, time: fix.time || '00:00',
-      tournamentId: 'mundial',
-      forzado: true, forzadoPor: me.username,
-      forzadoTs: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-
-    // Actualizar _wM en memoria
-    var wi = (_wM||[]).findIndex(function(m){
-      return larezTeamMatch(fix.home, m.home) && larezTeamMatch(fix.away, m.away);
-    });
-    if (wi !== -1) {
-      _wM[wi].homeScore = h; _wM[wi].awayScore = a; _wM[wi].status = 'Match Finished';
-    } else {
-      _wM.push({ id: fix.id, home: fix.home, away: fix.away,
-        homeScore: h, awayScore: a, status: 'Match Finished',
-        date: fix.date, time: fix.time || '00:00', tournamentId: 'mundial',
-        homeGoals: '', awayGoals: '' });
-    }
-
-    // Actualizar localStorage cache
-    try {
-      localStorage.setItem('_wMCache', JSON.stringify(_wM.map(function(m){
-        return { id:m.id, home:m.home, away:m.away, homeScore:m.homeScore, awayScore:m.awayScore,
-          status:m.status, date:m.date, time:m.time, homeGoals:m.homeGoals||'', awayGoals:m.awayGoals||'' };
-      })));
-    } catch(e) {}
-
-    toast('✅ ' + homeShort + ' ' + h + '-' + a + ' ' + awayShort + ' cerrado', 'success', 4000);
-    var fm = document.getElementById('_forzarModal'); if (fm) fm.remove();
-    setTimeout(function(){ try { renderMundialScreen(); } catch(e){} }, 500);
-    if (_pizarraGid) setTimeout(function(){ _refrescarPizarraLocal(); }, 600);
-
-  } catch(e) { toast('Error: ' + e.message, 'error'); }
-}
-function _cerrarForzarModal() {
-  var m = document.getElementById('_forzarModal'); if (m) m.remove();
-}
-
-async function adminForzarCierre() {
-  if (!me || !me.isAdmin) return;
-  var partidos = FIXTURE_MUNDIAL.filter(function(f){ return f.jornada === 1; })
-    .map(function(f) {
-      var lv = (_wM||[]).find(function(m){
-        return larezTeamMatch(f.home, m.home) && larezTeamMatch(f.away, m.away);
-      });
-      return { id:f.id, home:f.home, away:f.away,
-        homeScore: lv?lv.homeScore:null, awayScore:lv?lv.awayScore:null,
-        status: lv?(lv.status||''):'NS' };
-    });
-  var old = document.getElementById('_forzarModal'); if (old) old.remove();
-  var modal = document.createElement('div');
-  modal.id = '_forzarModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9000';
-  window._forzarCache = partidos;
-  var filas = partidos.map(function(p,i) {
-    var isFT = isFinished(p.status);
-    var score = (p.homeScore!=null)?(p.homeScore+'-'+p.awayScore):'Sin datos';
-    var badge = isFT?'✅ FT':(p.homeScore!=null?'🔴 Pendiente':'⏳ NS');
-    var color = isFT?'var(--green)':'var(--gold)';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">'
-      +'<div style="flex:1;">'
-      +'<div style="font-size:0.78em;font-weight:800;">'+p.home.split(' ').slice(1).join(' ')+' vs '+p.away.split(' ').slice(1).join(' ')+'</div>'
-      +'<div style="font-size:0.7em;color:'+color+';">'+badge+' '+score+'</div>'
-      +'</div>'
-      +(!isFT?'<button onclick="_forzarPartido('+i+')" style="padding:6px 12px;border-radius:8px;border:none;background:rgba(255,140,0,0.2);color:#ff8c00;font-size:0.72em;font-weight:800;cursor:pointer;">⚡ Cerrar</button>':'')
-      +'</div>';
-  }).join('');
-  modal.innerHTML = '<div class="modal-box" style="max-height:88vh;overflow-y:auto;">'
-    +'<div class="modal-handle"></div>'
-    +'<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:#ff8c00;margin-bottom:4px;">⚡ Forzar Cierre</div>'
-    +'<div style="font-size:0.75em;color:var(--muted2);margin-bottom:12px;">Registra el resultado cuando TheSportsDB no cierra el partido</div>'
-    +filas
-    +'<button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="_cerrarForzarModal()">Cerrar</button>'
-    +'</div>';
-  document.body.appendChild(modal);
-}
-
-async function _forzarPartido(idx) {
-  var p = window._forzarCache && window._forzarCache[idx];
-  if (!p) return;
-  var fix = FIXTURE_MUNDIAL.find(function(f){ return f.id===p.id; });
-  if (!fix) return;
-  var homeShort = fix.home.split(' ').slice(1).join(' ');
-  var awayShort = fix.away.split(' ').slice(1).join(' ');
-  var golesH = prompt(homeShort+' — ¿Cuántos goles?');
-  if (golesH===null||golesH==='') return;
-  var golesA = prompt(awayShort+' — ¿Cuántos goles?');
-  if (golesA===null||golesA==='') return;
-  var h=parseInt(golesH), a=parseInt(golesA);
-  if (isNaN(h)||isNaN(a)) { toast('Números inválidos','error'); return; }
-  toast('Guardando...','info',2000);
-  try {
-    await db.collection('matches').doc(fix.id).set({
-      id:fix.id, home:fix.home, away:fix.away,
-      homeScore:h, awayScore:a, status:'Match Finished',
-      date:fix.date, time:fix.time||'00:00', tournamentId:'mundial',
-      forzado:true, forzadoPor:me.username,
-      forzadoTs:firebase.firestore.FieldValue.serverTimestamp()
-    },{merge:true});
-    var wi=(_wM||[]).findIndex(function(m){
-      return larezTeamMatch(fix.home,m.home)&&larezTeamMatch(fix.away,m.away);
-    });
-    if (wi!==-1) {
-      _wM[wi].homeScore=h; _wM[wi].awayScore=a; _wM[wi].status='Match Finished';
-    } else {
-      _wM.push({id:fix.id,home:fix.home,away:fix.away,homeScore:h,awayScore:a,
-        status:'Match Finished',date:fix.date,time:fix.time||'00:00',
-        tournamentId:'mundial',homeGoals:'',awayGoals:''});
-    }
-    try {
-      localStorage.setItem('_wMCache',JSON.stringify(_wM.map(function(m){
-        return {id:m.id,home:m.home,away:m.away,homeScore:m.homeScore,awayScore:m.awayScore,
-          status:m.status,date:m.date,time:m.time,homeGoals:m.homeGoals||'',awayGoals:m.awayGoals||''};
-      })));
-    } catch(e) {}
-    toast('✅ '+homeShort+' '+h+'-'+a+' '+awayShort+' cerrado','success',4000);
-    _cerrarForzarModal();
-    setTimeout(function(){ try{renderMundialScreen();}catch(e){} },500);
-    if (_pizarraGid) setTimeout(function(){ _refrescarPizarraLocal(); },600);
-  } catch(e) { toast('Error: '+e.message,'error'); }
 }
 </script>
 
