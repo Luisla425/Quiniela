@@ -1947,11 +1947,10 @@ let me = null;
 let myTournaments = ['mundial'];
 let _wM = []; // Partidos del Mundial FIFA 2026
 const _statsCache = {}; // Cache de timeline/stats por matchId
-const _apiIdMap  = (function(){  
+const _apiIdMap  = (function(){
   try { return JSON.parse(localStorage.getItem('_apiIdMap')||'{}'); } catch(e){ return {}; }
 })(); // Mapa persistente fixtureId -> TheSportsDB ID (se guarda en localStorage)
-let _aM = _wM;  // alias — solo existe el Mundial
-let _dM = [];   // europeos — siempre vacío en modo Mundial
+let _aM = _wM;  // alias — solo existe el Mundiallet _dM = [];   // europeos — siempre vacío en modo Mundial
 let userEnteringPreds = false;
 let syncTimer = null;
 let chatUnsub = null;
@@ -4167,7 +4166,7 @@ async function openStats(matchId) {
         } else if (type.includes('pen') && !type.includes('miss')) {
           icon='⚽⚡'; color='var(--gold)';
           mainLine = `${player}${scoreChip} <span style="color:var(--gold);font-size:0.78em;">(Penal${penalDetail})</span>`;
-        } else if (type.includes('miss')) {          
+        } else if (type.includes('miss')) {
           icon='❌'; color='var(--muted2)';
           mainLine = `${player} <span style="color:var(--muted2);font-size:0.78em;">(Penal fallado${penalDetail})</span>`;
         } else {
@@ -4177,8 +4176,7 @@ async function openStats(matchId) {
         if (player2 && !type.includes('miss'))
           subLine = `<span style="color:var(--muted2);">🅰 ${player2}</span>`;
       }
-      else if (isYellowRed) {
-        icon='🟨🟥'; color='var(--red)';
+      else if (isYellowRed) {        icon='🟨🟥'; color='var(--red)';
         mainLine = `${player} <span style="color:var(--red);font-size:0.78em;">(2ª Amarilla)</span>`;
       }
       else if (isYellow) {
@@ -6349,7 +6347,7 @@ async function generarPizarraWA() {
     await new Promise(function(r){ setTimeout(r, 1500); });
   }
   const ranked = (_currentRankData && _currentRankData.ranked) || [];
-    const name   = (_currentRankData && _currentRankData.name)   || 'Grupo';
+  const name   = (_currentRankData && _currentRankData.name)   || 'Grupo';
   const code   = (_currentRankData && _currentRankData.code)   || '';
   if (!ranked.length) { toast('Sin datos aun', 'warning', 3000); return; }
 
@@ -6363,8 +6361,7 @@ async function generarPizarraWA() {
   const liveMatches = _aM.filter(function(m){ return isLive(m.status); });
   let liveBlock = '';
   if (liveMatches.length) {
-    liveBlock = '\uD83D\uDD34 *EN VIVO:*' + NL;
-    liveMatches.forEach(function(m) {
+    liveBlock = '\uD83D\uDD34 *EN VIVO:*' + NL;    liveMatches.forEach(function(m) {
       const hs = m.homeScore != null ? m.homeScore : '?';
       const as = m.awayScore != null ? m.awayScore : '?';
       liveBlock += '  ' + (m.homeFlag||'\u26BD') + ' ' + m.home + ' ' + hs + ' - ' + as + ' ' + m.away + ' ' + (m.awayFlag||'\u26BD') + NL;
@@ -8737,6 +8734,7 @@ async function evalMundial() {
   const goleador   = prompt('⚽ Nombre del goleador real:'); if (!goleador) return;
   const golesReal  = prompt('🔢 Goles que anotó el goleador (número):');
   const golesRealNum = golesReal ? +golesReal : null;
+
   if (!confirm(`¿Evaluar con:\n🥇 ${campeon}\n🥈 ${subcampeon}\n🥉 ${tercero}\n⚽ ${goleador}${golesRealNum!=null?' · '+golesRealNum+' goles':''}`)) return;
 
   const out = $('adminOut');
@@ -8757,8 +8755,7 @@ async function evalMundial() {
       if (p.goleador?.toLowerCase() === goleador.toLowerCase()) {
         pts += cfg.goleador;
         desglose.push(`⚽+${cfg.goleador}`);
-        if (golesRealNum !== null && p.golesGoleador !== null && +p.golesGoleador === golesRealNum) {
-          const bonus = cfg.golesGoleador || 25;
+        if (golesRealNum !== null && p.golesGoleador !== null && +p.golesGoleador === golesRealNum) {          const bonus = cfg.golesGoleador || 25;
           pts += bonus;
           desglose.push(`🔢+${bonus}`);
         }
@@ -10410,21 +10407,49 @@ async function openTorneoStats() {
       if (u.golesGoleador != null) totalGoles.push({ username: usr, pred: +u.golesGoleador });
     });
 
-    // 2. Goles reales de Firestore
+    // 2. Goles reales desde _wM (TheSportsDB strHomeGoalDetails/strAwayGoalDetails)
     var golesReales = {};
-    try {
-      var gSnap = await db.collection('goles').orderBy('ts').get();
-      gSnap.docs.forEach(function(d) {
-        var g = d.data(); if (g.isOG) return;
-        var key = g.player || '?';
-        if (!golesReales[key]) golesReales[key] = { goles: 0, pais: g.pais || '' };
-        golesReales[key].goles++;
-        if (g.pais) golesReales[key].pais = g.pais;
+    var totalGolesReal = 0;
+
+    function _parseGolStr(str, paisEquipo) {
+      if (!str) return;
+      str.split(';').forEach(function(g) {
+        g = g.trim(); if (!g) return;
+        // Ignorar autogoles
+        if (g.toLowerCase().indexOf('own') !== -1 || g.toLowerCase().indexOf('(og)') !== -1) return;
+        // Extraer nombre (quitar minuto y paréntesis)
+        var player = g.replace(/(\d+\+?\d*)'?/g,'').replace(/[()]/g,'').trim();
+        if (!player || player.length < 2) return;
+        if (!golesReales[player]) golesReales[player] = { goles: 0, pais: paisEquipo || '' };
+        golesReales[player].goles++;
+        totalGolesReal++;
       });
-    } catch(e) {}
+    }
+
+    // Leer de _wM (en memoria — ya cargado por doSync)
+    (_wM || []).forEach(function(m) {
+      var hs = m.homeScore, as_ = m.awayScore;
+      if (hs == null || as_ == null) return; // partido no jugado
+      if (m.homeGoals) _parseGolStr(m.homeGoals, m.home ? m.home.split(' ').slice(1).join(' ') : '');
+      if (m.awayGoals) _parseGolStr(m.awayGoals, m.away ? m.away.split(' ').slice(1).join(' ') : '');
+    });
+
+    // Si _wM no tiene homeGoals, intentar con eventspastleague
+    if (totalGolesReal === 0) {
+      try {
+        var rPast = await fetchTimeout(API_V1 + '/eventspastleague.php?id=4429', 8000);
+        if (rPast && rPast.ok) {
+          var dPast = await rPast.json();
+          (dPast.events || []).forEach(function(ev) {
+            if (ev.intHomeScore == null) return;
+            _parseGolStr(ev.strHomeGoalDetails, ev.strHomeTeam);
+            _parseGolStr(ev.strAwayGoalDetails, ev.strAwayTeam);
+          });
+        }
+      } catch(e) {}
+    }
 
     var top3 = Object.entries(golesReales).sort(function(a,b){ return b[1].goles - a[1].goles; }).slice(0,3);
-    var totalGolesReal = Object.values(golesReales).reduce(function(s,g){ return s + g.goles; }, 0);
 
     // Fusionar top3 + elegidos
     var fusionados = {};
@@ -10696,6 +10721,7 @@ async function openTorneoStats() {
 
 </body>
    </html>
+  
   
   
   
