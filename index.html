@@ -10407,9 +10407,11 @@ async function openTorneoStats() {
       }
       function _canonico(mapa, nombre) {
         var norm = _normNombre(nombre);
-        // Buscar si ya existe una variante del mismo nombre
-        var existing = Object.keys(mapa).find(function(k){ return _normNombre(k) === norm; });
-        return existing || nombre; // usar el primero que se registró
+        var existing = Object.keys(mapa).find(function(k) {
+          var kn = _normNombre(k);
+          return kn === norm || kn.includes(norm) || norm.includes(kn);
+        });
+        return existing || nombre;
       }
 
       if (u.campeon)    { var kc = _canonico(campeones,u.campeon);       if (!campeones[kc])       campeones[kc]       = []; campeones[kc].push(usr); }
