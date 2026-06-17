@@ -10438,12 +10438,35 @@ async function openTorneoStats() {
     snap.docs.forEach(function(d) {
       var u = d.data();
       var usr = u.username || '?';
-      if (u.campeon)    { if (!campeones[u.campeon])       campeones[u.campeon]       = []; campeones[u.campeon].push(usr); }
-      if (u.subcampeon) { if (!subcampeones[u.subcampeon]) subcampeones[u.subcampeon] = []; subcampeones[u.subcampeon].push(usr); }
-      if (u.tercero)    { if (!terceros[u.tercero])        terceros[u.tercero]        = []; terceros[u.tercero].push(usr); }
+
+      // Metodo Larez — normalizar nombres para evitar duplicados
+      function _normNombre(n) {
+        if (!n) return '';
+        var r = n.trim().toLowerCase();
+        r = r.replace(/[áàäâã]/g,'a')
+             .replace(/[éèëê]/g,'e')
+             .replace(/[íìïî]/g,'i')
+             .replace(/[óòöôõ]/g,'o')
+             .replace(/[úùüû]/g,'u')
+             .replace(/[ñ]/g,'n');
+        return r.replace(/ +/g,' ');
+      }
+      function _canonico(mapa, nombre) {
+        var norm = _normNombre(nombre);
+        var existing = Object.keys(mapa).find(function(k) {
+          var kn = _normNombre(k);
+          return kn === norm || kn.indexOf(norm) !== -1 || norm.indexOf(kn) !== -1;
+        });
+        return existing || nombre;
+      }
+
+      if (u.campeon)    { var kc=_canonico(campeones,u.campeon);       if(!campeones[kc])       campeones[kc]=[];       campeones[kc].push(usr); }
+      if (u.subcampeon) { var ks=_canonico(subcampeones,u.subcampeon); if(!subcampeones[ks])    subcampeones[ks]=[];    subcampeones[ks].push(usr); }
+      if (u.tercero)    { var kt=_canonico(terceros,u.tercero);        if(!terceros[kt])        terceros[kt]=[];        terceros[kt].push(usr); }
       if (u.goleador)   {
-        if (!goleadores[u.goleador]) goleadores[u.goleador] = [];
-        goleadores[u.goleador].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
+        var kg=_canonico(goleadores,u.goleador);
+        if(!goleadores[kg]) goleadores[kg]=[];
+        goleadores[kg].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
       }
       if (u.golesGoleador != null) totalGoles.push({ username: usr, pred: +u.golesGoleador });
     });
@@ -10904,3 +10927,4 @@ function _elegirSlot(idx) {
 
 </body>
    </html>
+  
