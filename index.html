@@ -5859,7 +5859,8 @@ function renderAdmin() {
       <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
     </div>
     <div class="admin-grid">
-      <button class="admin-btn full" onclick="adminDashboard()"
+      <button class=<div style="display:flex;gap:8px;margin-bottom:12px;"><button onclick="_setAdminJornada(1)" id="_aj1" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);font-weight:900;cursor:pointer;">J1</button><button onclick="_setAdminJornada(2)" id="_aj2" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J2</button><button onclick="_setAdminJornada(3)" id="_aj3" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J3</button></div>
+      "admin-btn full" onclick="adminDashboard()"
         style="background:rgba(0,229,160,0.12);color:var(--green);border:2px solid rgba(0,229,160,0.35);
         font-size:0.88em;padding:18px;">
         📊 DASHBOARD EN VIVO<br>
