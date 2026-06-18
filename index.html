@@ -6479,10 +6479,11 @@ async function generarPizarraWA() {
 async function generarPrediccionesWA() {
   toast("Cargando quinielas...", "info", 3000);
   try {
+    var jNum = _mundialJornada || 1;
+    var jornadaKey = "2026-mundial-j" + jNum;
     var mSnap = await db.collection("mundialPreds").get();
     var torMap = {};
-    mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });    
-    var jornadaKey = "2026-mundial-j" + (_mundialJornada||1);
+    mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });
     var s1 = await db.collection("predictions").where("jornadaDate","==",jornadaKey).get();
     var seen = new Set(); var allP = [];
     s1.docs.forEach(function(d){
@@ -6497,19 +6498,18 @@ async function generarPrediccionesWA() {
     var todos = Array.from(new Set(Object.keys(torMap).concat(Object.keys(parMap))))
       .filter(function(ap){
         var pc = parMap[ap] ? Object.keys(parMap[ap]).length : 0;
-        var hasTor = !!torMap[ap];
-        return pc > 0 || hasTor;
+        return pc > 0;
       })
       .sort();
-    if (!todos.length){toast("Sin quinielas registradas","warning",3000);return;}
-    var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===(_mundialJornada||1);});
+    if (!todos.length){toast("Sin predicciones para J"+jNum,"warning",3000);return;}
+    var partidos_jornada = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===jNum;});
     var fecha = vzNow().toLocaleDateString("es-VE",{day:"2-digit",month:"short"});
     var NL="\n"; var SEP="========================";
     var mensajes = todos.map(function(apodo,qi){
-      var tor=torMap[apodo]||null;
-      var preds=parMap[apodo]||{};
-      var partidos=0;
-      var blT="";
+      var tor = jNum===1 ? (torMap[apodo]||null) : null;
+      var preds = parMap[apodo]||{};
+      var partidos = 0;
+      var blT = "";
       if(tor){
         blT+="PREDICCIONES TORNEO (70pts)"+NL;
         blT+="Campeon: "+(tor.campeon||"-")+NL;
@@ -6519,8 +6519,8 @@ async function generarPrediccionesWA() {
         blT+="Goles: "+(tor.golesGoleador!=null?tor.golesGoleador:"-")+NL;
         blT+=SEP+NL;
       }
-      var blP="PREDICCIONES J"+jornada+" (24 partidos)"+NL;
-      j1.forEach(function(m,ix){
+      var blP="PREDICCIONES J"+jNum+" (24 partidos)"+NL;
+      partidos_jornada.forEach(function(m,ix){
         var p=preds[String(m.id)];
         var ph=p?p.predictedHomeScore:"?";
         var pa=p?p.predictedAwayScore:"?";
