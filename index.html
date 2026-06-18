@@ -2676,7 +2676,7 @@ auth.onAuthStateChanged(async user => {
       try {
         const sSnap = await db.collection('predictions')
           .where('realUserId','==',user.uid)
-          .where('jornadaDate','==','2026-mundial-j1')
+          .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`)
           .get();
         me._misSlots = [{ slotId: me.uid, apodo: me.username }];
         const seen = new Set([me.uid]);
@@ -5523,7 +5523,7 @@ async function openGroupRanking(gid) {
     const fSnapA = await db.collection('predictions')
       .where('tournamentId','==','mundial').get();
     const fSnapB = await db.collection('predictions')
-      .where('jornadaDate','==','2026-mundial-j1').get();
+      .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     const fSnapC = await db.collection('predictions')
       .where('jornadaDate','==','2026-06-11').get(); // version vieja (rescate)
     const _seenF = new Set();
@@ -5601,7 +5601,7 @@ async function openGroupRanking(gid) {
     const pSnapA = await db.collection('predictions')
       .where('tournamentId','==','mundial').get();
     const pSnapB = await db.collection('predictions')
-      .where('jornadaDate','==','2026-mundial-j1').get();
+      .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     const pSnapC = await db.collection('predictions')
       .where('jornadaDate','==','2026-06-11').get(); // version vieja (rescate)
     const _seenP = new Set();
@@ -6760,7 +6760,7 @@ async function loadSimulation() {
 
     // 2) Todas las predicciones del Mundial (3 fuentes, sin duplicados)
     const sA = await db.collection('predictions').where('tournamentId','==','mundial').get();
-    const sB = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    const sB = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     const sC = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     const seenD = new Set(); const allDocs = [];
     sA.docs.concat(sB.docs).concat(sC.docs).forEach(d => {
@@ -9414,7 +9414,7 @@ async function adminDashboard() {
       .filter(u => !u.isSpectator)
       .sort((a,b) => (a.playerNumber||0)-(b.playerNumber||0));
 
-    // Para el Mundial: buscar por tournamentId (jornadaDate es '2026-mundial-j1', no fecha real)
+    // Para el Mundial: buscar por tournamentId (jornadaDate es `2026-mundial-j${_mundialJornada}`, no fecha real)
     const _ps1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
     const _ps2 = await db.collection('predictions').where('jornadaDate','==',today).get();
     const _psSeen = new Set(); const _psDocs = [];
@@ -9645,7 +9645,7 @@ async function adminEditPredicciones() {
   toast('Cargando quinielas...', 'info', 2000);
   try {
     var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
-    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    var s2 = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
     s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
@@ -9733,7 +9733,7 @@ async function _guardarEdicionAdmin(ap) {
         userId: data.userId, username: ap, groupId: data.groupId,
         matchId: m.id, predictedHomeScore: h, predictedAwayScore: a,
         home: m.home, away: m.away,
-        tournamentId: 'mundial', jornadaDate: '2026-mundial-j1',
+        tournamentId: 'mundial', jornadaDate: `2026-mundial-j${_mundialJornada}`,
         evaluated: false
       }, { merge: true });
     });
@@ -9758,7 +9758,7 @@ async function predPartidoAdmin() {
   toast('Cargando predicciones del partido ' + n + '...', 'info', 3000);
   try {
     var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
-    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    var s2 = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
     s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
@@ -10037,7 +10037,7 @@ async function openPlayerStats(username, pts, exact, correct, live, userId) {
       .get();
     if (snaps.empty) {
       snaps = await db.collection('predictions')
-        .where('jornadaDate','==','2026-mundial-j1')
+        .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`)
         .where('username','==',username)
         .get();
     }
@@ -10987,3 +10987,4 @@ function _elegirSlot(idx) {
 
 </body>
    </html>
+  
