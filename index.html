@@ -6486,7 +6486,7 @@ async function generarPrediccionesWA() {
     var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
     // s3 removido - jornadaDate dinamico cubre esto
     var seen = new Set(); var allP = [];
-    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
+    s1.docs.concat(s2.docs).forEach(function(d){
       if (!seen.has(d.id)){seen.add(d.id);allP.push(d.data());}
     });
     var parMap = {};
