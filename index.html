@@ -9644,7 +9644,7 @@ async function debugPizarra() {
 async function adminEditPredicciones() {
   toast('Cargando quinielas...', 'info', 2000);
   try {
-    var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    var s1 = await db.collection("predictions").where("jornadaDate","==",`2026-mundial-j${_mundialJornada}`).get();
     var s2 = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
