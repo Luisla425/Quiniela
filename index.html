@@ -8,6 +8,26 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js">
+
+function _elegirSlotDirecto(slotId, apodo) {
+  _cerrarSlotSelector();
+  _flujoPredSlot = { slotId: slotId, apodo: apodo };
+  window._slotYaElegido = true;
+  window._syncPausado = true;
+  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+  if (window._predTimer) clearTimeout(window._predTimer);
+  window._predTimer = setTimeout(function() {
+    window._syncPausado = false;
+    window._slotYaElegido = false;
+    _flujoPredSlot = null;
+    toast('Tiempo agotado. Vuelve a predecir.', 'warning', 5000);
+    scheduleNextSync();
+    renderMundialScreen();
+  }, 300000);
+  toast('5 minutos para predecir con ' + apodo + '. No salgas.', 'info', 5000);
+  renderMundialScreen();
+}
+
 </script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -2752,6 +2772,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
                  || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 30000 : 300000; // 30s en vivo para pizarra instantánea
     syncTimer = setTimeout(async () => {
+      if (window._syncPausado) { scheduleNextSync(); return; }
       try {
       if (!userEnteringPreds) {
         const hasTodayGames = _dM.length > 0 || _wM.length > 0;
@@ -7993,6 +8014,9 @@ async function savePredsMundial() {
     _flujoPredActivo = false;
     _flujoPredSlot   = null;
     toast('✅ ' + preds.length + ' predicciones guardadas · ' + apodoLabel, 'success', 3000);
+    // Reanudar sync al guardar
+    if (window._predTimer) { clearTimeout(window._predTimer); window._predTimer = null; }
+    window._syncPausado = false;
     var slotActual = _flujoPredSlot;
     _flujoPredSlot = null;
     window._slotYaElegido = false;
@@ -10788,6 +10812,19 @@ function _elegirSlot(idx) {
   var slots = (me && me._misSlots) ? me._misSlots : [];
   var slot = slots[idx];
   _cerrarSlotSelector();
+  // Pausar sync mientras predice
+  window._syncPausado = true;
+  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
+  if (window._predTimer) clearTimeout(window._predTimer);
+  window._predTimer = setTimeout(function() {
+    window._syncPausado = false;
+    window._slotYaElegido = false;
+    _flujoPredSlot = null;
+    toast('Tiempo agotado. Vuelve a predecir.', 'warning', 5000);
+    scheduleNextSync();
+    renderMundialScreen();
+  }, 300000);
+  toast('Tienes 5 minutos para predecir. No salgas de esta pantalla.', 'info', 6000);
   if (window._slotCallback && slot) window._slotCallback(slot);
 }
 
