@@ -6502,7 +6502,7 @@ async function generarPrediccionesWA() {
       })
       .sort();
     if (!todos.length){toast("Sin quinielas registradas","warning",3000);return;}
-    var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===jornada;});
+    var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===(_mundialJornada||1);});
     var fecha = vzNow().toLocaleDateString("es-VE",{day:"2-digit",month:"short"});
     var NL="\n"; var SEP="========================";
     var mensajes = todos.map(function(apodo,qi){
