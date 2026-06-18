@@ -5440,8 +5440,9 @@ function _larezLev(a, b) {
 // Compara nombre de equipo en español (fixture) contra el nombre que devuelve
 // la API (TheSportsDB, en ingles). Usa diccionario Larez + fuzzy Levenshtein.
 function larezTeamMatch(esName, enCandidate) {
-  const es = _larezNorm(esName);
-  const en = _larezNorm(enCandidate);
+  const _rmEmoji = s => (s||"").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]/gu,"").trim();
+  const es = _larezNorm(_rmEmoji(esName));
+  const en = _larezNorm(_rmEmoji(enCandidate));
   if (es===en || (es.length>3 && en.includes(es)) || (en.length>3 && es.includes(en))) return true;
 
   let aliases = LAREZ_DICT[es];
