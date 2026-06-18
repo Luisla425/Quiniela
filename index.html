@@ -9648,7 +9648,7 @@ async function adminEditPredicciones() {
     var s2 = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
-    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
+    s1.docs.concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
     });
     var map = {};
