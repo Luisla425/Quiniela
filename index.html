@@ -21,10 +21,10 @@ function _elegirSlotDirecto(slotId, apodo) {
     window._slotYaElegido = false;
     _flujoPredSlot = null;
     toast('Tiempo agotado. Vuelve a predecir.', 'warning', 5000);
-    scheduleNextSync();
+    setTimeout(function(){ doSync(); },1000);
     renderMundialScreen();
   }, 300000);
-  toast('5 minutos para predecir con ' + apodo + '. No salgas.', 'info', 5000);
+  toast('🔴 5 MIN PARA PREDECIR CON ' + apodo.toUpperCase() + ' — NO SALGAS', 'error', 6000);
   renderMundialScreen();
 }
 
@@ -2772,7 +2772,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
                  || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 30000 : 300000; // 30s en vivo para pizarra instantánea
     syncTimer = setTimeout(async () => {
-      if (window._syncPausado) { scheduleNextSync(); return; }
+      if (window._syncPausado) { setTimeout(function(){ doSync(); },1000); return; }
       try {
       if (!userEnteringPreds) {
         const hasTodayGames = _dM.length > 0 || _wM.length > 0;
@@ -2801,10 +2801,10 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
         }
       }
       } catch(e) { console.warn('sync error:', e.message); }
-      scheduleNextSync();
+      setTimeout(function(){ doSync(); },1000);
     }, interval);
   }
-  scheduleNextSync();
+  setTimeout(function(){ doSync(); },1000);
 
   // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
   // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
@@ -10821,10 +10821,10 @@ function _elegirSlot(idx) {
     window._slotYaElegido = false;
     _flujoPredSlot = null;
     toast('Tiempo agotado. Vuelve a predecir.', 'warning', 5000);
-    scheduleNextSync();
+    setTimeout(function(){ doSync(); },1000);
     renderMundialScreen();
   }, 300000);
-  toast('Tienes 5 minutos para predecir. No salgas de esta pantalla.', 'info', 6000);
+  toast('🔴 TIENES 5 MINUTOS PARA PREDECIR — NO SALGAS', 'error', 6000);
   if (window._slotCallback && slot) window._slotCallback(slot);
 }
 
@@ -10986,4 +10986,3 @@ function _elegirSlot(idx) {
 
 </body>
    </html>
-  
