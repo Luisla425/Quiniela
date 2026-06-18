@@ -6482,11 +6482,10 @@ async function generarPrediccionesWA() {
     var mSnap = await db.collection("mundialPreds").get();
     var torMap = {};
     mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });    
-    var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
-    var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
-    // s3 removido - jornadaDate dinamico cubre esto
+    var jornadaKey = "2026-mundial-j" + (_mundialJornada||1);
+    var s1 = await db.collection("predictions").where("jornadaDate","==",jornadaKey).get();
     var seen = new Set(); var allP = [];
-    s1.docs.concat(s2.docs).forEach(function(d){
+    s1.docs.forEach(function(d){
       if (!seen.has(d.id)){seen.add(d.id);allP.push(d.data());}
     });
     var parMap = {};
@@ -6503,7 +6502,7 @@ async function generarPrediccionesWA() {
       })
       .sort();
     if (!todos.length){toast("Sin quinielas registradas","warning",3000);return;}
-    var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===1;});
+    var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===jornada;});
     var fecha = vzNow().toLocaleDateString("es-VE",{day:"2-digit",month:"short"});
     var NL="\n"; var SEP="========================";
     var mensajes = todos.map(function(apodo,qi){
@@ -6520,7 +6519,7 @@ async function generarPrediccionesWA() {
         blT+="Goles: "+(tor.golesGoleador!=null?tor.golesGoleador:"-")+NL;
         blT+=SEP+NL;
       }
-      var blP="PREDICCIONES J1 (24 partidos)"+NL;
+      var blP="PREDICCIONES J"+jornada+" (24 partidos)"+NL;
       j1.forEach(function(m,ix){
         var p=preds[String(m.id)];
         var ph=p?p.predictedHomeScore:"?";
@@ -9644,11 +9643,11 @@ async function debugPizarra() {
 async function adminEditPredicciones() {
   toast('Cargando quinielas...', 'info', 2000);
   try {
-    var s1 = await db.collection("predictions").where("jornadaDate","==",`2026-mundial-j${_mundialJornada}`).get();
+    var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
     var s2 = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
     var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
-    s1.docs.concat(s3.docs).forEach(function(d){
+    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
     });
     var map = {};
