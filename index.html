@@ -9610,10 +9610,10 @@ function _mostrarModalEditAdmin(apodos) {
 function _abrirEdicionApodo(ap) {
   var data = window._adminEditMap[ap];
   if (!data) return;
-  var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
+  var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === (_mundialJornada||1); });
   var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
     + '<div class="modal-handle"></div>'
-    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J1</div>';
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J' + (_mundialJornada||1) + '</div>';
   j1.forEach(function(m, ix){
     var pr = data.preds[String(m.id)] || {h:0,a:0};
     var hv = (pr.h!=null) ? pr.h : 0;
@@ -10847,31 +10847,4 @@ function _setAdminJornada(j) {
 </div>
 
 </body>
-   </html>
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-
-
-  
-  
-  
-  
-
+</html>
