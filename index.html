@@ -9562,11 +9562,10 @@ async function debugPizarra() {
 async function adminEditPredicciones() {
   toast('Cargando quinielas...', 'info', 2000);
   try {
-    var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
-    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
-    var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
+    var jornadaKey = '2026-mundial-j' + (_mundialJornada||1);
+    var s1 = await db.collection('predictions').where('jornadaDate','==',jornadaKey).get();
     var seen = new Set(); var docs = [];
-    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
+    s1.docs.forEach(function(d){
       if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
     });
     var map = {};
@@ -10842,10 +10841,37 @@ function _setAdminJornada(j) {
 
     <!-- FOOTER -->
     <div style="text-align:center;padding:20px 0 10px;color:#5e5e8a;font-size:0.72em;">
-            🌾 Desarrollado por luislárez · Arichuna, Venezuela
+      🌾 Desarrollado por luislárez · Arichuna, Venezuela
     </div>
   </div>
 </div>
 
 </body>
    </html>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+
+  
+  
+  
+  
+
