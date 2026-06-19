@@ -5859,8 +5859,8 @@ function renderAdmin() {
       <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
     </div>
     <div class="admin-grid">
-      <button class=<div style="display:flex;gap:8px;margin-bottom:12px;"><button onclick="_setAdminJornada(1)" id="_aj1" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);font-weight:900;cursor:pointer;">J1</button><button onclick="_setAdminJornada(2)" id="_aj2" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J2</button><button onclick="_setAdminJornada(3)" id="_aj3" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J3</button></div>
-      "admin-btn full" onclick="adminDashboard()"
+      <div style="display:flex;gap:8px;margin-bottom:12px;margin-top:8px;"><button onclick="_setAdminJornada(1)" id="_aj1" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);font-weight:900;cursor:pointer;">J1</button><button onclick="_setAdminJornada(2)" id="_aj2" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J2</button><button onclick="_setAdminJornada(3)" id="_aj3" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J3</button></div>
+      <button class="admin-btn full" onclick="adminDashboard()"
         style="background:rgba(0,229,160,0.12);color:var(--green);border:2px solid rgba(0,229,160,0.35);
         font-size:0.88em;padding:18px;">
         📊 DASHBOARD EN VIVO<br>
@@ -9673,7 +9673,7 @@ function _mostrarModalEditAdmin(apodos) {
   var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
     + '<div class="modal-handle"></div>'
     + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:4px;">Editar Predicciones</div>'
-    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;">Toca un apodo para corregir sus 24 predicciones de J1</div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;">Toca un apodo para corregir sus 24 predicciones de J'+(_mundialJornada||1)+'</div>'
     + '<div>';
   apodos.forEach(function(ap){
     html += '<button onclick="_abrirEdicionApodo(\'' + ap + '\')" '
@@ -9695,7 +9695,7 @@ function _abrirEdicionApodo(ap) {
   var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
   var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
     + '<div class="modal-handle"></div>'
-    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J1</div>';
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J'+(_mundialJornada||1)+'</div>';
   j1.forEach(function(m, ix){
     var pr = data.preds[String(m.id)] || {h:0,a:0};
     var hv = (pr.h!=null) ? pr.h : 0;
