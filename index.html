@@ -7,28 +7,7 @@
 <title>⚽ Quiniela Luan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js">
-
-function _elegirSlotDirecto(slotId, apodo) {
-  _cerrarSlotSelector();
-  _flujoPredSlot = { slotId: slotId, apodo: apodo };
-  window._slotYaElegido = true;
-  window._syncPausado = true;
-  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
-  if (window._predTimer) clearTimeout(window._predTimer);
-  window._predTimer = setTimeout(function() {
-    window._syncPausado = false;
-    window._slotYaElegido = false;
-    _flujoPredSlot = null;
-    toast('Tiempo agotado. Vuelve a predecir.', 'warning', 5000);
-    setTimeout(function(){ doSync(); },1000);
-    renderMundialScreen();
-  }, 300000);
-  toast('🔴 5 MIN PARA PREDECIR CON ' + apodo.toUpperCase() + ' — NO SALGAS', 'error', 6000);
-  renderMundialScreen();
-}
-
-</script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
@@ -2672,24 +2651,6 @@ auth.onAuthStateChanged(async user => {
     me = { uid: user.uid, ...doc.data() };
     myTournaments = ['mundial'];
     enterApp(); setTimeout(initFCM, 2000);
-    setTimeout(async function() {
-      try {
-        const sSnap = await db.collection('predictions')
-          .where('realUserId','==',user.uid)
-          .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`)
-          .get();
-        me._misSlots = [{ slotId: me.uid, apodo: me.username }];
-        const seen = new Set([me.uid]);
-        sSnap.docs.forEach(d => {
-          const sd = d.data();
-          if (sd.userId && !seen.has(sd.userId) && sd.userId !== me.uid) {
-            seen.add(sd.userId);
-            me._misSlots.push({ slotId: sd.userId, apodo: sd.username || sd.userId });
-          }
-        });
-        console.log('Slots cargados:', me._misSlots.length);
-      } catch(e) {}
-    }, 1500);
   } else {
     $('authScreen').classList.remove('hidden');
     $('mainApp').classList.add('hidden');
@@ -2772,7 +2733,6 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
                  || _wM.some(m => isLive(m.status));
     const interval = hasLive ? 30000 : 300000; // 30s en vivo para pizarra instantánea
     syncTimer = setTimeout(async () => {
-      if (window._syncPausado) { setTimeout(function(){ doSync(); },1000); return; }
       try {
       if (!userEnteringPreds) {
         const hasTodayGames = _dM.length > 0 || _wM.length > 0;
@@ -2782,8 +2742,7 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
         if (_dM.some(m => isLive(m.status))) await _uLEC();
         // Redibujar pantalla del Mundial si hay goles nuevos
         if (_wM.some(m => isLive(m.status))) {
-          var _sc = document.getElementById('screenMatches');
-          if (!_sc || !_sc.querySelectorAll('input').length) renderMundialScreen();
+          renderMundialScreen();
           // Detectar gol nuevo comparando con marcadores anteriores
           let huboGol = false;
           _wM.forEach(m => {
@@ -2801,10 +2760,10 @@ await loadEmergencyAccess(); // Cargar acceso emergencia si el jugador lo tiene
         }
       }
       } catch(e) { console.warn('sync error:', e.message); }
-      setTimeout(function(){ doSync(); },1000);
+      scheduleNextSync();
     }, interval);
   }
-  setTimeout(function(){ doSync(); },1000);
+  scheduleNextSync();
 
   // ── CRONÓMETRO EN VIVO — actualiza cada segundo ──────────
   // Chip principal:  🔴 00:01 → 45:00 (fijo) → 45:00 (fijo en 2H: 45:01→90:00)
@@ -3099,22 +3058,14 @@ function parseEvent(ev, t) {
 function setDayMatches() {}
 
 function _isHardLocked() {
-  // Bloqueo total 5 min después del pitazo — solo partidos de la jornada actual
-  const jornadaMatches = FIXTURE_MUNDIAL.filter(f => f.jornada === _mundialJornada);
-  const today = vzDate();
-  // Solo partidos de HOY que hayan empezado
-  const todayMatches = jornadaMatches.filter(f => f.date === today);
-  if (!todayMatches.length) return false;
-  const firstStarted = todayMatches.find(f => {
-    const lv = _wM.find(m => larezTeamMatch(f.home,m.home) && larezTeamMatch(f.away,m.away));
-    return lv && (isLive(lv.status) || isFinished(lv.status));
-  });
+  // Bloqueo total 5 min después del pitazo — NI EL ADMIN puede cambiar
+  // Usar _wM (Mundial) + FIXTURE como fallback
+  const allM = _wM.length ? _wM : FIXTURE_MUNDIAL;
+  const firstStarted = allM.find(m => isLive(m.status) || isFinished(m.status));
   if (!firstStarted || !firstStarted.time) return false;
   try {
     const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
-    const [hh, mm] = firstStarted.timeVZ
-      ? firstStarted.timeVZ.replace(/am|pm/i,'').trim().split(':').map(Number)
-      : firstStarted.time.split(':').map(Number);
+    const [hh, mm] = firstStarted.time.split(':').map(Number);
     const kick = new Date(vzN); kick.setHours(hh, mm, 0, 0);
     return (vzN - kick) / 60000 >= 5;
   } catch(e) { return false; }
@@ -5440,9 +5391,8 @@ function _larezLev(a, b) {
 // Compara nombre de equipo en español (fixture) contra el nombre que devuelve
 // la API (TheSportsDB, en ingles). Usa diccionario Larez + fuzzy Levenshtein.
 function larezTeamMatch(esName, enCandidate) {
-  const _rmEmoji = s => (s||"").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27FF}]/gu,"").trim();
-  const es = _larezNorm(_rmEmoji(esName));
-  const en = _larezNorm(_rmEmoji(enCandidate));
+  const es = _larezNorm(esName);
+  const en = _larezNorm(enCandidate);
   if (es===en || (es.length>3 && en.includes(es)) || (en.length>3 && es.includes(en))) return true;
 
   let aliases = LAREZ_DICT[es];
@@ -5523,7 +5473,7 @@ async function openGroupRanking(gid) {
     const fSnapA = await db.collection('predictions')
       .where('tournamentId','==','mundial').get();
     const fSnapB = await db.collection('predictions')
-      .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
+      .where('jornadaDate','==','2026-mundial-j1').get();
     const fSnapC = await db.collection('predictions')
       .where('jornadaDate','==','2026-06-11').get(); // version vieja (rescate)
     const _seenF = new Set();
@@ -5601,7 +5551,7 @@ async function openGroupRanking(gid) {
     const pSnapA = await db.collection('predictions')
       .where('tournamentId','==','mundial').get();
     const pSnapB = await db.collection('predictions')
-      .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
+      .where('jornadaDate','==','2026-mundial-j1').get();
     const pSnapC = await db.collection('predictions')
       .where('jornadaDate','==','2026-06-11').get(); // version vieja (rescate)
     const _seenP = new Set();
@@ -5624,8 +5574,8 @@ async function openGroupRanking(gid) {
         if (res.live) ptMap[p.userId].live++;
       } else if (res != null && sinPredecir) {
         pts = 0; // sin predecir = 0pts, no cuenta como correcto ni exacto
-      } else if (p.evaluated === true && p.pointsAwarded != null) {
-        pts = +p.pointsAwarded || 0;
+      } else if (p.evaluated) {
+        pts = p.pointsAwarded || 0;
       } else if (p.livePoints != null) {
         pts = p.livePoints;
         ptMap[p.userId].live++;
@@ -5859,8 +5809,8 @@ function renderAdmin() {
       <div style="font-family:var(--font-h);font-size:1.3em;">👑 ${me.username}</div>
     </div>
     <div class="admin-grid">
-      <div style="display:flex;gap:8px;margin-bottom:12px;margin-top:8px;"><button onclick="_setAdminJornada(1)" id="_aj1" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);font-weight:900;cursor:pointer;">J1</button><button onclick="_setAdminJornada(2)" id="_aj2" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J2</button><button onclick="_setAdminJornada(3)" id="_aj3" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J3</button></div>
-      <button class="admin-btn full" onclick="adminDashboard()"
+      <button <div style="display:flex;gap:8px;margin-bottom:12px;margin-top:8px;"><button onclick="_setAdminJornada(1)" id="_aj1" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--primary);background:rgba(108,71,255,0.2);color:var(--primary2);font-weight:900;cursor:pointer;">J1</button><button onclick="_setAdminJornada(2)" id="_aj2" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J2</button><button onclick="_setAdminJornada(3)" id="_aj3" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-weight:900;cursor:pointer;">J3</button></div>
+      class="admin-btn full" onclick="adminDashboard()"
         style="background:rgba(0,229,160,0.12);color:var(--green);border:2px solid rgba(0,229,160,0.35);
         font-size:0.88em;padding:18px;">
         📊 DASHBOARD EN VIVO<br>
@@ -6480,14 +6430,14 @@ async function generarPizarraWA() {
 async function generarPrediccionesWA() {
   toast("Cargando quinielas...", "info", 3000);
   try {
-    var jNum = _mundialJornada || 1;
-    var jornadaKey = "2026-mundial-j" + jNum;
     var mSnap = await db.collection("mundialPreds").get();
     var torMap = {};
-    mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });
-    var s1 = await db.collection("predictions").where("jornadaDate","==",jornadaKey).get();
+    mSnap.docs.forEach(function(d) { var p=d.data(); torMap[p.username||"Jugador"]=p; });    
+    var s1 = await db.collection("predictions").where("tournamentId","==","mundial").get();
+    var s2 = await db.collection("predictions").where("jornadaDate","==","2026-mundial-j1").get();
+    var s3 = await db.collection("predictions").where("jornadaDate","==","2026-06-11").get();
     var seen = new Set(); var allP = [];
-    s1.docs.forEach(function(d){
+    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)){seen.add(d.id);allP.push(d.data());}
     });
     var parMap = {};
@@ -6499,18 +6449,19 @@ async function generarPrediccionesWA() {
     var todos = Array.from(new Set(Object.keys(torMap).concat(Object.keys(parMap))))
       .filter(function(ap){
         var pc = parMap[ap] ? Object.keys(parMap[ap]).length : 0;
-        return pc > 0;
+        var hasTor = !!torMap[ap];
+        return pc > 0 || hasTor;
       })
       .sort();
-    if (!todos.length){toast("Sin predicciones para J"+jNum,"warning",3000);return;}
-    var partidos_jornada = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===jNum;});
+    if (!todos.length){toast("Sin quinielas registradas","warning",3000);return;}
+    var j1    = FIXTURE_MUNDIAL.filter(function(m){return m.jornada===1;});
     var fecha = vzNow().toLocaleDateString("es-VE",{day:"2-digit",month:"short"});
     var NL="\n"; var SEP="========================";
     var mensajes = todos.map(function(apodo,qi){
-      var tor = jNum===1 ? (torMap[apodo]||null) : null;
-      var preds = parMap[apodo]||{};
-      var partidos = 0;
-      var blT = "";
+      var tor=torMap[apodo]||null;
+      var preds=parMap[apodo]||{};
+      var partidos=0;
+      var blT="";
       if(tor){
         blT+="PREDICCIONES TORNEO (70pts)"+NL;
         blT+="Campeon: "+(tor.campeon||"-")+NL;
@@ -6520,8 +6471,8 @@ async function generarPrediccionesWA() {
         blT+="Goles: "+(tor.golesGoleador!=null?tor.golesGoleador:"-")+NL;
         blT+=SEP+NL;
       }
-      var blP="PREDICCIONES J"+jNum+" (24 partidos)"+NL;
-      partidos_jornada.forEach(function(m,ix){
+      var blP="PREDICCIONES J1 (24 partidos)"+NL;
+      j1.forEach(function(m,ix){
         var p=preds[String(m.id)];
         var ph=p?p.predictedHomeScore:"?";
         var pa=p?p.predictedAwayScore:"?";
@@ -6760,7 +6711,7 @@ async function loadSimulation() {
 
     // 2) Todas las predicciones del Mundial (3 fuentes, sin duplicados)
     const sA = await db.collection('predictions').where('tournamentId','==','mundial').get();
-    const sB = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
+    const sB = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
     const sC = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     const seenD = new Set(); const allDocs = [];
     sA.docs.concat(sB.docs).concat(sC.docs).forEach(d => {
@@ -7137,13 +7088,6 @@ function renderMundialScreen() {
   if (!el) return;
 
   const jornadaStatus  = getMundialJornadaStatus(_mundialJornada);
-
-  if (jornadaStatus.open && !_flujoPredSlot && me && me._misSlots && me._misSlots.length > 1 && !window._slotYaElegido) {
-    window._slotYaElegido = true;
-    _mostrarSelectorSlots(function(slot) { _flujoPredSlot = slot; renderMundialScreen(); });
-    return;
-  }
-  if (!jornadaStatus.open) { window._slotYaElegido = false; _flujoPredSlot = null; }
   const firstUnplayed  = getMundialFirstUnplayed();
   const jornadaOffset  = (_mundialJornada - 1) * 24;
 
@@ -8014,33 +7958,7 @@ async function savePredsMundial() {
     await batch.commit();
     _flujoPredActivo = false;
     _flujoPredSlot   = null;
-    toast('✅ ' + preds.length + ' predicciones guardadas · ' + apodoLabel, 'success', 3000);
-    // Reanudar sync al guardar
-    if (window._predTimer) { clearTimeout(window._predTimer); window._predTimer = null; }
-    window._syncPausado = false;
-    var slotActual = _flujoPredSlot;
-    _flujoPredSlot = null;
-    window._slotYaElegido = false;
-    if (me._misSlots && me._misSlots.length > 1 && slotActual) {
-      var siguiente = me._misSlots.find(function(s){ return s.slotId !== slotActual.slotId; });
-      if (siguiente) {
-        setTimeout(function() {
-          var om = document.getElementById('_slotSelectorModal'); if (om) om.remove();
-          var modal = document.createElement('div');
-          modal.id = '_slotSelectorModal';
-          modal.className = 'modal-overlay';
-          modal.style.zIndex = '9000';
-          modal.innerHTML = '<div class="modal-box">'
-            + '<div class="modal-handle"></div>'
-            + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:900;color:var(--gold);text-align:center;margin-bottom:8px;">✅ ' + slotActual.apodo + ' guardado!</div>'
-            + '<div style="font-size:0.82em;color:var(--muted2);text-align:center;margin-bottom:20px;">Ahora predice con <b style="color:var(--primary2);">' + siguiente.apodo + '</b></div>'
-            + '<button onclick="_elegirSlotDirecto(\'' + siguiente.slotId + '\',\'' + siguiente.apodo + '\')" style="width:100%;padding:14px;border-radius:12px;border:none;background:var(--primary);color:#fff;font-family:var(--font-h);font-size:1.1em;font-weight:900;cursor:pointer;">Predecir con ' + siguiente.apodo + '</button>'
-            + '<button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="_cerrarSlotSelector()">Despues</button>'
-            + '</div>';
-          document.body.appendChild(modal);
-        }, 1500);
-      }
-    }
+    toast('✅ ' + preds.length + ' predicciones del Mundial guardadas · ' + apodoLabel, 'success', 3000);
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
@@ -9414,7 +9332,7 @@ async function adminDashboard() {
       .filter(u => !u.isSpectator)
       .sort((a,b) => (a.playerNumber||0)-(b.playerNumber||0));
 
-    // Para el Mundial: buscar por tournamentId (jornadaDate es `2026-mundial-j${_mundialJornada}`, no fecha real)
+    // Para el Mundial: buscar por tournamentId (jornadaDate es '2026-mundial-j1', no fecha real)
     const _ps1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
     const _ps2 = await db.collection('predictions').where('jornadaDate','==',today).get();
     const _psSeen = new Set(); const _psDocs = [];
@@ -9644,10 +9562,11 @@ async function debugPizarra() {
 async function adminEditPredicciones() {
   toast('Cargando quinielas...', 'info', 2000);
   try {
-    var jornadaKey = '2026-mundial-j' + (_mundialJornada||1);
-    var s1 = await db.collection('predictions').where('jornadaDate','==',jornadaKey).get();
+    var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
+    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
+    var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
-    s1.docs.forEach(function(d){
+    s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
       if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); }
     });
     var map = {};
@@ -9673,7 +9592,7 @@ function _mostrarModalEditAdmin(apodos) {
   var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
     + '<div class="modal-handle"></div>'
     + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:4px;">Editar Predicciones</div>'
-    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;">Toca un apodo para corregir sus 24 predicciones de J'+(_mundialJornada||1)+'</div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:14px;">Toca un apodo para corregir sus 24 predicciones de J1</div>'
     + '<div>';
   apodos.forEach(function(ap){
     html += '<button onclick="_abrirEdicionApodo(\'' + ap + '\')" '
@@ -9692,10 +9611,10 @@ function _mostrarModalEditAdmin(apodos) {
 function _abrirEdicionApodo(ap) {
   var data = window._adminEditMap[ap];
   if (!data) return;
-  var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === (_mundialJornada||1); });
+  var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
   var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
     + '<div class="modal-handle"></div>'
-    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J'+(_mundialJornada||1)+'</div>';
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#ff6464;margin-bottom:10px;">' + ap + ' — 24 predicciones J1</div>';
   j1.forEach(function(m, ix){
     var pr = data.preds[String(m.id)] || {h:0,a:0};
     var hv = (pr.h!=null) ? pr.h : 0;
@@ -9720,7 +9639,7 @@ async function _guardarEdicionAdmin(ap) {
   if (!data) return;
   toast('Guardando...', 'info', 2000);
   try {
-    var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === 1; });
+    var j1 = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === (_mundialJornada||1); });
     var batch = db.batch();
     j1.forEach(function(m){
       var hEl = document.getElementById('_eh_' + m.id);
@@ -9732,7 +9651,7 @@ async function _guardarEdicionAdmin(ap) {
         userId: data.userId, username: ap, groupId: data.groupId,
         matchId: m.id, predictedHomeScore: h, predictedAwayScore: a,
         home: m.home, away: m.away,
-        tournamentId: 'mundial', jornadaDate: `2026-mundial-j${_mundialJornada}`,
+        tournamentId: 'mundial', jornadaDate: '2026-mundial-j' + (_mundialJornada||1),
         evaluated: false
       }, { merge: true });
     });
@@ -9757,7 +9676,7 @@ async function predPartidoAdmin() {
   toast('Cargando predicciones del partido ' + n + '...', 'info', 3000);
   try {
     var s1 = await db.collection('predictions').where('tournamentId','==','mundial').get();
-    var s2 = await db.collection('predictions').where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`).get();
+    var s2 = await db.collection('predictions').where('jornadaDate','==','2026-mundial-j1').get();
     var s3 = await db.collection('predictions').where('jornadaDate','==','2026-06-11').get();
     var seen = new Set(); var docs = [];
     s1.docs.concat(s2.docs).concat(s3.docs).forEach(function(d){
@@ -10036,7 +9955,7 @@ async function openPlayerStats(username, pts, exact, correct, live, userId) {
       .get();
     if (snaps.empty) {
       snaps = await db.collection('predictions')
-        .where('jornadaDate','==',`2026-mundial-j${_mundialJornada}`)
+        .where('jornadaDate','==','2026-mundial-j1')
         .where('username','==',username)
         .get();
     }
@@ -10383,7 +10302,7 @@ function initMatchesListener() {
 
         // Redibujar cajitas del Mundial si están visibles
         if (huboGol) {
-          try { var _sc2=document.getElementById('screenMatches'); if(!_sc2||!_sc2.querySelectorAll('input').length) renderMundialScreen(); } catch(e) {}
+          try { renderMundialScreen(); } catch(e) {}
         }
       });
     console.log('QuinielaLuAn: listener matches activo');
@@ -10484,35 +10403,12 @@ async function openTorneoStats() {
     snap.docs.forEach(function(d) {
       var u = d.data();
       var usr = u.username || '?';
-
-      // Metodo Larez — normalizar nombres para evitar duplicados
-      function _normNombre(n) {
-        if (!n) return '';
-        var r = n.trim().toLowerCase();
-        r = r.replace(/[áàäâã]/g,'a')
-             .replace(/[éèëê]/g,'e')
-             .replace(/[íìïî]/g,'i')
-             .replace(/[óòöôõ]/g,'o')
-             .replace(/[úùüû]/g,'u')
-             .replace(/[ñ]/g,'n');
-        return r.replace(/ +/g,' ');
-      }
-      function _canonico(mapa, nombre) {
-        var norm = _normNombre(nombre);
-        var existing = Object.keys(mapa).find(function(k) {
-          var kn = _normNombre(k);
-          return kn === norm || kn.indexOf(norm) !== -1 || norm.indexOf(kn) !== -1;
-        });
-        return existing || nombre;
-      }
-
-      if (u.campeon)    { var kc=_canonico(campeones,u.campeon);       if(!campeones[kc])       campeones[kc]=[];       campeones[kc].push(usr); }
-      if (u.subcampeon) { var ks=_canonico(subcampeones,u.subcampeon); if(!subcampeones[ks])    subcampeones[ks]=[];    subcampeones[ks].push(usr); }
-      if (u.tercero)    { var kt=_canonico(terceros,u.tercero);        if(!terceros[kt])        terceros[kt]=[];        terceros[kt].push(usr); }
+      if (u.campeon)    { if (!campeones[u.campeon])       campeones[u.campeon]       = []; campeones[u.campeon].push(usr); }
+      if (u.subcampeon) { if (!subcampeones[u.subcampeon]) subcampeones[u.subcampeon] = []; subcampeones[u.subcampeon].push(usr); }
+      if (u.tercero)    { if (!terceros[u.tercero])        terceros[u.tercero]        = []; terceros[u.tercero].push(usr); }
       if (u.goleador)   {
-        var kg=_canonico(goleadores,u.goleador);
-        if(!goleadores[kg]) goleadores[kg]=[];
-        goleadores[kg].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
+        if (!goleadores[u.goleador]) goleadores[u.goleador] = [];
+        goleadores[u.goleador].push({ username: usr, goles: u.golesGoleador != null ? u.golesGoleador : '?' });
       }
       if (u.golesGoleador != null) totalGoles.push({ username: usr, pred: +u.golesGoleador });
     });
@@ -10785,50 +10681,6 @@ async function _forzarPartido(idx) {
     if (_pizarraGid) setTimeout(function(){ _refrescarPizarraLocal(); },600);
   } catch(e) { toast('Error: '+e.message,'error'); }
 }
-function _cerrarSlotSelector() {
-  var m = document.getElementById('_slotSelectorModal'); if (m) m.remove();
-}
-function _mostrarSelectorSlots(callback) {
-  var slots = (me && me._misSlots) ? me._misSlots : [];
-  if (slots.length <= 1) { callback(null); return; }
-  var old = document.getElementById('_slotSelectorModal'); if (old) old.remove();
-  var modal = document.createElement('div');
-  modal.id = '_slotSelectorModal';
-  modal.className = 'modal-overlay';
-  modal.style.zIndex = '9000';
-  window._slotCallback = callback;
-  var btns = slots.map(function(s,i) {
-    return '<button onclick="_elegirSlot('+i+')" style="width:100%;padding:16px;margin-bottom:10px;border-radius:12px;border:2px solid var(--primary);background:rgba(108,71,255,0.1);color:var(--primary2);font-family:var(--font-h);font-size:1.1em;font-weight:900;cursor:pointer;">'+s.apodo+'</button>';
-  }).join('');
-  modal.innerHTML = '<div class="modal-box"><div class="modal-handle"></div>'
-    +'<div style="font-family:var(--font-h);font-size:1em;font-weight:900;color:var(--gold);text-align:center;margin-bottom:8px;">Con cual quiniela vas a predecir?</div>'
-    +'<div style="font-size:0.78em;color:var(--muted2);text-align:center;margin-bottom:16px;">Elige una — despues podras predecir la otra</div>'
-    +btns
-    +'<button class="btn btn-ghost" style="width:100%;margin-top:8px;" onclick="_cerrarSlotSelector()">Cancelar</button>'
-    +'</div>';
-  document.body.appendChild(modal);
-}
-function _elegirSlot(idx) {
-  var slots = (me && me._misSlots) ? me._misSlots : [];
-  var slot = slots[idx];
-  _cerrarSlotSelector();
-  // Pausar sync mientras predice
-  window._syncPausado = true;
-  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; }
-  if (window._predTimer) clearTimeout(window._predTimer);
-  window._predTimer = setTimeout(function() {
-    window._syncPausado = false;
-    window._slotYaElegido = false;
-    _flujoPredSlot = null;
-    toast('Tiempo agotado. Vuelve a predecir.', 'warning', 5000);
-    setTimeout(function(){ doSync(); },1000);
-    renderMundialScreen();
-  }, 300000);
-  toast('🔴 TIENES 5 MINUTOS PARA PREDECIR — NO SALGAS', 'error', 6000);
-  if (window._slotCallback && slot) window._slotCallback(slot);
-}
-
-
 function _setAdminJornada(j) {
   _mundialJornada = j;
   for (var i=1;i<=3;i++) {
@@ -10997,3 +10849,4 @@ function _setAdminJornada(j) {
 
 </body>
    </html>
+  
