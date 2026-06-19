@@ -5849,6 +5849,10 @@ function renderAdmin() {
         style="background:rgba(255,100,100,0.12);color:#ff6464;margin-top:4px;">
         ✏️ Editar Predicciones (Admin)
       </button>
+      <button class="admin-btn full" onclick="adminPredecirPorJugador()"
+        style="background:rgba(0,180,255,0.12);color:#00b4ff;margin-top:4px;">
+        Predecir por un Jugador
+      </button>
       <button class="admin-btn full" onclick="generarPrediccionesPartidoActivo()"
         style="background:rgba(108,71,255,0.12);color:var(--primary2);margin-top:4px;">
         📣 Predicciones partido activo → G2
@@ -10689,6 +10693,87 @@ function _setAdminJornada(j) {
     else{btn.style.background="var(--surface)";btn.style.border="1px solid var(--border)";btn.style.color="var(--text)";}
   }
   toast("Jornada "+j+" seleccionada","info",2000);
+}
+
+function adminPredecirPorJugador() {
+  var apodo = prompt('Apodo exacto del jugador:');
+  if (!apodo) return;
+  apodo = apodo.trim().toUpperCase();
+  var jNum = _mundialJornada || 1;
+  var jornadaFix = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === jNum; });
+  window._adminEditMap = window._adminEditMap || {};
+  window._adminEditMap[apodo] = { userId: null, groupId: 'mundial2026', preds: {} };
+  jornadaFix.forEach(function(m){
+    window._adminEditMap[apodo].preds[String(m.id)] = { h: 0, a: 0 };
+  });
+  _abrirEdicionApodoNuevo(apodo);
+}
+
+function _abrirEdicionApodoNuevo(ap) {
+  var jNum = _mundialJornada || 1;
+  var jornadaFix = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === jNum; });
+  var data = window._adminEditMap[ap];
+  var rowsHtml = '';
+  jornadaFix.forEach(function(m){
+    var pr = data.preds[String(m.id)] || {h:0,a:0};
+    rowsHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.8em;">'
+      + '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + m.home + ' vs ' + m.away + '</div>'
+      + '<input type="number" min="0" max="20" id="_eh_' + m.id + '" value="' + pr.h + '" style="width:42px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px;">'
+      + '<span>-</span>'
+      + '<input type="number" min="0" max="20" id="_ea_' + m.id + '" value="' + pr.a + '" style="width:42px;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px;">'
+      + '</div>';
+  });
+  var html = '<div class="modal-box" style="max-height:90vh;overflow-y:auto;">'
+    + '<div class="modal-handle"></div>'
+    + '<div style="font-family:var(--font-h);font-size:1.1em;font-weight:800;color:#00b4ff;margin-bottom:4px;">' + ap + ' - Nueva quiniela J' + jNum + '</div>'
+    + '<div style="font-size:0.75em;color:var(--muted2);margin-bottom:10px;">Jugador sin predicciones previas</div>'
+    + rowsHtml
+    + '<div style="display:flex;gap:8px;margin-top:14px;">'
+    + '<button class="btn btn-ghost" style="flex:1;" onclick="_cerrarEditAdminModal()">Cancelar</button>'
+    + '<button onclick="_guardarEdicionAdminNuevo()" style="flex:1;padding:11px;border-radius:8px;border:none;background:var(--green);color:#000;font-family:var(--font-b);font-weight:800;cursor:pointer;">Guardar</button>'
+    + '</div></div>';
+  var old = document.getElementById('_editAdminModal');
+  if (old) old.remove();
+  var modal = document.createElement('div');
+  modal.id = '_editAdminModal';
+  modal.className = 'modal-overlay';
+  modal.style.zIndex = '6000';
+  modal.innerHTML = html;
+  window._editandoApodoNuevo = ap;
+  document.body.appendChild(modal);
+}
+
+function _cerrarEditAdminModal() {
+  var m = document.getElementById('_editAdminModal');
+  if (m) m.remove();
+}
+
+async function _guardarEdicionAdminNuevo() {
+  var ap = window._editandoApodoNuevo;
+  if (!ap) return;
+  var jNum = _mundialJornada || 1;
+  var jornadaFix = FIXTURE_MUNDIAL.filter(function(m){ return m.jornada === jNum; });
+  toast('Guardando...', 'info', 2000);
+  try {
+    var batch = db.batch();
+    jornadaFix.forEach(function(m){
+      var hEl = document.getElementById('_eh_' + m.id);
+      var aEl = document.getElementById('_ea_' + m.id);
+      var h = parseInt(hEl.value, 10); if (isNaN(h)) h = 0;
+      var a = parseInt(aEl.value, 10); if (isNaN(a)) a = 0;
+      var docId = ap + '_admin' + jNum + '_' + m.id;
+      batch.set(db.collection('predictions').doc(docId), {
+        userId: docId, username: ap, groupId: 'mundial2026',
+        matchId: m.id, predictedHomeScore: h, predictedAwayScore: a,
+        home: m.home, away: m.away,
+        tournamentId: 'mundial', jornadaDate: '2026-mundial-j' + jNum,
+        evaluated: false, ingresadoPorAdmin: true
+      }, { merge: true });
+    });
+    await batch.commit();
+    toast('Predicciones de ' + ap + ' guardadas', 'success', 3000);
+    _cerrarEditAdminModal();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 </script>
 
