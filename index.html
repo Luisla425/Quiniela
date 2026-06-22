@@ -443,90 +443,6 @@ body::before {
 .pts-pending { background:rgba(245,197,66,0.15); color:var(--gold); }
 
 /* ═══════════════════════════════════════════
-   CHAT
-═══════════════════════════════════════════ */
-#screenChat {
-  padding:0 !important;
-  padding-bottom:0 !important;
-  flex-direction:column;
-  height:calc(100svh - 120px);
-  position:relative;
-  background:var(--bg);
-  display:flex;
-}
-.chat-header {
-  padding:16px; border-bottom:1px solid var(--border);
-  display:flex; align-items:center; gap:12px;
-  background:rgba(13,13,20,0.9); backdrop-filter:blur(16px);
-  position:sticky; top:0; z-index:10;
-}
-.chat-header-info h3 { font-family:var(--font-h); font-size:1.1em; }
-.chat-header-info p { font-size:0.72em; color:var(--muted2); }
-.chat-online { width:8px; height:8px; border-radius:50%; background:var(--green); animation:pulse 2s infinite; }
-.chat-messages {
-  flex:1;
-  overflow-y:auto;
-  padding:12px 16px 80px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  -webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;
-}
-.chat-msg { max-width:80%; display:flex; flex-direction:column; gap:3px; }
-.chat-msg.mine { align-self:flex-end; align-items:flex-end; }
-.chat-msg.theirs { align-self:flex-start; align-items:flex-start; }
-.chat-bubble {
-  padding:10px 14px; border-radius:18px;
-  font-size:0.88em; font-weight:500; line-height:1.5;
-  position:relative; word-break:break-word;
-}
-.chat-msg.mine .chat-bubble {
-  background:linear-gradient(135deg,var(--primary),var(--primary2));
-  color:#fff; border-bottom-right-radius:4px;
-}
-.chat-msg.theirs .chat-bubble {
-  background:var(--surface2); color:var(--text);
-  border:1px solid var(--border2); border-bottom-left-radius:4px;
-}
-.chat-name { font-size:0.68em; font-weight:700; margin-bottom:2px; padding-left:4px; }
-.chat-time { font-size:0.65em; color:var(--muted); padding:0 4px; }
-.chat-input-bar {
-  position:sticky;
-  bottom:60px;
-  width:100%;
-  padding:10px 16px;
-  background:rgba(13,13,20,0.97);
-  backdrop-filter:blur(20px);
-  border-top:1px solid var(--border);
-  display:flex;
-  gap:8px;
-  align-items:flex-end;
-  z-index:10;
-  flex-shrink:0;
-}
-.chat-input {
-  flex:1; padding:11px 16px; background:var(--surface2);
-  border:1px solid var(--border2); border-radius:22px;
-  color:var(--text); font-family:var(--font-b); font-size:0.9em;
-  resize:none; max-height:100px; font-weight:500;
-}
-.chat-input:focus { outline:none; border-color:var(--primary); }
-.chat-send {
-  width:42px; height:42px; border-radius:50%;
-  background:linear-gradient(135deg,var(--primary),var(--primary2));
-  border:none; color:#fff; font-size:1.1em; cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  flex-shrink:0; transition:transform 0.2s, box-shadow 0.2s;
-}
-.chat-send:hover { transform:scale(1.08); box-shadow:0 4px 16px rgba(108,71,255,0.5); }
-.chat-system {
-  text-align:center; font-size:0.72em; color:var(--muted);
-  padding:4px 12px; background:var(--surface2); border-radius:20px;
-  align-self:center; font-weight:600;
-}
-
-/* ═══════════════════════════════════════════
    TOURNAMENTS
 ═══════════════════════════════════════════ */
 .tourn-item {
@@ -1037,7 +953,7 @@ body::before {
   <!-- SCREENS -->
   <div id="screenMatches" class="screen"></div>
   <div id="screenPreds" class="screen hidden"></div>
-  <div id="screenChat" class="screen hidden" style="padding:0;padding-bottom:0;"></div>
+
   <div id="screenTournaments" class="screen hidden"></div>
   <div id="screenGroups" class="screen hidden"></div>
   <div id="screenSimulator" class="screen hidden"></div>
@@ -1049,9 +965,6 @@ body::before {
     <!-- Nav del Mundial — solo lo necesario -->
     <button class="nav-item active" id="nav-matches" onclick="showScreen('matches')">
       <span class="nav-icon">🌍🏆</span><span class="nav-label">Mundial</span>
-    </button>
-    <button class="nav-item" id="nav-chat" onclick="showScreen('chat')">
-      <span class="nav-icon">💬</span><span class="nav-label">Chat</span>
     </button>
     <button class="nav-item" id="nav-groups" onclick="showScreen('groups')">
       <span class="nav-icon">👥</span><span class="nav-label">Grupos</span>
@@ -1954,7 +1867,6 @@ let _aM = _wM;  // alias — solo existe el Mundial
 let _dM = [];   // europeos — siempre vacío en modo Mundial
 let userEnteringPreds = false;
 let syncTimer = null;
-let chatUnsub = null;
 let currentCountryTarget = null;
 let simPlayers = [];
 let simMatches = [];
@@ -2605,7 +2517,6 @@ async function doReset() {
 async function doLogout() {
   stopMatchesListener();
   clearTimeout(syncTimer);
-  if (chatUnsub) chatUnsub();
   await auth.signOut();
 }
 
@@ -2895,14 +2806,11 @@ function showScreen(name) {
   if (target) target.classList.remove('hidden');
   $(`nav-${name}`)?.classList.add('active');
 
-  // Unsubscribe chat listener when leaving chat
-  if (name !== 'chat' && chatUnsub) { chatUnsub(); chatUnsub = null; }
 
   // En modo Mundial: redirigir pantallas europeas
 
   if (name==='matches')      renderMatches();
   if (name==='preds')        renderPreds();
-  if (name==='chat')         initChat();
   if (name==='tournaments')  renderTournaments();
   if (name==='groups')       renderGroups();
   if (name==='admin')        renderAdmin();
@@ -4988,102 +4896,9 @@ async function searchPreds() {
 // ═══════════════════════════════════════════
 // CHAT
 // ═══════════════════════════════════════════
-function initChat() {
-  const screen = $('screenChat');
-  screen.innerHTML = `
-    <div class="chat-header" style="flex-shrink:0;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div class="chat-online"></div>
-        <div class="chat-header-info">
-          <h3>${t('chatTitle')}</h3>
-          <p>${t('chatHello')} ${me?.username||''} · ${t('chatSubtitle')}</p>
-        </div>
-      </div>
-    </div>
-    <div class="chat-messages" id="chatMessages">
-      <div class="chat-system">${t('chatWelcome')}</div>
-    </div>
-    <div class="chat-input-bar" id="chatBar">
-      <input type="text" class="chat-input" id="chatInput"
-        placeholder="${t('writeMsg')}"
-        autocomplete="off" autocorrect="off"
-        onkeydown="if(event.key==='Enter'){event.preventDefault();sendChat();}"
-      />
-      <button class="chat-send"
-        ontouchend="event.preventDefault();sendChat();"
-        onclick="sendChat();">➤</button>
-    </div>`;
 
 
-  // Use onSnapshot but limit to last 40 messages to reduce reads
-  if (chatUnsub) chatUnsub();
-  chatUnsub = db.collection('chat').orderBy('ts').limitToLast(CHAT_PAGE_SIZE)
-    .onSnapshot({includeMetadataChanges: false}, snap=>{
-      const el=$('chatMessages');
-      if(!el) return;
-      // Only re-render on actual data changes (not metadata)
-      if (snap.metadata.fromCache && !snap.docChanges().length) return;
-      el.innerHTML='';
-      snap.docs.forEach(d=>{
-        const c=d.data();
-        const mine=c.uid===me.uid;
-        const canDelete=mine||me.isAdmin;
-        const time=c.ts?.toDate?.()||new Date();
-        const hm=time.toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
-        if(c.type==='system'){
-          el.innerHTML+=`<div class="chat-system">${c.text}</div>`;
-        } else if(c.deleted){
-          el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}" style="opacity:0.55;">
-            <span class="chat-name" style="color:var(--muted);">${escapeHtml(c.username||'')}</span>
-            <div class="chat-bubble" style="font-style:italic;color:var(--muted2);background:var(--surface2);border:1px solid var(--border);">🚫 Mensaje eliminado</div>
-            <span class="chat-time">${hm}</span>
-          </div>`;
-        } else {
-          const displayName=c.name||c.username||'Anon';
-          const uColor=userColor(c.username||'x');
-          const delBtn=canDelete
-            ? `<button onclick="deleteChat('${d.id}')" style="background:none;border:none;color:var(--muted);font-size:0.8em;cursor:pointer;padding:0 3px;vertical-align:middle;" title="Eliminar">🗑️</button>`
-            : '';
-          el.innerHTML+=`<div class="chat-msg ${mine?'mine':'theirs'}">
-            <span class="chat-name" style="color:${uColor};">${escapeHtml(displayName)}${mine?' <span style="font-size:0.75em;opacity:0.6;">(tú)</span>':''}${delBtn}</span>
-            <div class="chat-bubble" style="border-color:${uColor}33;">${escapeHtml(c.text)}</div>
-            <span class="chat-time">${hm}</span>
-          </div>`;
-        }
-      });
-      el.scrollTop=el.scrollHeight;
-    });
-}
-
-async function sendChat() {
-  const input = $('chatInput');
-  if (!input) { toast('Error: input no encontrado','error'); return; }
-  const text = input.value.trim();
-  if (!text) return;
-  if (!me?.uid) { toast('Debes estar autenticado','error'); return; }
-  
-  // Clear immediately for fast UX
-  input.value = '';
-  input.focus();
-  
-  try {
-    await db.collection('chat').add({
-      uid: me.uid,
-      username: me.username,
-      name: me.name || me.username,
-      text: text,
-      ts: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch(e) {
-    // Restore text if failed
-    input.value = text;
-    const msg = e.code === 'permission-denied'
-      ? '❌ Sin permiso para escribir. Verifica las reglas de Firestore.'
-      : '❌ Error: ' + e.message;
-    toast(msg, 'error');
-    console.error('Chat error:', e.code, e.message);
-  }
-}
+async 
 
 // ═══════════════════════════════════════════
 // TOURNAMENTS
@@ -9509,18 +9324,6 @@ async function loadEmergencyAccess() {
   } catch(e) {}
 }
 
-async function deleteChat(docId) {
-  if (!confirm('¿Eliminar este mensaje?')) return;
-  try {
-    await db.collection('chat').doc(docId).update({
-      deleted: true,
-      text: null,
-      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      deletedBy: me.uid
-    });
-  } catch(e) { toast('Error: '+e.message,'error'); }
-}
-
 async function convertToPlayer() {
   if (!confirm('⚽ ¿Quieres unirte como JUGADOR de la Quiniela LuAn?\n\nSe te asignará un número de jugador y podrás predecir partidos.')) return;
   try {
@@ -10932,4 +10735,4 @@ async function _guardarEdicionAdminNuevo() {
 </div>
 
 </body>
-</html>
+   </html>
