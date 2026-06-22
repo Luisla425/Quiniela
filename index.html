@@ -2966,15 +2966,24 @@ function parseEvent(ev, t) {
 function setDayMatches() {}
 
 function _isHardLocked() {
-  // Bloqueo total 5 min después del pitazo — NI EL ADMIN puede cambiar
-  // Usar _wM (Mundial) + FIXTURE como fallback
-  const allM = _wM.length ? _wM : FIXTURE_MUNDIAL;
-  const firstStarted = allM.find(m => isLive(m.status) || isFinished(m.status));
-  if (!firstStarted || !firstStarted.time) return false;
+  // Bloqueo total 5 min después del pitazo — solo partidos de la jornada actual
+  const jornadaMatches = FIXTURE_MUNDIAL.filter(f => f.jornada === _mundialJornada);
+  const today = vzDate();
+  const todayMatches = jornadaMatches.filter(f => f.date === today);
+  if (!todayMatches.length) return false;
+  const firstStarted = todayMatches.find(f => {
+    const lv = _wM.find(m => larezTeamMatch(f.home,m.home) && larezTeamMatch(f.away,m.away));
+    return lv && (isLive(lv.status) || isFinished(lv.status));
+  });
+  if (!firstStarted || !firstStarted.timeVZ) return false;
   try {
     const vzN = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Caracas'}));
-    const [hh, mm] = firstStarted.time.split(':').map(Number);
-    const kick = new Date(vzN); kick.setHours(hh, mm, 0, 0);
+    const t = firstStarted.timeVZ.match(/(\d+):(\d+)\s*(am|pm)/i);
+    if (!t) return false;
+    let h = +t[1], mn = +t[2];
+    if (t[3].toLowerCase()==='pm' && h!==12) h+=12;
+    if (t[3].toLowerCase()==='am' && h===12) h=0;
+    const kick = new Date(vzN); kick.setHours(h, mn, 0, 0);
     return (vzN - kick) / 60000 >= 5;
   } catch(e) { return false; }
 }
